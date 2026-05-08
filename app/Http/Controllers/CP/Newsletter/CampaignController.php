@@ -214,7 +214,7 @@ class CampaignController extends Controller
     public function destroy(Campaign $campaign)
     {
         abort_if(
-            in_array($campaign->status, ['sending', 'sent']),
+            in_array($campaign->status, ['sending', 'sent', 'partial']),
             403,
             'Cannot delete a campaign that has been sent or is currently sending.'
         );
@@ -445,6 +445,7 @@ class CampaignController extends Controller
             'scheduled' => 'Scheduled',
             'sending'  => 'Sending',
             'sent'     => 'Sent',
+            'partial'  => 'Partial',
             'failed'   => 'Failed',
         ];
     }

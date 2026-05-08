@@ -25,6 +25,7 @@
                 'scheduled' => 'bg-yellow-lighter text-yellow-dark',
                 'sending'   => 'bg-blue-lighter text-blue-dark',
                 'sent'      => 'bg-green-lighter text-green-dark',
+                'partial'   => 'bg-orange-lighter text-orange-dark',
                 'failed'    => 'bg-red-lighter text-red-dark',
                 default     => 'bg-grey-30 text-grey-80',
             };

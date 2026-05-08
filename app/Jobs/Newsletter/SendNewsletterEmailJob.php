@@ -3,44 +3,33 @@
 namespace App\Jobs\Newsletter;
 
 use App\Mail\NewsletterMailable;
-use App\Models\Campaign;
 use App\Models\CampaignSend;
-use App\Models\Subscriber;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\SentMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Sends a single newsletter email to one subscriber.
  *
- * Rate-limited to 15 concurrent sends at a time (Elastic Email fair-use limit).
+ * Send-rate is throttled through a shared cache lock so queued jobs wait
+ * in-process instead of repeatedly releasing back to the queue.
  * Runs on the `emails` queue.
  */
 class SendNewsletterEmailJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries   = 3;
+    public int $tries   = 5;
     public int $timeout = 60;
+    public int $maxExceptions = 3;
 
     public function __construct(public readonly int $campaignSendId) {}
-
-    /* ------------------------------------------------------------------ */
-
-    public function middleware(): array
-    {
-        return [
-            new RateLimited('newsletter-emails'),
-        ];
-    }
 
     /* ------------------------------------------------------------------ */
 
@@ -49,7 +38,14 @@ class SendNewsletterEmailJob implements ShouldQueue
         $send = CampaignSend::with(['campaign', 'subscriber'])->find($this->campaignSendId);
 
         if (! $send) {
-            Log::warning("SendNewsletterEmailJob: CampaignSend {$this->campaignSendId} not found");
+            Log::error("SendNewsletterEmailJob: CampaignSend {$this->campaignSendId} not found", [
+                'attempt' => $this->attempts(),
+            ]);
+
+            if ($this->job !== null) {
+                $this->fail(new \RuntimeException("CampaignSend {$this->campaignSendId} not found"));
+            }
+
             return;
         }
 
@@ -67,6 +63,8 @@ class SendNewsletterEmailJob implements ShouldQueue
         }
 
         try {
+            $this->throttleSendRate();
+
             $mailable = new NewsletterMailable($campaign, $subscriber, (string) $send->id);
 
             $sentMessage = Mail::to($subscriber->email, $subscriber->full_name)
@@ -135,6 +133,34 @@ class SendNewsletterEmailJob implements ShouldQueue
         }
 
         return null;
+    }
+
+    private function throttleSendRate(): void
+    {
+        $rate = max(1, (int) config('newsletter.send_rate', 50));
+        $secondsPerSend = 60 / $rate;
+
+        try {
+            Cache::lock('newsletter-email-send-throttle', 30)->block(30, function () use ($secondsPerSend) {
+                $cacheKey = 'newsletter-email-send-last-at';
+                $lastSentAt = Cache::get($cacheKey);
+
+                if (is_numeric($lastSentAt)) {
+                    $waitSeconds = $secondsPerSend - (microtime(true) - (float) $lastSentAt);
+
+                    if ($waitSeconds > 0) {
+                        usleep((int) ceil($waitSeconds * 1_000_000));
+                    }
+                }
+
+                Cache::put($cacheKey, microtime(true), now()->addMinutes(10));
+            });
+        } catch (\Throwable $e) {
+            Log::warning('SendNewsletterEmailJob: shared send-rate throttle unavailable', [
+                'campaign_send_id' => $this->campaignSendId,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
 }

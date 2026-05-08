@@ -82,12 +82,13 @@
         <div class="flex items-center gap-3 text-xs shrink-0">
             <span class="badge {{ match($campaign->status) {
                 'sent'      => 'bg-green-lighter text-green-dark',
+                'partial'   => 'bg-orange-lighter text-orange-dark',
                 'sending'   => 'bg-blue-lighter text-blue-dark',
                 'scheduled' => 'bg-yellow-lighter text-yellow-dark',
                 default     => 'bg-grey-30 text-grey-80',
             } }}">{{ $campaign->status }}</span>
 
-            @if($campaign->status === 'sent')
+            @if(in_array($campaign->status, ['sent', 'partial']))
             <span class="text-grey-60">
                 {{ number_format($campaign->sends_count) }} sent
                 &middot;

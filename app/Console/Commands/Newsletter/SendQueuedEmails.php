@@ -5,48 +5,45 @@ namespace App\Console\Commands\Newsletter;
 use App\Jobs\Newsletter\SendNewsletterEmailJob;
 use App\Models\Campaign;
 use App\Models\CampaignSend;
+use App\Services\Newsletter\CampaignFinalizer;
 use Illuminate\Console\Command;
 
 /**
  * Processes queued campaign sends directly (bypasses Redis queue).
- * Rate limited to 300/min to stay within Elastic Email SMTP limits.
+ * Uses the shared send-rate throttle configured for the normal email queue.
  */
 class SendQueuedEmails extends Command
 {
-    protected $signature   = 'campaigns:send-queued {--campaign= : Limit to specific campaign ID}';
-    protected $description = 'Send all queued campaign emails directly at 300/min';
+    protected $signature   = 'campaigns:send-queued
+        {--campaign= : Limit to specific campaign ID}
+        {--retry-failed : Requeue retryable failed sends before processing}';
+    protected $description = 'Send queued campaign emails directly, with optional retry of transient failures';
 
-    public function handle(): void
+    public function handle(CampaignFinalizer $finalizer): void
     {
-        $query = CampaignSend::where('status', 'queued');
+        $campaignId = $this->option('campaign');
 
-        if ($this->option('campaign')) {
-            $query->where('campaign_id', $this->option('campaign'));
+        if ($this->option('retry-failed')) {
+            $requeued = $this->requeueRetryableFailures($campaignId);
+            $this->info("Re-queued {$requeued} retryable failed sends.");
         }
 
-        $total    = $query->count();
-        $this->info("Processing {$total} queued sends at 300/min...");
+        $query = CampaignSend::where('status', 'queued');
 
-        $sent     = 0;
-        $failed   = 0;
-        $batchStart = microtime(true);
+        if ($campaignId) {
+            $query->where('campaign_id', $campaignId);
+        }
+
+        $total = $query->count();
+        $rate = max(1, (int) config('newsletter.send_rate', 50));
+        $this->info("Processing {$total} queued sends at {$rate}/min...");
+
+        $sent = 0;
+        $failed = 0;
         $batchCount = 0;
 
-        $query->chunkById(50, function ($sends) use (&$sent, &$failed, &$batchStart, &$batchCount) {
+        $query->chunkById(50, function ($sends) use (&$sent, &$failed, &$batchCount) {
             foreach ($sends as $send) {
-
-                // Rate limit: 300/min = 5/sec
-                // After every 300 sends, pause until 60s have elapsed
-                if ($batchCount > 0 && $batchCount % 300 === 0) {
-                    $elapsed = microtime(true) - $batchStart;
-                    if ($elapsed < 60) {
-                        $sleep = (int) ceil(60 - $elapsed);
-                        $this->line("Rate limit pause: {$sleep}s...");
-                        sleep($sleep);
-                    }
-                    $batchStart = microtime(true);
-                }
-
                 try {
                     $job = new SendNewsletterEmailJob($send->id);
                     $job->handle();
@@ -66,23 +63,44 @@ class SendQueuedEmails extends Command
 
         $this->info("Done. Sent: {$sent} | Failed: {$failed}");
 
-        // Mark any campaign whose sends are all fully processed as 'sent'
-        $this->finalizeCampaigns();
+        // Reconcile any sending campaign that has no queued sends left.
+        $this->finalizeCampaigns($finalizer);
     }
 
-    private function finalizeCampaigns(): void
+    private function finalizeCampaigns(CampaignFinalizer $finalizer): void
     {
         $sending = Campaign::where('status', 'sending')->get();
 
         foreach ($sending as $campaign) {
-            $queued = CampaignSend::where('campaign_id', $campaign->id)
-                ->where('status', 'queued')
-                ->exists();
+            $status = $finalizer->finalize($campaign);
 
-            if (! $queued) {
-                $campaign->update(['status' => 'sent']);
-                $this->line("Campaign #{$campaign->id} marked as sent.");
+            if ($status !== null) {
+                $this->line("Campaign #{$campaign->id} marked as {$status}.");
             }
         }
+    }
+
+    private function requeueRetryableFailures(?string $campaignId): int
+    {
+        $query = CampaignSend::query()
+            ->where('status', 'failed')
+            ->where(function ($inner) {
+                $inner->where('bounce_reason', 'like', '%attempted too many times%')
+                    ->orWhere('bounce_reason', 'like', '%Daily limit exceeded%')
+                    ->orWhere('bounce_reason', 'like', '%limit exceeded%')
+                    ->orWhere('bounce_reason', 'like', '%421%')
+                    ->orWhere('bounce_reason', 'like', '%Too many requests%');
+            });
+
+        if ($campaignId) {
+            $query->where('campaign_id', $campaignId);
+        }
+
+        return $query->update([
+            'status' => 'queued',
+            'failed_at' => null,
+            'bounce_reason' => null,
+            'updated_at' => now(),
+        ]);
     }
 }

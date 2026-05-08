@@ -47,7 +47,9 @@ class WebhookController extends Controller
         $payload = $this->parsePayload($request);
 
         if (empty($payload)) {
-            return response('OK', 200);
+            return $request->isMethod('get')
+                ? response('OK', 200)
+                : response('Invalid payload', 400);
         }
 
         $eventType     = $this->extractField($payload, ['eventtype', 'EventType', 'event_type', 'status', 'Status']);

@@ -77,8 +77,7 @@ class SyncCampaignStats extends Command
             ->whereIn('status', ['sent', 'pending', 'delivered', 'opened'])
             ->whereNotNull('elastic_email_transaction_id')
             ->where('sent_at', '>=', $cutoff)
-            ->orderBy('sent_at', 'asc')
-            ->with(['campaign', 'subscriber']);
+            ->orderBy('sent_at', 'asc');
 
         if ($limit > 0) {
             $query->limit($limit);
@@ -88,17 +87,22 @@ class SyncCampaignStats extends Command
             $query->where('campaign_id', $campaignId);
         }
 
-        $sends = $query->get();
+        // Count first without loading models — lightweight check
+        $total = $query->count();
 
-        if ($sends->isEmpty()) {
+        if ($total === 0) {
             $this->line('No unresolved sends found.');
             return;
         }
 
-        $this->info("Found {$sends->count()} sends to check.");
+        $this->info("Found {$total} sends to check.");
         $synced = 0;
 
-        foreach ($sends as $send) {
+        // cursor() streams one model at a time — memory stays flat regardless of
+        // how many sends are found. Each model is garbage-collected after processing.
+        // Subscriber/campaign are lazy-loaded per record (avoids N×500 eager-load spike).
+        foreach ($query->cursor() as $send) {
+            $send->loadMissing(['campaign', 'subscriber']);
             try {
                 $result = $api->emailsByTransactionidStatusGet(
                     $send->elastic_email_transaction_id,
@@ -166,7 +170,7 @@ class SyncCampaignStats extends Command
             }
         }
 
-        $this->info("Queued {$synced} / {$sends->count()} sync webhook jobs.");
+        $this->info("Queued {$synced} / {$total} sync webhook jobs.");
     }
 
     /* ------------------------------------------------------------------ */

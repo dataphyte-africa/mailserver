@@ -24,7 +24,7 @@ class AnalyticsController extends Controller
         // Aggregate stats per campaign (last N days)
         $campaigns = Campaign::query()
             ->when($collection, fn ($q) => $q->where('collection', $collection))
-            ->whereIn('status', ['sent', 'sending'])
+            ->whereIn('status', ['sent', 'sending', 'partial'])
             ->where('sent_at', '>=', now()->subDays($days))
             ->withCount([
                 'sends',
