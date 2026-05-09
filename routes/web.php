@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Route;
 | Landing page
 |--------------------------------------------------------------------------
 */
+Route::redirect('/login', '/');
+Route::redirect('/cp/auth/login', '/');
+
 Route::get('/', function () {
     // If already authenticated in Statamic CP, send straight to CP
     if (app(\Statamic\Contracts\Auth\UserRepository::class)->current()) {

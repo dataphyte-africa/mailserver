@@ -52,6 +52,27 @@ class ProcessWebhookJobTest extends TestCase
         $this->assertNotNull($send->fresh()->delivered_at);
     }
 
+    public function test_delivery_event_without_date_marks_status_without_fabricating_timestamp(): void
+    {
+        $send = $this->makeSend('tx-del-001b');
+
+        $log = WebhookLog::factory()->create([
+            'event_type'     => 'Delivery',
+            'transaction_id' => 'tx-del-001b',
+            'to_email'       => $send->subscriber->email,
+            'payload'        => [
+                'EventType'     => 'Delivery',
+                'TransactionID' => 'tx-del-001b',
+                'To'            => $send->subscriber->email,
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $this->assertEquals('delivered', $send->fresh()->status);
+        $this->assertNull($send->fresh()->delivered_at);
+    }
+
     public function test_delivery_does_not_downgrade_opened_status(): void
     {
         $send = $this->makeSend('tx-del-002');
@@ -77,6 +98,53 @@ class ProcessWebhookJobTest extends TestCase
 
         $this->assertEquals('opened', $send->fresh()->status);
         $this->assertNotNull($send->fresh()->opened_at);
+    }
+
+    public function test_open_event_uses_provider_event_date_exactly(): void
+    {
+        $send = $this->makeSend('tx-open-001b');
+        $eventDate = now()->subHours(6)->startOfMinute();
+
+        $log = WebhookLog::factory()->create([
+            'event_type'     => 'Open',
+            'transaction_id' => 'tx-open-001b',
+            'to_email'       => $send->subscriber->email,
+            'payload'        => [
+                'EventType'     => 'Open',
+                'TransactionID' => 'tx-open-001b',
+                'To'            => $send->subscriber->email,
+                'Date'          => $eventDate->toIso8601String(),
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $this->assertEquals($eventDate->toIso8601String(), $send->fresh()->opened_at?->toIso8601String());
+    }
+
+    public function test_sync_sourced_open_marks_synced_at_even_without_provider_date(): void
+    {
+        $send = $this->makeSend('tx-open-001c');
+
+        $log = WebhookLog::factory()->create([
+            'event_type'     => 'Open',
+            'transaction_id' => 'tx-open-001c',
+            'to_email'       => $send->subscriber->email,
+            'payload'        => [
+                'EventType'     => 'Open',
+                'TransactionID' => 'tx-open-001c',
+                'To'            => $send->subscriber->email,
+                '_source'       => 'sync-command',
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $fresh = $send->fresh();
+
+        $this->assertEquals('opened', $fresh->status);
+        $this->assertNull($fresh->opened_at);
+        $this->assertNotNull($fresh->synced_at);
     }
 
     public function test_open_event_also_sets_delivered_at_if_missing(): void

@@ -6,6 +6,7 @@ use App\Jobs\Newsletter\SendNewsletterEmailJob;
 use App\Models\Campaign;
 use App\Models\CampaignSend;
 use App\Services\Newsletter\CampaignFinalizer;
+use App\Services\Newsletter\CampaignSendRetryService;
 use Illuminate\Console\Command;
 
 /**
@@ -19,12 +20,12 @@ class SendQueuedEmails extends Command
         {--retry-failed : Requeue retryable failed sends before processing}';
     protected $description = 'Send queued campaign emails directly, with optional retry of transient failures';
 
-    public function handle(CampaignFinalizer $finalizer): void
+    public function handle(CampaignFinalizer $finalizer, CampaignSendRetryService $retryService): void
     {
         $campaignId = $this->option('campaign');
 
         if ($this->option('retry-failed')) {
-            $requeued = $this->requeueRetryableFailures($campaignId);
+            $requeued = $retryService->requeueRetryableFailures($campaignId);
             $this->info("Re-queued {$requeued} retryable failed sends.");
         }
 
@@ -78,29 +79,5 @@ class SendQueuedEmails extends Command
                 $this->line("Campaign #{$campaign->id} marked as {$status}.");
             }
         }
-    }
-
-    private function requeueRetryableFailures(?string $campaignId): int
-    {
-        $query = CampaignSend::query()
-            ->where('status', 'failed')
-            ->where(function ($inner) {
-                $inner->where('bounce_reason', 'like', '%attempted too many times%')
-                    ->orWhere('bounce_reason', 'like', '%Daily limit exceeded%')
-                    ->orWhere('bounce_reason', 'like', '%limit exceeded%')
-                    ->orWhere('bounce_reason', 'like', '%421%')
-                    ->orWhere('bounce_reason', 'like', '%Too many requests%');
-            });
-
-        if ($campaignId) {
-            $query->where('campaign_id', $campaignId);
-        }
-
-        return $query->update([
-            'status' => 'queued',
-            'failed_at' => null,
-            'bounce_reason' => null,
-            'updated_at' => now(),
-        ]);
     }
 }

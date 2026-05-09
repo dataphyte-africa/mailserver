@@ -14,7 +14,7 @@ class CampaignSend extends Model
         'campaign_id', 'subscriber_id', 'status',
         'elastic_email_transaction_id',
         'sent_at', 'delivered_at', 'opened_at', 'clicked_at',
-        'bounced_at', 'failed_at', 'bounce_reason',
+        'bounced_at', 'failed_at', 'synced_at', 'bounce_reason',
     ];
 
     protected $casts = [
@@ -24,6 +24,7 @@ class CampaignSend extends Model
         'clicked_at'   => 'datetime',
         'bounced_at'   => 'datetime',
         'failed_at'    => 'datetime',
+        'synced_at'    => 'datetime',
     ];
 
     public function campaign(): BelongsTo

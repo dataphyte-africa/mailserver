@@ -25,6 +25,7 @@ class CampaignSendFactory extends Factory
             'clicked_at'                      => null,
             'bounced_at'                      => null,
             'failed_at'                       => null,
+            'synced_at'                       => null,
             'bounce_reason'                   => null,
         ];
     }

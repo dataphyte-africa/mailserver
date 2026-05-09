@@ -7,7 +7,13 @@ use App\Models\Campaign;
 use App\Models\CampaignSend;
 use App\Models\WebhookLog;
 use ElasticEmail\Api\EmailsApi;
+use ElasticEmail\Api\EventsApi;
 use ElasticEmail\Configuration;
+use ElasticEmail\Model\EmailData;
+use ElasticEmail\Model\EmailStatus;
+use ElasticEmail\Model\EventType;
+use ElasticEmail\Model\EventsOrderBy;
+use ElasticEmail\Model\RecipientEvent;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -65,7 +71,8 @@ class SyncCampaignStats extends Command
         $cap    = $limit > 0 ? " (cap: {$limit})" : '';
         $this->info("Syncing campaign stats (window: {$window}{$cap})" . ($dryRun ? ' [dry-run]' : '') . '...');
 
-        $api = $this->buildApi($apiKey);
+        $emailsApi = $this->buildEmailsApi($apiKey);
+        $eventsApi = $this->buildEventsApi($apiKey);
 
         // Only check sends that have not yet reached a terminal/fully-resolved status.
         // 'clicked'   = highest trackable status — nothing further to do.
@@ -104,7 +111,7 @@ class SyncCampaignStats extends Command
         foreach ($query->cursor() as $send) {
             $send->loadMissing(['campaign', 'subscriber']);
             try {
-                $result = $api->emailsByTransactionidStatusGet(
+                $result = $emailsApi->emailsByTransactionidStatusGet(
                     $send->elastic_email_transaction_id,
                     show_failed: true,
                     show_sent: true,
@@ -137,28 +144,41 @@ class SyncCampaignStats extends Command
                     continue;
                 }
 
-                $eventDate = now()->toIso8601String();
+                [$eventType, $eventDate] = $this->resolveBackfillEvent(
+                    $emailsApi,
+                    $eventsApi,
+                    $send,
+                    $result,
+                    $status,
+                );
+
                 $bounceReason = $this->extractFailureReason($result);
 
                 if ($dryRun) {
-                    $this->line("  [dry-run] send #{$send->id} tx={$send->elastic_email_transaction_id} → {$status}");
+                    $dateText = $eventDate ? ' @ ' . $eventDate->toIso8601String() : ' @ no-event-date';
+                    $this->line("  [dry-run] send #{$send->id} tx={$send->elastic_email_transaction_id} → {$eventType}{$dateText}");
                     $synced++;
                     continue;
                 }
 
                 // Create a synthetic WebhookLog and process it through the same pipeline
+                $payload = [
+                    'EventType'     => $eventType,
+                    'TransactionID' => $send->elastic_email_transaction_id,
+                    'To'            => $send->subscriber?->email,
+                    'BounceError'   => $bounceReason,
+                    '_source'       => 'sync-command',
+                ];
+
+                if ($eventDate) {
+                    $payload['Date'] = $eventDate->toIso8601String();
+                }
+
                 $log = WebhookLog::create([
-                    'event_type'     => $status,
+                    'event_type'     => $eventType,
                     'transaction_id' => $send->elastic_email_transaction_id,
                     'to_email'       => $send->subscriber?->email,
-                    'payload'        => [
-                        'EventType'     => $status,
-                        'TransactionID' => $send->elastic_email_transaction_id,
-                        'To'            => $send->subscriber?->email,
-                        'Date'          => $eventDate,
-                        'BounceError'   => $bounceReason,
-                        '_source'       => 'sync-command',
-                    ],
+                    'payload'        => $payload,
                 ]);
 
                 ProcessWebhookJob::dispatch($log->id)->onQueue('webhooks');
@@ -175,12 +195,20 @@ class SyncCampaignStats extends Command
 
     /* ------------------------------------------------------------------ */
 
-    private function buildApi(string $apiKey): EmailsApi
+    private function buildEmailsApi(string $apiKey): EmailsApi
     {
         $config = Configuration::getDefaultConfiguration()
             ->setApiKey('X-ElasticEmail-ApiKey', $apiKey);
 
         return new EmailsApi(new Client(), $config);
+    }
+
+    private function buildEventsApi(string $apiKey): EventsApi
+    {
+        $config = Configuration::getDefaultConfiguration()
+            ->setApiKey('X-ElasticEmail-ApiKey', $apiKey);
+
+        return new EventsApi(new Client(), $config);
     }
 
     private function normaliseStatusFromJob(object $result): ?string
@@ -209,5 +237,109 @@ class SyncCampaignStats extends Command
         return method_exists($firstFailure, 'getError')
             ? (string) ($firstFailure->getError() ?? '')
             : '';
+    }
+
+    /**
+     * Resolve the synthetic webhook event type plus the most accurate provider
+     * timestamp we can recover for it.
+     */
+    private function resolveBackfillEvent(
+        EmailsApi $emailsApi,
+        EventsApi $eventsApi,
+        CampaignSend $send,
+        object $statusResult,
+        string $status
+    ): array {
+        $eventType = $this->statusToEventType($status);
+
+        $messageIds = method_exists($statusResult, 'getMessageIds')
+            ? (array) ($statusResult->getMessageIds() ?? [])
+            : [];
+
+        if (! empty($messageIds[0])) {
+            $emailData = $emailsApi->emailsByMsgidViewGet($messageIds[0]);
+            $timestamp = $this->timestampFromEmailData($emailData, $status);
+
+            if ($timestamp) {
+                return [$eventType, $timestamp];
+            }
+        }
+
+        $event = $this->latestRelevantEvent($eventsApi, $send, $status);
+
+        return [$eventType, $event?->getEventDate()];
+    }
+
+    private function statusToEventType(string $status): string
+    {
+        return match ($status) {
+            'clicked'      => 'Click',
+            'opened'       => 'Open',
+            'delivered'    => 'Delivered',
+            'unsubscribed' => 'Unsubscribe',
+            'abusereport'  => 'Complaint',
+            'failed'       => 'Failed',
+            default        => ucfirst($status),
+        };
+    }
+
+    private function timestampFromEmailData(?EmailData $emailData, string $status): ?\DateTimeInterface
+    {
+        $emailStatus = $emailData?->getStatus();
+
+        if (! $emailStatus instanceof EmailStatus) {
+            return null;
+        }
+
+        return match ($status) {
+            'clicked'      => $emailStatus->getDateClicked() ?: $emailStatus->getStatusChangeDate(),
+            'opened'       => $emailStatus->getDateOpened() ?: $emailStatus->getStatusChangeDate(),
+            'delivered'    => $emailStatus->getStatusChangeDate(),
+            'failed',
+            'abusereport',
+            'unsubscribed' => $emailStatus->getStatusChangeDate(),
+            default        => null,
+        };
+    }
+
+    private function latestRelevantEvent(EventsApi $eventsApi, CampaignSend $send, string $status): ?RecipientEvent
+    {
+        if (! in_array($status, ['clicked', 'opened', 'failed', 'abusereport', 'unsubscribed'], true)) {
+            return null;
+        }
+
+        $from = $send->sent_at?->copy()->subDay();
+        $events = $eventsApi->eventsByTransactionidGet(
+            $send->elastic_email_transaction_id,
+            $from,
+            null,
+            EventsOrderBy::DATE_DESCENDING,
+            50,
+            0,
+        );
+
+        foreach ($events as $event) {
+            if (! $event instanceof RecipientEvent) {
+                continue;
+            }
+
+            if ($this->eventMatchesStatus($event, $status)) {
+                return $event;
+            }
+        }
+
+        return null;
+    }
+
+    private function eventMatchesStatus(RecipientEvent $event, string $status): bool
+    {
+        return match ($status) {
+            'clicked'      => $event->getEventType() === EventType::CLICK,
+            'opened'       => $event->getEventType() === EventType::OPEN,
+            'failed'       => in_array($event->getEventType(), [EventType::FAILED_ATTEMPT, EventType::BOUNCE], true),
+            'unsubscribed' => $event->getEventType() === EventType::UNSUBSCRIBE,
+            'abusereport'  => $event->getEventType() === EventType::COMPLAINT,
+            default        => false,
+        };
     }
 }

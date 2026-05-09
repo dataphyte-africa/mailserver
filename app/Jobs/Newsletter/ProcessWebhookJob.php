@@ -135,26 +135,39 @@ class ProcessWebhookJob implements ShouldQueue
             return;
         }
 
-        $send->update([
-            'status'       => 'delivered',
-            'delivered_at' => $this->eventDate($log),
-        ]);
+        $updates = ['status' => 'delivered'];
+        $eventDate = $this->eventDate($log);
+        $this->markSyncedIfApplicable($updates, $log);
+
+        if ($eventDate && ! $send->delivered_at) {
+            $updates['delivered_at'] = $eventDate;
+        }
+
+        $send->update($updates);
     }
 
     private function handleOpened(CampaignSend $send, WebhookLog $log): void
     {
-        $updates = ['opened_at' => $send->opened_at ?? $this->eventDate($log)];
+        $updates = [];
+        $eventDate = $this->eventDate($log);
+        $this->markSyncedIfApplicable($updates, $log);
+
+        if (! $send->opened_at && $eventDate) {
+            $updates['opened_at'] = $eventDate;
+        }
 
         if (! in_array($send->status, ['opened', 'clicked'])) {
             $updates['status'] = 'opened';
         }
 
         // Also mark delivered if not already
-        if (! $send->delivered_at) {
-            $updates['delivered_at'] = $this->eventDate($log);
+        if (! $send->delivered_at && $eventDate) {
+            $updates['delivered_at'] = $eventDate;
         }
 
-        $send->update($updates);
+        if ($updates) {
+            $send->update($updates);
+        }
     }
 
     private function handleClicked(CampaignSend $send, WebhookLog $log): void
@@ -163,12 +176,13 @@ class ProcessWebhookJob implements ShouldQueue
         $url       = $this->extractField($log->payload, ['link', 'Link', 'clickedlink', 'ClickedLink', 'url', 'URL']);
 
         $updates = [];
+        $this->markSyncedIfApplicable($updates, $log);
 
-        if (! $send->clicked_at) {
+        if (! $send->clicked_at && $clickedAt) {
             $updates['clicked_at'] = $clickedAt;
         }
 
-        if (! $send->opened_at) {
+        if (! $send->opened_at && $clickedAt) {
             $updates['opened_at'] = $clickedAt;
         }
 
@@ -176,7 +190,7 @@ class ProcessWebhookJob implements ShouldQueue
             $updates['status'] = 'clicked';
         }
 
-        if (! $send->delivered_at) {
+        if (! $send->delivered_at && $clickedAt) {
             $updates['delivered_at'] = $clickedAt;
         }
 
@@ -185,7 +199,7 @@ class ProcessWebhookJob implements ShouldQueue
         }
 
         // Record individual link click (allow multiple per send)
-        if ($url) {
+        if ($url && $clickedAt) {
             CampaignLinkClick::create([
                 'campaign_send_id' => $send->id,
                 'url'              => $url,
@@ -199,15 +213,21 @@ class ProcessWebhookJob implements ShouldQueue
     private function handleSuppression(CampaignSend $send, WebhookLog $log, string $event): void
     {
         // Mark the send
-        $send->update(['status' => $event === 'complained' ? 'complained' : 'delivered']);
+        $sendUpdates = ['status' => $event === 'complained' ? 'complained' : 'delivered'];
+        $this->markSyncedIfApplicable($sendUpdates, $log);
+        $send->update($sendUpdates);
 
         // Suppress the subscriber globally
         $subscriber = $send->subscriber;
         if ($subscriber && $subscriber->status !== 'unsubscribed') {
-            $subscriber->update([
-                'status'          => 'unsubscribed',
-                'unsubscribed_at' => $this->eventDate($log),
-            ]);
+            $updates = ['status' => 'unsubscribed'];
+            $eventDate = $this->eventDate($log);
+
+            if ($eventDate) {
+                $updates['unsubscribed_at'] = $eventDate;
+            }
+
+            $subscriber->update($updates);
 
             Log::info("Subscriber {$subscriber->email} auto-suppressed via {$event} webhook");
         }
@@ -218,11 +238,18 @@ class ProcessWebhookJob implements ShouldQueue
         $reason = $this->extractField($log->payload, ['bounceerror', 'BounceError', 'bounce_error', 'error', 'Error', 'message']);
 
         if ($hard) {
-            $send->update([
+            $updates = [
                 'status'       => 'bounced',
-                'bounced_at'   => $this->eventDate($log),
                 'bounce_reason'=> $reason,
-            ]);
+            ];
+            $eventDate = $this->eventDate($log);
+            $this->markSyncedIfApplicable($updates, $log);
+
+            if ($eventDate) {
+                $updates['bounced_at'] = $eventDate;
+            }
+
+            $send->update($updates);
 
             // Hard bounce → permanent suppression
             $subscriber = $send->subscriber;
@@ -231,11 +258,18 @@ class ProcessWebhookJob implements ShouldQueue
                 Log::info("Subscriber {$subscriber->email} suppressed after hard bounce");
             }
         } else {
-            $send->update([
+            $updates = [
                 'status'       => 'failed',
-                'failed_at'    => $this->eventDate($log),
                 'bounce_reason'=> $reason,
-            ]);
+            ];
+            $eventDate = $this->eventDate($log);
+            $this->markSyncedIfApplicable($updates, $log);
+
+            if ($eventDate) {
+                $updates['failed_at'] = $eventDate;
+            }
+
+            $send->update($updates);
         }
     }
 
@@ -281,10 +315,17 @@ class ProcessWebhookJob implements ShouldQueue
         return self::EVENT_MAP[$key] ?? null;
     }
 
-    private function eventDate(WebhookLog $log): \Carbon\Carbon
+    private function eventDate(WebhookLog $log): ?\Carbon\Carbon
     {
         $raw = $this->extractField($log->payload, ['date', 'Date', 'timestamp', 'Timestamp', 'eventdate', 'EventDate']);
-        return $raw ? \Carbon\Carbon::parse($raw) : now();
+        return $raw ? \Carbon\Carbon::parse($raw) : null;
+    }
+
+    private function markSyncedIfApplicable(array &$updates, WebhookLog $log): void
+    {
+        if (($log->payload['_source'] ?? null) === 'sync-command') {
+            $updates['synced_at'] = now();
+        }
     }
 
     private function extractField(array $payload, array $keys): ?string

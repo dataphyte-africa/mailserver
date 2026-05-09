@@ -36,4 +36,18 @@ class LandingPageTest extends TestCase
         // Hidden redirect field routes to /cp after login
         $response->assertSee('/cp', false);
     }
+
+    public function test_login_path_redirects_to_landing_page(): void
+    {
+        $response = $this->get('/login');
+
+        $response->assertRedirect('/');
+    }
+
+    public function test_cp_auth_login_path_redirects_to_landing_page(): void
+    {
+        $response = $this->get('/cp/auth/login');
+
+        $response->assertRedirect('/');
+    }
 }

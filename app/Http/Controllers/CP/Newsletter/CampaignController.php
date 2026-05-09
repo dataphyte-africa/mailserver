@@ -4,11 +4,13 @@ namespace App\Http\Controllers\CP\Newsletter;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\Newsletter\DispatchCampaignJob;
+use App\Jobs\Newsletter\ResumeFailedCampaignSendsJob;
 use App\Mail\NewsletterMailable;
 use App\Models\Campaign;
 use App\Models\CampaignAudience;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\CampaignSendRetryService;
 use App\Services\Newsletter\TemplateResolver;
 use App\Services\Newsletter\UtmInjector;
 use Illuminate\Http\Request;
@@ -274,6 +276,24 @@ class CampaignController extends Controller
 
         return redirect(cp_route('newsletter.campaigns.show', $campaign))
             ->with('success', 'Campaign is being dispatched to the queue.');
+    }
+
+    public function retryFailed(string $campaign)
+    {
+        $retryService = app(CampaignSendRetryService::class);
+        $campaignId = (int) $campaign;
+        Campaign::findOrFail($campaignId);
+        $retryable = $retryService->countRetryableFailures($campaignId);
+
+        if ($retryable === 0) {
+            return redirect(cp_route('newsletter.campaigns.show', $campaignId))
+                ->with('error', 'No retryable failed sends were found for this campaign.');
+        }
+
+        ResumeFailedCampaignSendsJob::dispatch($campaignId)->onQueue('campaigns');
+
+        return redirect(cp_route('newsletter.campaigns.show', $campaignId))
+            ->with('success', "Queued {$retryable} retryable failed sends for resend.");
     }
 
     /* ------------------------------------------------------------------ */

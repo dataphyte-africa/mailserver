@@ -165,6 +165,7 @@
                         <th>Status</th>
                         <th>Sent</th>
                         <th>Opened</th>
+                        <th>Synced</th>
                         <th>Transaction ID</th>
                     </tr>
                 </thead>
@@ -191,7 +192,16 @@
                             } }}">{{ $send->status }}</span>
                         </td>
                         <td class="text-sm text-grey-60">{{ $send->sent_at?->format('M j H:i') ?? '—' }}</td>
-                        <td class="text-sm text-grey-60">{{ $send->opened_at?->format('M j H:i') ?? '—' }}</td>
+                        <td class="text-sm text-grey-60">
+                            @if($send->opened_at)
+                                {{ $send->opened_at->format('M j H:i') }}
+                            @elseif(in_array($send->status, ['opened', 'clicked']) && $send->synced_at)
+                                Unavailable
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="text-sm text-grey-60">{{ $send->synced_at?->format('M j H:i') ?? '—' }}</td>
                         <td class="text-xs text-grey-50 font-mono truncate max-w-xs">
                             {{ $send->elastic_email_transaction_id ?? '—' }}
                         </td>
@@ -313,6 +323,23 @@
                         onclick="return confirm('Reset this campaign back to draft?')"
                         class="btn btn-sm w-full text-yellow-dark border-yellow-400">
                     Reset to Draft
+                </button>
+            </form>
+        </div>
+        @endif
+
+        @if(($stats['total_failed'] ?? 0) > 0)
+        <div class="card p-6 border-blue-300">
+            <h2 class="text-sm font-semibold text-blue mb-2">Retry Failed Sends</h2>
+            <p class="text-xs text-grey-60 mb-3">
+                Requeue retryable failed sends for this campaign and resume processing from the control panel.
+            </p>
+            <form method="POST" action="{{ cp_route('newsletter.campaigns.retry-failed', $campaign) }}">
+                @csrf
+                <button type="submit"
+                        onclick="return confirm('Requeue retryable failed sends for this campaign and resume delivery?')"
+                        class="btn btn-sm w-full text-blue border-blue-300 hover:bg-blue-50">
+                    Requeue Failed Sends
                 </button>
             </form>
         </div>
