@@ -107,7 +107,7 @@
 
                 <div x-show="!sendToAll">
                     @foreach($subGroups as $group)
-                    <div class="mb-3" x-show="groupMatchesCollection('{{ $group->slug }}')">
+                    <div class="mb-3" x-show="groupMatchesCollection('{{ $group->slug }}', @js($group->collection_handle))">
                         <p class="text-xs font-semibold uppercase tracking-wide text-grey-60 mb-1">
                             {{ $group->name }}
                         </p>
@@ -238,8 +238,12 @@ function campaignForm() {
         sendToAll: {{ $sendToAll ? 'true' : 'false' }},
         action: '{{ old('action', 'draft') }}',
 
-        groupMatchesCollection(groupSlug) {
+        groupMatchesCollection(groupSlug, groupCollectionHandle = null) {
             if (!this.collection) return true;
+            if (groupCollectionHandle) {
+                return groupCollectionHandle === this.collection;
+            }
+
             return COLLECTION_META[this.collection]?.group_slug === groupSlug;
         },
     }

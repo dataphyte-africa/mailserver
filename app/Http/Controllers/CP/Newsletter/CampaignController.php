@@ -479,7 +479,7 @@ class CampaignController extends Controller
     private function subGroupTree(): \Illuminate\Support\Collection
     {
         return SubscriberGroup::with('subGroups')
-            ->whereNotNull('collection_handle')
+            ->orderBy('name')
             ->get();
     }
 
