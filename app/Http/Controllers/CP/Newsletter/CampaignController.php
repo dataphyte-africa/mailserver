@@ -84,7 +84,7 @@ class CampaignController extends Controller
             'name'         => $data['name'],
             'collection'   => $data['collection'],
             'entry_id'     => $data['entry_id'] ?? null,
-            'subject'      => $data['subject'],
+            'subject'      => $this->normalizeSubjectText($data['subject']),
             'from_name'    => $this->blankToNull($data['from_name']  ?? null),
             'from_email'   => $this->blankToNull($data['from_email'] ?? null),
             'reply_to'     => $this->blankToNull($data['reply_to']   ?? null),
@@ -189,7 +189,7 @@ class CampaignController extends Controller
             'name'         => $data['name'],
             'collection'   => $data['collection'],
             'entry_id'     => $data['entry_id'] ?? null,
-            'subject'      => $data['subject'],
+            'subject'      => $this->normalizeSubjectText($data['subject']),
             'from_name'    => $this->blankToNull($data['from_name']  ?? null),
             'from_email'   => $this->blankToNull($data['from_email'] ?? null),
             'reply_to'     => $this->blankToNull($data['reply_to']   ?? null),
@@ -334,7 +334,7 @@ class CampaignController extends Controller
         );
 
         $html = view($template, [
-            'subject'             => $campaign->subject ?? '(No subject)',
+            'subject'             => $this->normalizeSubjectText($campaign->subject ?? '(No subject)'),
             'preheader'           => $entry?->get('preheader') ?? '',
             'heroImageUrl'        => $heroUrl,
             'content'             => $content,
@@ -496,8 +496,8 @@ class CampaignController extends Controller
             foreach ($collectionEntries as $entry) {
                 $entries[$collection][] = [
                     'id'        => $entry->id(),
-                    'title'     => $entry->get('title') ?: $entry->get('subject') ?: '(Untitled)',
-                    'subject'   => $entry->get('subject') ?? '',
+                    'title'     => $this->normalizeSubjectText($entry->get('title') ?: $entry->get('subject') ?: '(Untitled)'),
+                    'subject'   => $this->normalizeSubjectText($entry->get('subject') ?? ''),
                     'date'      => optional($entry->date())->format('M j, Y') ?? '',
                     'blueprint' => $entry->blueprint()?->title() ?? $entry->blueprint()?->handle() ?? '',
                 ];
@@ -516,6 +516,11 @@ class CampaignController extends Controller
     private function blankToNull(?string $value): ?string
     {
         return ($value === null || trim($value) === '') ? null : $value;
+    }
+
+    private function normalizeSubjectText(?string $value): string
+    {
+        return html_entity_decode((string) ($value ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     /** Fetch newsletter_settings GlobalSet, cached 1 hour (mirrors Mailable). */

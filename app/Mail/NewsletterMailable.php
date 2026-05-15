@@ -33,6 +33,9 @@ class NewsletterMailable extends Mailable
     public function envelope(): Envelope
     {
         $sender = $this->campaign->sender();
+        $subject = $this->normalizedSubject(
+            $this->campaign->subject ?? $this->resolveEntry()?->get('subject') ?? $this->campaign->name
+        );
 
         $replyTo = $sender['reply_to']
             ? [new Address($sender['reply_to'])]
@@ -41,7 +44,7 @@ class NewsletterMailable extends Mailable
         return new Envelope(
             from:    new Address($sender['from_email'], $sender['from_name']),
             replyTo: $replyTo,
-            subject: $this->campaign->subject ?? $this->resolveEntry()?->get('subject') ?? $this->campaign->name,
+            subject: $subject,
             tags:    ['newsletter', $this->campaign->collection ?? 'general'],
         );
     }
@@ -271,5 +274,10 @@ class NewsletterMailable extends Mailable
         return \URL::signedRoute($routeName, [
             'token' => $this->subscriber->ensureConfirmationToken(),
         ]);
+    }
+
+    private function normalizedSubject(?string $value): string
+    {
+        return html_entity_decode((string) ($value ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 }
