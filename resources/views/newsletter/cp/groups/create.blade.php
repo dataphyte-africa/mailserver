@@ -19,6 +19,16 @@
                 @error('name') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
+                <label class="publish-field-label">Newsletter Collection <span class="text-red-500">*</span></label>
+                <select name="collection_handle" class="input-text w-full @error('collection_handle') border-red-400 @enderror" required>
+                    <option value="">Select a collection</option>
+                    @foreach($collectionOptions as $handle => $label)
+                        <option value="{{ $handle }}" @selected(old('collection_handle') === $handle)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('collection_handle') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div>
                 <label class="publish-field-label">Description</label>
                 <textarea name="description" rows="2"
                           class="input-text w-full">{{ old('description') }}</textarea>

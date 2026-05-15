@@ -8,8 +8,9 @@
     <form method="GET" class="flex gap-3 items-center">
         <select name="collection" onchange="this.form.submit()" class="input-text text-sm">
             <option value="">All Collections</option>
-            <option value="insight_newsletters"    {{ $collection === 'insight_newsletters'    ? 'selected' : '' }}>Insight</option>
-            <option value="foundation_newsletters" {{ $collection === 'foundation_newsletters' ? 'selected' : '' }}>Foundation</option>
+            @foreach($collections as $value => $label)
+                <option value="{{ $value }}" {{ $collection === $value ? 'selected' : '' }}>{{ $label }}</option>
+            @endforeach
         </select>
         <select name="days" onchange="this.form.submit()" class="input-text text-sm">
             @foreach([7 => 'Last 7 days', 30 => 'Last 30 days', 90 => 'Last 90 days'] as $val => $label)
@@ -114,7 +115,7 @@
                             <p class="text-xs text-grey-50 mt-0.5">
                                 {{ $campaign->sent_at?->format('M j, Y') }}
                                 &middot;
-                                {{ $campaign->collection === 'insight_newsletters' ? 'Insight' : 'Foundation' }}
+                                {{ $campaign->collectionShortLabel() }}
                             </p>
                         </td>
                         <td class="text-sm">{{ number_format($campaign->sends_count) }}</td>

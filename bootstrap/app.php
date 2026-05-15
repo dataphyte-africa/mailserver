@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(RedirectCpAuthLoginToLanding::class);
 
         $middleware->validateCsrfTokens(except: [
+            'subscribe/*',
             'webhooks/elastic-email',
             'api/webhooks/elastic-email',
         ]);

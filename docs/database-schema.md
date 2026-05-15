@@ -19,9 +19,10 @@ Top-level groupings.
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
-**Seed data:**
+**Seed data / examples:**
 - Insight Subscribers
 - Foundation
+- Policy Point
 
 ---
 
@@ -39,9 +40,12 @@ Sub-groups within a parent group.
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
-**Seed data:**
+**Seed data / examples:**
 - Insight Subscribers -> Topics, Marina & Maitama, SenorRita
 - Foundation -> Weekly, Activities
+- Policy Point -> As Frequently, Monthly
+
+Sub-groups may be provisioned manually or synced from a subscription form's preference definitions.
 
 ---
 
@@ -59,7 +63,7 @@ Sub-groups within a parent group.
 | unsubscribed_at | timestamp, nullable | |
 | ip_address | varchar(45), nullable | Consent record (IPv6 support) |
 | user_agent | text, nullable | Consent record |
-| metadata | json, nullable | Extensible extra data |
+| metadata | json, nullable | Extensible extra data, including form handle / selected preferences when needed |
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
@@ -78,6 +82,28 @@ Many-to-many: subscribers belong to multiple sub-groups.
 | unsubscribed_at | timestamp, nullable | When they left (null = still active) |
 
 **Unique index:** (subscriber_id, subscriber_sub_group_id)
+
+The pivot remains the canonical source for active newsletter memberships, regardless of whether the subscriber entered by public form, import, or manual CP entry.
+
+---
+
+## Form-Driven Audience Provisioning
+
+The database audience model stays the same:
+
+```text
+subscriber_groups
+subscriber_sub_groups
+subscribers
+subscriber_sub_group (pivot)
+```
+
+What changes is the provisioning source:
+
+- before: groups/sub-groups mostly created manually and populated by import
+- now: forms can define preference options that are synced into `subscriber_sub_groups`
+
+This means the form layer configures audience structure, while the DB layer remains the source of truth for sending.
 
 ---
 

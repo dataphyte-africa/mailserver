@@ -76,7 +76,7 @@
             <p class="text-xs text-grey-50 mt-0.5">
                 {{ $campaign->sent_at?->format('M j') ?? ($campaign->scheduled_at?->format('M j') ?? '—') }}
                 &middot;
-                {{ $campaign->collection === 'insight_newsletters' ? 'Insight' : 'Foundation' }}
+                {{ $campaign->collectionShortLabel() }}
             </p>
         </div>
         <div class="flex items-center gap-3 text-xs shrink-0">

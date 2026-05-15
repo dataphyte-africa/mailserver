@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SubscriberGroup extends Model
 {
     use HasFactory;
-    protected $fillable = ['name', 'slug', 'description'];
+    protected $fillable = ['name', 'slug', 'collection_handle', 'description'];
 
     public function subGroups(): HasMany
     {

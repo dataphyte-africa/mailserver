@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Newsletter\CollectionRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -67,6 +68,16 @@ class Campaign extends Model
             'from_name'  => $this->from_name  ?: $sender['from_name'],
             'reply_to'   => $this->reply_to   ?: $sender['reply_to'],
         ];
+    }
+
+    public function collectionLabel(): string
+    {
+        return app(CollectionRegistry::class)->label($this->collection);
+    }
+
+    public function collectionShortLabel(): string
+    {
+        return app(CollectionRegistry::class)->shortLabel($this->collection);
     }
 
     public function stats(): array

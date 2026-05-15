@@ -33,6 +33,7 @@ class ScaffoldCollections extends Command
         $this->scaffoldNewsletterSettings();
         $this->scaffoldCollection('insight_newsletters',    'Insight Newsletters',    '/newsletters/insight/{slug}');
         $this->scaffoldCollection('foundation_newsletters', 'Foundation Newsletters', '/newsletters/foundation/{slug}');
+        $this->scaffoldCollection('policy_point_newsletters', 'Policy Point Newsletters', '/newsletters/policy-point/{slug}');
 
         $this->newLine();
         $this->info('✓ All newsletter structures saved to the database.');
@@ -52,6 +53,11 @@ class ScaffoldCollections extends Command
                 ],
                 array_map(fn ($b) => ['Blueprint', "foundation_newsletters.{$b['handle']}", $b['title']],
                     $this->blueprintDefinitions('foundation_newsletters')),
+                [
+                    ['Collection', 'policy_point_newsletters', 'Policy Point Newsletters'],
+                ],
+                array_map(fn ($b) => ['Blueprint', "policy_point_newsletters.{$b['handle']}", $b['title']],
+                    $this->blueprintDefinitions('policy_point_newsletters')),
             )
         );
     }
@@ -62,7 +68,7 @@ class ScaffoldCollections extends Command
 
     private function dropExisting(): void
     {
-        foreach (['insight_newsletters', 'foundation_newsletters'] as $handle) {
+        foreach (['insight_newsletters', 'foundation_newsletters', 'policy_point_newsletters'] as $handle) {
             if ($col = Collection::findByHandle($handle)) {
                 // Delete all blueprints in the namespace first
                 $namespace = "collections.{$handle}";
@@ -130,6 +136,8 @@ class ScaffoldCollections extends Command
             ['slug' => 'senorrita',      'title' => 'SenorRita'],
             ['slug' => 'weekly',         'title' => 'Weekly'],
             ['slug' => 'activities',     'title' => 'Activities'],
+            ['slug' => 'as-frequently',  'title' => 'As Frequently'],
+            ['slug' => 'monthly',        'title' => 'Monthly'],
         ];
 
         foreach ($terms as $t) {
@@ -233,6 +241,34 @@ class ScaffoldCollections extends Command
                                 ],
                             ],
                         ],
+                        'policy_point' => [
+                            'display' => 'Policy Point Newsletter',
+                            'fields'  => [
+                                [
+                                    'handle' => 'policy_point_logo',
+                                    'field'  => [
+                                        'type'          => 'assets',
+                                        'display'       => 'Policy Point Collection Logo',
+                                        'instructions'  => 'Appears in the header of every Policy Point newsletter email.',
+                                        'container'     => 'assets',
+                                        'max_files'     => 1,
+                                        'allow_uploads' => true,
+                                        'restrict'      => false,
+                                        'width'         => 50,
+                                    ],
+                                ],
+                                [
+                                    'handle' => 'policy_point_brand_color',
+                                    'field'  => [
+                                        'type'         => 'color',
+                                        'display'      => 'Policy Point Brand Color',
+                                        'instructions' => 'Header background color for Policy Point emails.',
+                                        'default'      => '#3d405b',
+                                        'width'        => 50,
+                                    ],
+                                ],
+                            ],
+                        ],
                     ],
                 ])
                 ->save();
@@ -257,6 +293,7 @@ class ScaffoldCollections extends Command
         $variables->data([
             'insight_brand_color'    => '#0d1b2a',
             'foundation_brand_color' => '#1b4332',
+            'policy_point_brand_color' => '#3d405b',
         ]);
         $variables->save();
 
@@ -332,6 +369,9 @@ class ScaffoldCollections extends Command
                 ['handle' => 'activities',      'title' => 'Activities',      'template' => 'emails.foundation.activities'],
                 ['handle' => 'project_update',  'title' => 'Project Update',  'template' => 'emails.foundation.project-update'],
             ],
+            'policy_point_newsletters' => [
+                ['handle' => 'policy_point', 'title' => 'Policy Point', 'template' => 'emails.policy_point.policy-point'],
+            ],
             default => [],
         };
     }
@@ -396,6 +436,117 @@ class ScaffoldCollections extends Command
                                 ],
                                 'save_html' => true,
                                 'width'     => 100,
+                            ],
+                        ],
+
+                        [
+                            'handle' => 'rss_feed_url',
+                            'field'  => [
+                                'type'         => 'text',
+                                'display'      => 'RSS Feed URL',
+                                'instructions' => 'Optional RSS endpoint used to fetch newsletter story cards, for example https://dataphyte.com/rss/policy_point.xml.',
+                                'width'        => 100,
+                            ],
+                        ],
+
+                        [
+                            'handle' => 'rss_item_limit',
+                            'field'  => [
+                                'type'         => 'integer',
+                                'display'      => 'RSS Item Limit',
+                                'instructions' => 'How many stories to fetch from the RSS feed for this newsletter issue.',
+                                'default'      => 6,
+                                'width'        => 50,
+                            ],
+                        ],
+
+                        [
+                            'handle' => 'refresh_rss_items',
+                            'field'  => [
+                                'type'         => 'toggle',
+                                'display'      => 'Refresh RSS Stories On Save',
+                                'instructions' => 'Turn on to repopulate the story list from the RSS feed the next time this entry is saved.',
+                                'default'      => false,
+                                'width'        => 50,
+                            ],
+                        ],
+
+                        [
+                            'handle' => 'rss_items',
+                            'field'  => [
+                                'type'         => 'grid',
+                                'display'      => 'RSS Stories',
+                                'instructions' => 'Fetched stories appear here. Reorder rows to control newsletter order and toggle one row as the lead story.',
+                                'mode'         => 'stacked',
+                                'reorderable'  => true,
+                                'fullscreen'   => true,
+                                'add_row'      => 'Add Story',
+                                'fields'       => [
+                                    [
+                                        'handle' => 'is_lead',
+                                        'field'  => [
+                                            'type'    => 'toggle',
+                                            'display' => 'Lead Story',
+                                            'width'   => 25,
+                                        ],
+                                    ],
+                                    [
+                                        'handle' => 'title',
+                                        'field'  => [
+                                            'type'    => 'text',
+                                            'display' => 'Title',
+                                            'width'   => 100,
+                                        ],
+                                    ],
+                                    [
+                                        'handle' => 'url',
+                                        'field'  => [
+                                            'type'    => 'text',
+                                            'display' => 'URL',
+                                            'width'   => 100,
+                                        ],
+                                    ],
+                                    [
+                                        'handle' => 'image_url',
+                                        'field'  => [
+                                            'type'    => 'text',
+                                            'display' => 'Image URL',
+                                            'width'   => 100,
+                                        ],
+                                    ],
+                                    [
+                                        'handle' => 'excerpt',
+                                        'field'  => [
+                                            'type'    => 'textarea',
+                                            'display' => 'Excerpt',
+                                            'width'   => 100,
+                                        ],
+                                    ],
+                                    [
+                                        'handle' => 'author',
+                                        'field'  => [
+                                            'type'    => 'text',
+                                            'display' => 'Author',
+                                            'width'   => 50,
+                                        ],
+                                    ],
+                                    [
+                                        'handle' => 'published_label',
+                                        'field'  => [
+                                            'type'    => 'text',
+                                            'display' => 'Published Label',
+                                            'width'   => 50,
+                                        ],
+                                    ],
+                                    [
+                                        'handle' => 'primary_taxonomy_title',
+                                        'field'  => [
+                                            'type'    => 'text',
+                                            'display' => 'Category',
+                                            'width'   => 50,
+                                        ],
+                                    ],
+                                ],
                             ],
                         ],
 

@@ -4,6 +4,8 @@ namespace App\Mail;
 
 use App\Models\Campaign;
 use App\Models\Subscriber;
+use App\Services\Newsletter\CuratedRssStoriesService;
+use App\Services\Newsletter\RssFeedService;
 use App\Services\Newsletter\TemplateResolver;
 use App\Services\Newsletter\UtmInjector;
 use Illuminate\Bus\Queueable;
@@ -58,6 +60,8 @@ class NewsletterMailable extends Mailable
         // Collection-aware logo and brand colour
         $collection      = $this->campaign->collection ?? '';
         $collectionKey   = str_replace('_newsletters', '', $collection); // insight | foundation
+        $footerPartial   = 'emails.partials.' . str_replace('_', '-', $collectionKey) . '.footer';
+        $collectionConfig = config("newsletter.collections.{$collection}", []);
         $collectionLogo  = $this->resolveAssetUrl($settings["{$collectionKey}_logo"] ?? null);
         $headerColor     = $settings["{$collectionKey}_brand_color"]
                             ?? config("newsletter.collections.{$collection}.brand_color", '#1a1a2e');
@@ -74,6 +78,13 @@ class NewsletterMailable extends Mailable
         ];
         $content = UtmInjector::inject($rawContent, $utmParams);
         $content = $this->applyMergeTags($content);
+        $rssFeedUrl = $entry?->get('rss_feed_url');
+        $rssItemLimit = (int) ($entry?->get('rss_item_limit') ?: 6);
+        $rssItems = app(RssFeedService::class)->items(
+            is_string($rssFeedUrl) ? $rssFeedUrl : null,
+            $rssItemLimit,
+        );
+        $curatedRss = app(CuratedRssStoriesService::class)->preparedItems($entry, $rssItems);
 
         return new Content(
             view: $template,
@@ -87,6 +98,8 @@ class NewsletterMailable extends Mailable
                 'sentDate'           => $this->campaign->sent_at?->format('F j, Y') ?? now()->format('F j, Y'),
                 'collectionLogo'     => $collectionLogo,
                 'headerColor'        => $headerColor,
+                'footerConfig'       => $collectionConfig['footer'] ?? [],
+                'footerPartial'      => $footerPartial,
                 'newsletterSettings' => $settings,
                 'unsubscribeUrl'     => $this->buildSignedUrl('newsletter.unsubscribe.show'),
                 'preferencesUrl'     => $this->buildSignedUrl('newsletter.preferences.show'),
@@ -95,6 +108,10 @@ class NewsletterMailable extends Mailable
                 'subscriberLastName'  => $this->subscriber->last_name  ?? '',
                 'subscriberFullName'  => $this->subscriber->full_name  ?? $this->subscriber->email,
                 'subscriberEmail'     => $this->subscriber->email      ?? '',
+                'rssFeedUrl'          => $rssFeedUrl,
+                'rssItems'            => $curatedRss['items'],
+                'rssLeadItem'         => $curatedRss['lead'],
+                'rssSecondaryItems'   => $curatedRss['secondary'],
             ],
         );
     }
@@ -231,11 +248,19 @@ class NewsletterMailable extends Mailable
      */
     private function applyMergeTags(string $content): string
     {
+        $firstName = $this->subscriber->first_name ?? '';
+        $lastName = $this->subscriber->last_name ?? '';
+        $fullName = $this->subscriber->full_name ?? $this->subscriber->email;
+        $email = $this->subscriber->email ?? '';
+
         $map = [
-            '{{first_name}}' => $this->subscriber->first_name ?? '',
-            '{{last_name}}'  => $this->subscriber->last_name  ?? '',
-            '{{full_name}}'  => $this->subscriber->full_name  ?? $this->subscriber->email,
-            '{{email}}'      => $this->subscriber->email      ?? '',
+            '{{first_name}}' => $firstName,
+            '{{last_name}}'  => $lastName,
+            '{{full_name}}'  => $fullName,
+            '{{email}}'      => $email,
+            '{{firstname}}'  => $firstName !== '' ? $firstName : 'Reader',
+            '{{lastname}}'   => $lastName,
+            '{{fullname}}'   => $fullName,
         ];
 
         return str_replace(array_keys($map), array_values($map), $content);

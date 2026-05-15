@@ -2,6 +2,79 @@
 
 ---
 
+## Session 4 — 2026-05-14 (Subscription form architecture)
+
+### Documentation updates
+
+- Updated subscriber documentation to support public, collection-linked subscribe flows in addition to CSV import.
+- Updated collection onboarding docs to include subscription forms and form-derived sub-groups.
+- Updated content architecture docs to reflect forms as part of each newsletter operation.
+- Updated schema docs to clarify that sub-groups may be provisioned from form preference definitions.
+- Added `docs/subscription-forms.md` to define the new declarative form model, remote-styled rendering pattern, and subscriber write pipeline.
+
+### Architectural direction
+
+- Public subscribe forms belong to exactly one newsletter collection.
+- Destination websites control form styling; this project supplies schema, validation, and submit endpoints.
+- Preference definitions on a form become subscriber sub-groups for that collection's parent group.
+- New collections should rely more on conventions and less on scattered hardcoded maps.
+
+### Implementation completed
+
+- Added `policy_point_newsletters` as a first-class newsletter operation, including sender config, scaffold support, seed data, and a base email template.
+- Added public subscribe endpoints:
+  - `GET /subscribe/{slug}/schema`
+  - `POST /subscribe/{slug}`
+- Added form-linked subscription processing:
+  - create/update subscriber
+  - sync selected sub-groups
+  - return `subscribed`, `already_subscribed`, `subscription_updated`, or `resubscribed`
+- Added subscriber confirmation / resubscribe email flow with form-level controls:
+  - `Send Confirmation Email`
+  - `Send Update Email`
+  - custom subject/body copy
+- Moved subscription email branding ownership to the form:
+  - `logo_url`
+  - `brand_color`
+- Added explicit collection linkage on subscriber groups via `collection_handle`.
+- Changed forms to select a subscriber group, with the collection derived from that group.
+- Added subscribe endpoint browser support:
+  - CSRF exclusion for `/subscribe/*`
+  - CORS config for `/subscribe/*`
+- Fixed select option serialization so Statamic `key/value` select definitions now become correct schema values and labels.
+- Added flexible first/last name mapping so both `first_name` / `last_name` and `firstname` / `lastname` forms are accepted.
+- Added submission audit metadata written back to saved Statamic form submissions:
+  - `subscription_status`
+  - `email_sent`
+  - `subscriber_id`
+  - `subscriber_group_id`
+- Added `docs/template-development-flow.md` as a focused handoff guide for future newsletter template development sessions.
+
+---
+
+## Session 5 — 2026-05-15 (Policy Point RSS curation flow)
+
+### Documentation updates
+
+- Updated RSS integration documentation to describe the editor-side curation flow for feed-driven newsletters.
+- Updated template handoff documentation to explain how `policy_point` now uses Bard intro content plus a curated RSS story list with a lead article.
+
+### Implementation completed
+
+- Added entry-save RSS curation support so feed items can be stored on the newsletter entry itself.
+- Added `refresh_rss_items` and `rss_items` blueprint support to the newsletter scaffold for feed-driven templates.
+- Added curated story preparation logic that exposes:
+  - `rssItems`
+  - `rssLeadItem`
+  - `rssSecondaryItems`
+- Updated the `policy_point` template to render:
+  - Bard intro content first
+  - a dedicated lead story block
+  - remaining stories in saved order
+- Added test coverage for stored curated story ordering and lead selection behavior.
+
+---
+
 ## Session 3 — 2026-04-12 (Active testing, bug fixes)
 
 ### Critical Bugs Fixed

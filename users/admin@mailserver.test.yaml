@@ -8,3 +8,14 @@ preferences:
       view: list
     insight_newsletters:
       view: list
+    policy_point_newsletters:
+      view: list
+      after_save: continue_editing
+  forms:
+    policy_point_subscribe:
+      columns:
+        - firstname
+        - lastname
+        - datestamp
+        - email
+        - preference

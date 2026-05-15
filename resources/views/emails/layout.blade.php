@@ -15,19 +15,34 @@
         body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
         table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
         img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-        body { margin: 0 !important; padding: 0 !important; background-color: #f4f4f4; }
+        body { margin: 0 !important; padding: 0 !important; background-color: #efe9df; }
         a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }
         @media only screen and (max-width: 600px) {
             .email-container { width: 100% !important; }
+            .email-shell { padding: 0 !important; }
             .stack-column, .stack-column-center { display: block !important; width: 100% !important; max-width: 100% !important; }
             .stack-column-center { text-align: center !important; }
             .hide-mobile { display: none !important; max-height: 0; overflow: hidden; }
             .hero-image img { height: auto !important; max-width: 100% !important; }
             .content-padding { padding: 20px !important; }
+            .mobile-tight { padding-left: 20px !important; padding-right: 20px !important; }
+            .mobile-center { text-align: center !important; }
+            .story-image-cell { display: block !important; width: 100% !important; padding: 0 0 14px !important; }
+            .story-copy-cell { display: block !important; width: 100% !important; }
+            .story-image { width: 100% !important; max-width: 100% !important; height: auto !important; }
+            .story-image-cell-fixed { width: 96px !important; padding-left: 0 !important; }
+            .story-copy-cell-fixed { padding-left: 8px !important; }
+            .story-image-fixed { width: 84px !important; max-width: 84px !important; height: 84px !important; }
+            .office-column { padding-left: 0 !important; padding-right: 0 !important; }
+            .policy-copy,
+            .policy-copy p { font-size: 16px !important; line-height: 1.65 !important; }
+            .policy-kicker { font-size: 10px !important; letter-spacing: 1.1px !important; }
+            .policy-meta { font-size: 12px !important; line-height: 1.5 !important; }
+            .policy-lead-excerpt { font-size: 14px !important; line-height: 1.55 !important; }
         }
     </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;">
+<body style="margin:0;padding:0;background-color:#efe9df;">
 
     {{-- Preheader (hidden in inbox preview) --}}
     @if(!empty($preheader))
@@ -37,46 +52,34 @@
     @endif
 
     {{-- Email wrapper --}}
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f4f4f4;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#efe9df;">
         <tr>
-            <td style="padding:20px 0;">
+            <td class="email-shell" style="padding:18px 10px;">
 
                 {{-- Email container --}}
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600"
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="640"
                        class="email-container"
-                       style="margin:0 auto;background-color:#ffffff;border-radius:4px;overflow:hidden;">
+                       style="margin:0 auto;background-color:#fffdf9;overflow:hidden;">
 
                     {{-- ============================================================ --}}
                     {{-- HEADER BAND                                                   --}}
                     {{-- Upper: collection logo (editor-controlled via GlobalSet)     --}}
                     {{-- Lower: product/template nameplate (hardcoded per template)   --}}
                     {{-- ============================================================ --}}
-                    <tr>
-                        <td style="background-color:{{ $headerColor ?? '#1a1a2e' }};padding:20px 40px 0;text-align:center;">
-
-                            {{-- Collection logo (from newsletter_settings GlobalSet) --}}
-                            @if(!empty($collectionLogo))
+                    @if(!empty($collectionLogo))
+                        <tr>
+                            <td style="background-color:{{ $headerColor ?? '#1a1a2e' }};padding:0;">
                                 <img src="{{ $collectionLogo }}"
                                      alt="{{ $fromName ?? config('app.name') }}"
-                                     height="36"
-                                     style="height:36px;width:auto;max-width:180px;display:block;margin:0 auto;">
-                            @else
-                                <span style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
-                                             font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">
-                                    {{ $fromName ?? config('app.name') }}
-                                </span>
-                            @endif
-
-                        </td>
-                    </tr>
-
-                    {{-- Product/template nameplate — injected by each child template --}}
-                    @hasSection('nameplate')
-                    <tr>
-                        <td style="background-color:{{ $headerColor ?? '#0d1b2a' }};padding:0 40px 20px;text-align:center;">
-                            @yield('nameplate')
-                        </td>
-                    </tr>
+                                     style="width:100%;height:auto;display:block;border:0;">
+                            </td>
+                        </tr>
+                    @elseif($__env->hasSection('nameplate'))
+                        <tr>
+                            <td class="mobile-tight" style="background-color:{{ $headerColor ?? '#1a1a2e' }};padding:22px 32px 18px;text-align:center;">
+                                @yield('nameplate')
+                            </td>
+                        </tr>
                     @endif
                     {{-- /nameplate --}}
 
@@ -88,44 +91,7 @@
                     {{-- ============================================================ --}}
                     {{-- FOOTER                                                        --}}
                     {{-- ============================================================ --}}
-                    <tr>
-                        <td style="background-color:#f8f8f8;padding:32px 40px;border-top:1px solid #e8e8e8;">
-                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                <tr>
-                                    <td style="text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
-                                               font-size:12px;line-height:1.6;color:#888888;">
-
-                                        @if(!empty($author))
-                                        <p style="margin:0 0 8px;">Written by <strong>{{ $author }}</strong></p>
-                                        @endif
-
-                                        <p style="margin:0 0 8px;">
-                                            You're receiving this because you subscribed to {{ $fromName ?? config('app.name') }}.
-                                        </p>
-
-                                        <p style="margin:0 0 8px;">
-                                            <a href="{{ $preferencesUrl ?? '#' }}"
-                                               style="color:#555555;text-decoration:underline;">Manage preferences</a>
-                                            &nbsp;&middot;&nbsp;
-                                            <a href="{{ $unsubscribeUrl ?? '#' }}"
-                                               style="color:#555555;text-decoration:underline;">Unsubscribe</a>
-                                        </p>
-
-                                        {{-- Physical address — required by CAN-SPAM / CASL --}}
-                                        @php $address = config('newsletter.physical_address'); @endphp
-                                        @if($address)
-                                        <p style="margin:0 0 8px;color:#aaaaaa;">{{ $address }}</p>
-                                        @endif
-
-                                        <p style="margin:0;color:#aaaaaa;">
-                                            &copy; {{ date('Y') }} {{ $fromName ?? config('app.name') }}. All rights reserved.
-                                        </p>
-
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
+                    @includeIf($footerPartial ?? 'emails.partials.shared.footer-base')
 
                 </table>
                 {{-- /Email container --}}

@@ -14,6 +14,7 @@ class SubscriberGroupSeeder extends Seeder
             [
                 'name'        => 'Insight Subscribers',
                 'slug'        => 'insight-subscribers',
+                'collection_handle' => 'insight_newsletters',
                 'description' => 'Dataphyte Insight newsletter subscribers',
                 'sub_groups'  => [
                     ['name' => 'Topics',           'slug' => 'topics'],
@@ -24,10 +25,21 @@ class SubscriberGroupSeeder extends Seeder
             [
                 'name'        => 'Foundation',
                 'slug'        => 'foundation',
+                'collection_handle' => 'foundation_newsletters',
                 'description' => 'Dataphyte Foundation newsletter subscribers',
                 'sub_groups'  => [
                     ['name' => 'Weekly',     'slug' => 'weekly'],
                     ['name' => 'Activities', 'slug' => 'activities'],
+                ],
+            ],
+            [
+                'name'        => 'Policy Point',
+                'slug'        => 'policy-point',
+                'collection_handle' => 'policy_point_newsletters',
+                'description' => 'Policy Point newsletter subscribers',
+                'sub_groups'  => [
+                    ['name' => 'As Frequently', 'slug' => 'as-frequently'],
+                    ['name' => 'Monthly',       'slug' => 'monthly'],
                 ],
             ],
         ];

@@ -12,7 +12,7 @@
         </div>
         <h1 class="text-3xl font-bold">{{ $campaign->name }}</h1>
         <p class="text-grey-60 text-sm mt-1">
-            {{ $campaign->collection === 'insight_newsletters' ? 'Dataphyte Insight' : 'Dataphyte Foundation' }}
+            {{ $campaign->collectionLabel() }}
             &nbsp;&middot;&nbsp;
             Created {{ $campaign->created_at->format('M j, Y') }}
         </p>

@@ -19,6 +19,9 @@
                 <div class="flex items-start justify-between">
                     <div>
                         <h2 class="font-semibold text-lg">{{ $group->name }}</h2>
+                        <p class="text-sm text-gray-500 mt-0.5">
+                            {{ $collectionOptions[$group->collection_handle] ?? 'Unlinked collection' }}
+                        </p>
                         @if($group->description)
                             <p class="text-sm text-gray-500 mt-0.5">{{ $group->description }}</p>
                         @endif

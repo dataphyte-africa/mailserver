@@ -11,6 +11,7 @@ use App\Models\CampaignAudience;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\CampaignSendRetryService;
+use App\Services\Newsletter\CollectionRegistry;
 use App\Services\Newsletter\TemplateResolver;
 use App\Services\Newsletter\UtmInjector;
 use Illuminate\Http\Request;
@@ -54,6 +55,7 @@ class CampaignController extends Controller
     {
         return view('newsletter.cp.campaigns.create', [
             'collections' => $this->collectionOptions(),
+            'collectionMeta' => $this->collectionMeta(),
             'subGroups'   => $this->subGroupTree(),
             'entries'     => $this->allEntries(),
         ]);
@@ -63,7 +65,7 @@ class CampaignController extends Controller
     {
         $data = $request->validate([
             'name'         => 'required|string|max:255',
-            'collection'   => 'required|in:insight_newsletters,foundation_newsletters',
+            'collection'   => 'required|' . $this->collectionValidationRule(),
             'entry_id'     => 'nullable|string',
             'subject'      => 'required|string|max:255',
             'from_name'    => 'nullable|string|max:255',
@@ -154,6 +156,7 @@ class CampaignController extends Controller
         return view('newsletter.cp.campaigns.edit', [
             'campaign'            => $campaign,
             'collections'         => $this->collectionOptions(),
+            'collectionMeta'      => $this->collectionMeta(),
             'subGroups'           => $this->subGroupTree(),
             'entries'             => $this->allEntries(),
             'selectedSubGroupIds' => $selectedSubGroupIds,
@@ -167,7 +170,7 @@ class CampaignController extends Controller
 
         $data = $request->validate([
             'name'         => 'required|string|max:255',
-            'collection'   => 'required|in:insight_newsletters,foundation_newsletters',
+            'collection'   => 'required|' . $this->collectionValidationRule(),
             'entry_id'     => 'nullable|string',
             'subject'      => 'required|string|max:255',
             'from_name'    => 'nullable|string|max:255',
@@ -308,6 +311,8 @@ class CampaignController extends Controller
 
         $collection      = $campaign->collection ?? '';
         $collectionKey   = str_replace('_newsletters', '', $collection);
+        $footerPartial   = 'emails.partials.' . str_replace('_', '-', $collectionKey) . '.footer';
+        $collectionConfig = config("newsletter.collections.{$collection}", []);
         $collectionLogo  = $this->campaignAssetUrl($settings["{$collectionKey}_logo"] ?? null);
         $headerColor     = $settings["{$collectionKey}_brand_color"]
                             ?? config("newsletter.collections.{$collection}.brand_color", '#1a1a2e');
@@ -338,6 +343,8 @@ class CampaignController extends Controller
             'sentDate'            => now()->format('F j, Y'),
             'collectionLogo'      => $collectionLogo,
             'headerColor'         => $headerColor,
+            'footerConfig'        => $collectionConfig['footer'] ?? [],
+            'footerPartial'       => $footerPartial,
             'unsubscribeUrl'      => '#',
             'preferencesUrl'      => '#',
             'subscriberFirstName' => '[First Name]',
@@ -409,16 +416,8 @@ class CampaignController extends Controller
         $campaign->audiences()->delete();
 
         if (! empty($data['send_to_all'])) {
-            // Resolve the group from the collection handle
-            $groupSlug = match ($data['collection']) {
-                'insight_newsletters'    => 'insight-subscribers',
-                'foundation_newsletters' => 'foundation',
-                default                  => null,
-            };
-
-            $group = $groupSlug
-                ? SubscriberGroup::where('slug', $groupSlug)->first()
-                : null;
+            $group = SubscriberGroup::where('collection_handle', $data['collection'])->first()
+                ?? SubscriberGroup::where('slug', $this->registry()->groupSlug($data['collection']))->first();
 
             if ($group) {
                 CampaignAudience::create([
@@ -452,10 +451,17 @@ class CampaignController extends Controller
 
     private function collectionOptions(): array
     {
-        return [
-            'insight_newsletters'    => 'Dataphyte Insight',
-            'foundation_newsletters' => 'Dataphyte Foundation',
-        ];
+        return $this->registry()->options();
+    }
+
+    private function collectionMeta(): array
+    {
+        return $this->registry()->meta();
+    }
+
+    private function collectionValidationRule(): string
+    {
+        return $this->registry()->validationRule();
     }
 
     private function statusOptions(): array
@@ -472,14 +478,16 @@ class CampaignController extends Controller
 
     private function subGroupTree(): \Illuminate\Support\Collection
     {
-        return SubscriberGroup::with('subGroups')->get();
+        return SubscriberGroup::with('subGroups')
+            ->whereNotNull('collection_handle')
+            ->get();
     }
 
     private function allEntries(): array
     {
         $entries = [];
 
-        foreach (['insight_newsletters', 'foundation_newsletters'] as $collection) {
+        foreach (array_keys($this->collectionOptions()) as $collection) {
             $collectionEntries = Entry::query()
                 ->where('collection', $collection)
                 ->orderBy('date', 'desc')
@@ -497,6 +505,11 @@ class CampaignController extends Controller
         }
 
         return $entries;
+    }
+
+    private function registry(): CollectionRegistry
+    {
+        return app(CollectionRegistry::class);
     }
 
     /** Convert empty string to null so optional sender fields don't trip NOT NULL (now nullable). */

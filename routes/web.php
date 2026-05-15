@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Public\PreferencesController;
+use App\Http\Controllers\Public\SubscriptionFormController;
 use App\Http\Controllers\Public\UnsubscribeController;
 use App\Http\Controllers\Public\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -57,6 +58,15 @@ Route::get('/preferences/{token}', [PreferencesController::class, 'show'])
 
 Route::post('/preferences/{token}', [PreferencesController::class, 'update'])
     ->name('newsletter.preferences.update');
+
+// Public newsletter form schema + submit endpoints.
+Route::get('/subscribe/{form}/schema', [SubscriptionFormController::class, 'schema'])
+    ->name('newsletter.forms.schema');
+
+Route::post('/subscribe/{form}', [SubscriptionFormController::class, 'submit'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->middleware('throttle:10,1')
+    ->name('newsletter.forms.submit');
 
 // Elastic Email webhook endpoints — public, no CSRF.
 // Some provider configurations send real webhook events as GET query params,

@@ -4,9 +4,9 @@ How newsletter content maps to Statamic's native structures.
 
 ---
 
-## Collections (one per subscriber group)
+## Collections (one per newsletter operation)
 
-Each subscriber group has its own collection. Each newsletter edition = one entry.
+Each newsletter operation has its own collection. Each newsletter edition = one entry.
 
 | Collection handle | Label | Audience |
 |---|---|---|
@@ -18,8 +18,14 @@ Separate collections because:
 - Independent CP permissions per editorial team
 - Clean "view in browser" URLs (`/newsletters/insight/{slug}`, `/newsletters/foundation/{slug}`)
 - Separate entry lists in the CP sidebar
+- Each collection can own its own subscription forms and preference model
 
 New newsletter groups in the future = new collection.
+
+Each collection also maps to:
+- one parent `subscriber_group`
+- zero or more collection-linked subscription forms
+- zero or more derived `subscriber_sub_groups`
 
 ---
 
@@ -44,6 +50,33 @@ Terms (starting set):
 Each entry can target one or more terms (send to Topics only, or Topics + SenorRita, or all Insight Subscribers).
 
 A special "All [Group Name]" option on the entry triggers a send to every subscriber in the parent group, ignoring sub-group targeting.
+
+In the form-driven intake model, the sub-groups themselves come from subscription form preference definitions. The taxonomy terms remain the editorial targeting layer.
+
+---
+
+## Subscription Forms
+
+Each collection may expose one or more subscription forms.
+
+Those forms define:
+- subscriber-facing fields
+- preference options
+- public endpoint handle
+- success/redirect behavior
+
+The destination website may render the form using its own styling. This project provides the schema and the submit pipeline.
+
+### Mapping
+
+```text
+Collection
+  -> Parent subscriber group
+  -> Subscription form
+  -> Preference definitions
+  -> Derived subscriber sub-groups
+  -> Taxonomy terms for campaign targeting
+```
 
 ---
 
@@ -240,7 +273,13 @@ Handle must match the Statamic collection handle exactly.
 - Create a `subscriber_group` row in the CP
 - Add sub-groups under it as needed
 
-### 5. Email templates — Blade files
+### 5. Subscription forms
+- Create a collection-linked form definition
+- Define its preference options
+- Sync those options to subscriber sub-groups
+- Expose schema + submit endpoint for remote sites
+
+### 6. Email templates — Blade files
 - Create `resources/views/emails/{collection}/` directory
 - Add at least one layout Blade file
 - Insert a row into `email_templates` table so the Blueprint select field shows it

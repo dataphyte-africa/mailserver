@@ -8,7 +8,7 @@
     <div>
         <h1 class="text-3xl font-bold">{{ $campaign->name }}</h1>
         <p class="text-sm text-grey-60 mt-0.5">
-            {{ $campaign->collection === 'insight_newsletters' ? 'Dataphyte Insight' : 'Dataphyte Foundation' }}
+            {{ $campaign->collectionLabel() }}
             &middot; Sent {{ $campaign->sent_at?->format('M j, Y g:i A') ?? '—' }}
         </p>
     </div>

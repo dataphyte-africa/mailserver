@@ -4,11 +4,18 @@ namespace App\Providers;
 
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\CollectionRegistry;
+use App\Services\Newsletter\CuratedRssStoriesService;
+use App\Services\Newsletter\SubscriptionFormService;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Statamic\Facades\CP\Nav;
+use Statamic\Facades\Form;
 use Statamic\Facades\GlobalSet;
+use Statamic\Events\EntrySaving;
+use Statamic\Events\FormSaved;
 use Statamic\Statamic;
 
 class NewsletterServiceProvider extends ServiceProvider
@@ -17,6 +24,9 @@ class NewsletterServiceProvider extends ServiceProvider
     {
         $this->registerMorphMap();
         $this->registerEmailViewComposer();
+        $this->registerFormConfig();
+        $this->registerFormSyncListener();
+        $this->registerEntryFeedSyncListener();
         $this->registerCpNav();
         $this->registerRoutes();
     }
@@ -56,6 +66,97 @@ class NewsletterServiceProvider extends ServiceProvider
             'subscriber_group'     => SubscriberGroup::class,
             'subscriber_sub_group' => SubscriberSubGroup::class,
         ]);
+    }
+
+    protected function registerFormConfig(): void
+    {
+        $registry = app(CollectionRegistry::class);
+        $groupOptions = $registry->groupOptions();
+
+        Form::appendConfigFields('*', 'Newsletter', [
+            'newsletter_group' => [
+                'type' => 'select',
+                'display' => 'Subscriber Group',
+                'instructions' => 'Link this form to the subscriber group that should receive submissions. The collection is derived from the group.',
+                'options' => $groupOptions,
+            ],
+            'newsletter_endpoint' => [
+                'type' => 'text',
+                'display' => 'Public Endpoint Slug',
+                'instructions' => 'Optional public slug for schema/submit endpoints. Defaults to the form handle.',
+            ],
+            'newsletter_preference_field' => [
+                'type' => 'text',
+                'display' => 'Preference Field Handle',
+                'instructions' => 'The form field handle whose options should become subscriber sub-groups.',
+            ],
+            'newsletter_privacy_url' => [
+                'type' => 'text',
+                'display' => 'Privacy Policy URL',
+                'instructions' => 'Returned with the schema so destination websites can link to the privacy policy.',
+            ],
+            'newsletter_logo_url' => [
+                'type' => 'text',
+                'display' => 'Confirmation Email Logo URL',
+                'instructions' => 'Optional logo URL used in subscription confirmation emails.',
+            ],
+            'newsletter_brand_color' => [
+                'type' => 'text',
+                'display' => 'Confirmation Brand Color',
+                'instructions' => 'Optional hex color used for the subscription email header, for example #3d405b.',
+            ],
+            'newsletter_success_message' => [
+                'type' => 'text',
+                'display' => 'Success Message',
+                'instructions' => 'Returned by the subscribe endpoint after a successful submission.',
+            ],
+            'newsletter_send_confirmation_email' => [
+                'type' => 'toggle',
+                'display' => 'Send Confirmation Email',
+                'instructions' => 'Send an email after a new subscription or resubscription.',
+                'default' => false,
+            ],
+            'newsletter_send_update_email' => [
+                'type' => 'toggle',
+                'display' => 'Send Update Email',
+                'instructions' => 'Also send an email when an existing subscriber updates their details or preferences.',
+                'default' => false,
+            ],
+            'newsletter_confirmation_subject' => [
+                'type' => 'text',
+                'display' => 'Confirmation Email Subject',
+                'instructions' => 'Optional subject for first-time subscriptions. Defaults to a collection-aware welcome subject.',
+            ],
+            'newsletter_resubscribe_subject' => [
+                'type' => 'text',
+                'display' => 'Resubscribe Email Subject',
+                'instructions' => 'Optional subject for resubscribe emails. Falls back to the confirmation subject when blank.',
+            ],
+            'newsletter_confirmation_body' => [
+                'type' => 'textarea',
+                'display' => 'Confirmation Email Body',
+                'instructions' => 'Optional plain-text body for first-time subscriptions. Supports {{first_name}}, {{last_name}}, {{full_name}}, and {{email}}.',
+            ],
+            'newsletter_resubscribe_body' => [
+                'type' => 'textarea',
+                'display' => 'Resubscribe Email Body',
+                'instructions' => 'Optional plain-text body for resubscribe emails. Falls back to the confirmation body when blank.',
+            ],
+        ]);
+    }
+
+    protected function registerFormSyncListener(): void
+    {
+        Event::listen(FormSaved::class, function (FormSaved $event) {
+            app(SubscriptionFormService::class)->syncManagedSubGroups($event->form);
+        });
+    }
+
+    protected function registerEntryFeedSyncListener(): void
+    {
+        Event::listen(EntrySaving::class, function (EntrySaving $event) {
+            app(CuratedRssStoriesService::class)->syncEntry($event->entry);
+        });
     }
 
     protected function registerCpNav(): void

@@ -7,6 +7,7 @@ use App\Models\Campaign;
 use App\Models\CampaignLinkClick;
 use App\Models\CampaignSend;
 use App\Models\WebhookLog;
+use App\Services\Newsletter\CollectionRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -71,9 +72,16 @@ class AnalyticsController extends Controller
             'pending'     => WebhookLog::where('created_at', '>=', now()->subHours(24))->whereNull('processed_at')->whereNull('error')->count(),
         ];
 
+        $collections = $this->collectionOptions();
+
         return view('newsletter.cp.analytics.index', compact(
-            'campaigns', 'totals', 'dailyVolume', 'webhookHealth', 'days', 'collection'
+            'campaigns', 'totals', 'dailyVolume', 'webhookHealth', 'days', 'collection', 'collections'
         ));
+    }
+
+    protected function collectionOptions(): array
+    {
+        return app(CollectionRegistry::class)->options();
     }
 
     /* ------------------------------------------------------------------ */

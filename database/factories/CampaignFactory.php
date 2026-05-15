@@ -13,7 +13,7 @@ class CampaignFactory extends Factory
     {
         return [
             'name'             => fake()->sentence(4),
-            'collection'       => fake()->randomElement(['insight_newsletters', 'foundation_newsletters']),
+            'collection'       => fake()->randomElement(['insight_newsletters', 'foundation_newsletters', 'policy_point_newsletters']),
             'entry_id'         => null,
             'subject'          => fake()->sentence(),
             'from_name'        => fake()->name(),
@@ -40,6 +40,15 @@ class CampaignFactory extends Factory
     {
         return $this->state([
             'collection' => 'foundation_newsletters',
+            'from_email' => null,
+            'from_name'  => null,
+        ]);
+    }
+
+    public function policyPoint(): static
+    {
+        return $this->state([
+            'collection' => 'policy_point_newsletters',
             'from_email' => null,
             'from_name'  => null,
         ]);

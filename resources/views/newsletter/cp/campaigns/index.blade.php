@@ -66,7 +66,7 @@
                     </a>
                 </td>
                 <td class="text-sm text-grey-70">
-                    {{ $campaign->collection === 'insight_newsletters' ? 'Insight' : 'Foundation' }}
+                    {{ $campaign->collectionShortLabel() }}
                 </td>
                 <td class="text-sm max-w-xs truncate">{{ $campaign->subject }}</td>
                 <td>

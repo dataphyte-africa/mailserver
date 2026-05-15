@@ -4,14 +4,19 @@
 
 ## How Subscribers Enter the System
 
-Subscribers are **imported by admins**, not self-subscribed via a public form. Consent was collected on the source websites (Dataphyte Insight or Foundation) before import.
+Subscribers can now enter the system through two paths:
+
+1. **Public subscription forms** linked to a subscriber group
+2. **Admin import/manual entry** in the Statamic CP
+
+Public forms are the preferred intake path for active newsletter operations. Each form belongs to exactly one subscriber group, and that group belongs to exactly one newsletter collection.
 
 | Source | Group | Sub-groups |
 |---|---|---|
-| Dataphyte Insight website | Insight Subscribers | Whatever verticals they selected (Topics, Marina & Maitama, SenorRita, etc.) |
-| Foundation website | Foundation | Whatever options they selected (Weekly, Activities, etc.) |
+| Remote website subscription form | Selected explicitly on the form | Derived from the form's preference definitions |
+| CSV import / manual admin entry | Selected by admin | Selected by admin |
 
-Groups and sub-groups are not hardcoded — new ones can be created in the CP at any time.
+Groups remain explicit DB records. Sub-groups may be created manually or provisioned from a form's preference definitions.
 
 ---
 
@@ -22,13 +27,63 @@ Groups and sub-groups are not hardcoded — new ones can be created in the CP at
 - Manage preferences via signed URL (toggle sub-group memberships)
 - View in browser link
 
+### Subscriber-Facing (at signup)
+- Collection-linked subscribe endpoint
+- Form schema can be defined in Statamic
+- Destination website controls the presentation/styling
+- Preference options on the form define the subscriber's sub-group membership
+- Consent metadata stored on the subscriber record
+
 ### Admin (Statamic CP)
 - Subscriber list with filters (group, sub-group, status)
 - Add/edit individual subscribers manually
-- **CSV import** (primary workflow — from source websites)
+- **CSV import** (fallback / migration workflow)
 - CSV export
 - View subscriber send history
 - Manage groups and sub-groups
+- Create and manage collection-linked subscription forms
+
+---
+
+## Public Subscription Flow
+
+1. Admin creates a subscriber group and links it to a newsletter collection
+2. The form stores:
+   - the target subscriber group
+   - the derived collection
+   - endpoint slug / public handle
+   - input fields
+   - preference field definitions
+   - optional confirmation email branding/copy
+3. Preference definitions are synced to `subscriber_sub_groups` for that selected parent group
+4. A remote website fetches the form schema and renders it using its own CSS/markup
+5. The website submits to this project's subscribe endpoint
+6. The system:
+   - validates the payload
+   - creates or updates the `Subscriber`
+   - assigns the selected parent subscriber group through one or more sub-groups
+   - stores consent metadata (`ip_address`, `user_agent`, timestamps, selected preferences)
+   - records per-submission outcome metadata on the saved Statamic submission
+
+### Styling model
+
+The destination website owns the form styling.
+
+This project supplies:
+- the form schema / field definitions
+- validation rules
+- audience mapping
+- submit endpoint
+
+### Group mapping rule
+
+Each public form belongs to exactly one subscriber group. The collection is derived from that group.
+
+Example:
+
+| Form | Collection | Parent group | Derived sub-groups |
+|---|---|---|---|
+| `policy-point-subscribe` | `policy_point_newsletters` | `policy-point-subscribers` | `regular`, `monthly` |
 
 ---
 
@@ -91,6 +146,29 @@ https://yourdomain.com/preferences/{signed-token}
 - Alpine.js for toggling sub-group checkboxes
 - Tailwind CSS for styling
 - CSRF-protected form submission
+
+The preference center continues to operate on the same `subscriber_sub_groups` records used by public signup forms.
+
+---
+
+## Submission Audit Trail
+
+Saved Statamic form submissions now act as the audit trail for newsletter intake processing.
+
+Each saved submission may include:
+
+- `subscription_status`
+- `email_sent`
+- `subscriber_id`
+- `subscriber_group_id`
+
+This data is written after the subscriber pipeline runs. It lets admins confirm whether a submission:
+
+- created a new subscriber
+- hit an already-subscribed address
+- updated an existing subscriber
+- resubscribed a previously unsubscribed user
+- triggered a confirmation email
 
 ---
 

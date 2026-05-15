@@ -27,6 +27,16 @@ class CampaignSenderTest extends TestCase
         $this->assertEquals('Dataphyte Foundation',     $sender['from_name']);
     }
 
+    public function test_sender_uses_collection_config_for_policy_point(): void
+    {
+        $campaign = Campaign::factory()->policyPoint()->make();
+
+        $sender = $campaign->sender();
+
+        $this->assertEquals('newsletter@dataphyte.com', $sender['from_email']);
+        $this->assertEquals('Policy Point',             $sender['from_name']);
+    }
+
     public function test_per_campaign_override_takes_precedence(): void
     {
         $campaign = Campaign::factory()->insight()->make([

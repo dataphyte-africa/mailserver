@@ -86,11 +86,8 @@
                 <h2 class="text-lg font-semibold mb-1">Sender (optional overrides)</h2>
                 <p class="text-sm text-grey-60 mb-4">
                     Leave blank to use the collection defaults
-                    <template x-if="collection === 'insight_newsletters'">
-                        <span>(newsletter@dataphyte.com)</span>
-                    </template>
-                    <template x-if="collection === 'foundation_newsletters'">
-                        <span>(newsletter@dataphyte.org)</span>
+                    <template x-if="defaultFromEmail">
+                        <span x-text="'(' + defaultFromEmail + ')'"></span>
                     </template>
                 </p>
 
@@ -203,6 +200,7 @@
 <script>
 // All entries keyed by collection — embedded server-side
 const ALL_ENTRIES = @json($entries);
+const COLLECTION_META = @json($collectionMeta);
 
 // Restore any old() value after validation failure
 const OLD_ENTRY_ID   = '{{ old('entry_id', '') }}';
@@ -263,13 +261,13 @@ function campaignForm() {
         sendToAll: {{ old('send_to_all', 0) ? 'true' : 'false' }},
         action: '{{ old('action', 'draft') }}',
 
+        get defaultFromEmail() {
+            return COLLECTION_META[this.collection]?.from_email || '';
+        },
+
         groupMatchesCollection(groupSlug) {
             if (!this.collection) return true;
-            const map = {
-                'insight_newsletters': 'insight-subscribers',
-                'foundation_newsletters': 'foundation',
-            };
-            return map[this.collection] === groupSlug;
+            return COLLECTION_META[this.collection]?.group_slug === groupSlug;
         },
     }
 }

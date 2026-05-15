@@ -13,28 +13,118 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Collection Senders
+    | Collection Senders And Footer Data
     |--------------------------------------------------------------------------
-    | Maps each Statamic collection handle to its from address and name.
-    | The Mailable resolves the correct sender based on $campaign->collection.
-    |
-    | Add a new entry here whenever a new newsletter collection is created.
+    | Maps each Statamic collection handle to its sender identity and the
+    | shared footer content reused across all blueprint templates under that
+    | collection.
     */
 
     'collections' => [
 
         'insight_newsletters' => [
+            'label'       => 'Dataphyte Insight',
+            'short_label' => 'Insight',
+            'group_name'  => 'Insight Subscribers',
+            'group_slug'  => 'insight-subscribers',
             'from_email'  => env('NEWSLETTER_INSIGHT_FROM_EMAIL', 'newsletter@dataphyte.com'),
             'from_name'   => env('NEWSLETTER_INSIGHT_FROM_NAME', 'Dataphyte Insight'),
             'reply_to'    => env('NEWSLETTER_INSIGHT_REPLY_TO', ''),
             'brand_color' => '#0d1b2a',
+            'footer'      => [
+                'social_links' => [
+                    'facebook' => '#',
+                    'twitter' => '#',
+                    'whatsapp' => '#',
+                    'youtube' => '#',
+                    'instagram' => '#',
+                    'tiktok' => '#',
+                ],
+                'offices' => [
+                    [
+                        'label' => 'Dataphyte, Nigeria',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                    [
+                        'label' => 'Dataphyte, United State',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                    [
+                        'label' => 'Dataphyte, United Kingdom',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                ],
+            ],
         ],
 
         'foundation_newsletters' => [
+            'label'       => 'Dataphyte Foundation',
+            'short_label' => 'Foundation',
+            'group_name'  => 'Foundation',
+            'group_slug'  => 'foundation',
             'from_email'  => env('NEWSLETTER_FOUNDATION_FROM_EMAIL', 'newsletter@dataphyte.org'),
             'from_name'   => env('NEWSLETTER_FOUNDATION_FROM_NAME', 'Dataphyte Foundation'),
             'reply_to'    => env('NEWSLETTER_FOUNDATION_REPLY_TO', ''),
             'brand_color' => '#1b4332',
+            'footer'      => [
+                'social_links' => [
+                    'facebook' => '#',
+                    'twitter' => '#',
+                    'whatsapp' => '#',
+                    'youtube' => '#',
+                    'instagram' => '#',
+                    'tiktok' => '#',
+                ],
+                'offices' => [
+                    [
+                        'label' => 'Dataphyte, Nigeria',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                    [
+                        'label' => 'Dataphyte, United State',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                    [
+                        'label' => 'Dataphyte, United Kingdom',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                ],
+            ],
+        ],
+
+        'policy_point_newsletters' => [
+            'label'       => 'Policy Point',
+            'short_label' => 'Policy Point',
+            'group_name'  => 'Policy Point',
+            'group_slug'  => 'policy-point',
+            'from_email'  => env('NEWSLETTER_POLICY_POINT_FROM_EMAIL', 'newsletter@dataphyte.com'),
+            'from_name'   => env('NEWSLETTER_POLICY_POINT_FROM_NAME', 'Policy Point'),
+            'reply_to'    => env('NEWSLETTER_POLICY_POINT_REPLY_TO', ''),
+            'brand_color' => '#3d405b',
+            'footer'      => [
+                'social_links' => [
+                    'facebook' => '#',
+                    'twitter' => '#',
+                    'whatsapp' => '#',
+                    'youtube' => '#',
+                    'instagram' => '#',
+                    'tiktok' => '#',
+                ],
+                'offices' => [
+                    [
+                        'label' => 'Dataphyte, Nigeria',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                    [
+                        'label' => 'Dataphyte, United State',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                    [
+                        'label' => 'Dataphyte, United Kingdom',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                    ],
+                ],
+            ],
         ],
 
     ],

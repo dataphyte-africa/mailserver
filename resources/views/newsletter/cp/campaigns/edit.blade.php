@@ -183,6 +183,7 @@
 
 <script>
 const ALL_ENTRIES    = @json($entries);
+const COLLECTION_META = @json($collectionMeta);
 const OLD_ENTRY_ID   = '{{ old('entry_id', $campaign->entry_id ?? '') }}';
 const OLD_COLLECTION = '{{ old('collection', $campaign->collection) }}';
 
@@ -239,11 +240,7 @@ function campaignForm() {
 
         groupMatchesCollection(groupSlug) {
             if (!this.collection) return true;
-            const map = {
-                'insight_newsletters': 'insight-subscribers',
-                'foundation_newsletters': 'foundation',
-            };
-            return map[this.collection] === groupSlug;
+            return COLLECTION_META[this.collection]?.group_slug === groupSlug;
         },
     }
 }

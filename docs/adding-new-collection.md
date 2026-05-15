@@ -1,7 +1,8 @@
 # Adding a New Newsletter Collection
 
 Complete reference for adding a new newsletter collection — a new brand/product
-with its own sender identity, subscriber group, audiences, blueprints and email templates.
+with its own sender identity, subscriber group, audiences, blueprints, email templates,
+and subscription form pipeline.
 
 Follow steps in order. Nothing outside this checklist needs to change.
 
@@ -13,9 +14,10 @@ Follow steps in order. Nothing outside this checklist needs to change.
 New Collection
 ├── Statamic collection       → where editors write entries (one entry = one newsletter issue)
 ├── Multiple blueprints       → one per email format/product (each carries a hidden template field)
+├── Subscription forms        → intake definitions linked to the collection
 ├── Taxonomy terms            → the audience sub-groups editors can target in each entry
 ├── Subscriber group          → DB group that maps to this collection's subscribers
-├── Sub-groups                → granular segments (one per taxonomy term)
+├── Sub-groups                → granular segments derived from form preference definitions
 ├── Blade email templates     → one .blade.php per blueprint
 ├── GlobalSet fields          → logo + brand colour uploaded via CP
 └── config/newsletter.php     → sender identity (from address/name)
@@ -159,8 +161,8 @@ Via CP: **Newsletter → Groups → Create Group**
 | Name | Culture |
 | Slug | `culture` |
 
-Then add sub-groups under it. Each sub-group must have a slug that matches the
-taxonomy term you will create in Step 5.
+Then add sub-groups under it, or derive them from the collection's subscription form.
+Each sub-group slug must align with the audience model you will target in the next steps.
 
 | Sub-group Name | Sub-group Slug |
 |---|---|
@@ -170,6 +172,29 @@ taxonomy term you will create in Step 5.
 ---
 
 ## Step 5 — Add Taxonomy Terms for the New Audiences
+
+Before adding taxonomy terms, define at least one subscription form linked to the new collection.
+
+Recommended form metadata:
+- form handle
+- collection handle
+- public endpoint slug
+- subscriber fields
+- preference field
+- preference option slugs
+
+Example for `culture_newsletters`:
+
+| Setting | Value |
+|---|---|
+| Form handle | `culture-subscribe` |
+| Collection | `culture_newsletters` |
+| Preference field | `frequency` |
+| Options | `weekly`, `monthly` |
+
+Those option slugs should become the collection's subscriber sub-groups.
+
+Then add taxonomy terms for the new audiences.
 
 The `newsletter_audiences` taxonomy is **shared across all collections**.
 Each audience sub-group needs a corresponding term.
