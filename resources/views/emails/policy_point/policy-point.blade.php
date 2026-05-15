@@ -175,7 +175,7 @@
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                             <tr>
                                 <td style="background-color:{{ $headerColor ?? '#3d405b' }};">
-                                    <a href="#" style="display:block;padding:12px 18px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">
+                                    <a href="https://dataphyte.com/dataphyte-policy-point" style="display:block;padding:12px 18px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">
                                         Apply here
                                     </a>
                                 </td>
