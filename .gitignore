@@ -29,3 +29,8 @@ Thumbs.db
 .mcp.json
 
 docs
+ app/Console/Commands/Newsletter/ProvisionPolicyPoint.php
+	app/Services/Newsletter/PolicyPointProvisioner.php
+	cleaned_policy_point_subscribers.csv
+	cleaned_policy_point_subscribers.summary.json
+	scripts/

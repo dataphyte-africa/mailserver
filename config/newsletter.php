@@ -35,6 +35,7 @@ return [
                 'social_links' => [
                     'facebook' => '#',
                     'twitter' => '#',
+                    'linkedin' => '#',
                     'whatsapp' => '#',
                     'youtube' => '#',
                     'instagram' => '#',
@@ -70,6 +71,7 @@ return [
                 'social_links' => [
                     'facebook' => '#',
                     'twitter' => '#',
+                    'linkedin' => '#',
                     'whatsapp' => '#',
                     'youtube' => '#',
                     'instagram' => '#',
@@ -103,12 +105,13 @@ return [
             'brand_color' => '#3d405b',
             'footer'      => [
                 'social_links' => [
-                    'facebook' => '#',
-                    'twitter' => '#',
-                    'whatsapp' => '#',
-                    'youtube' => '#',
-                    'instagram' => '#',
-                    'tiktok' => '#',
+                    'facebook' => 'https://web.facebook.com/dataphyte',
+                    'twitter' => 'https://x.com/Dataphyte',
+                    'whatsapp' => 'https://whatsapp.com/channel/0029VaF9xCo6hENiEXLcFS3Q',
+                    'youtube' => 'https://www.youtube.com/@dataphyte',
+                    'instagram' => 'https://www.instagram.com/dataphyteng',
+                    'tiktok' => 'https://www.tiktok.com/@dataphyte',
+                    'linkedin' => 'https://www.linkedin.com/in/dataphyte',
                 ],
                 'offices' => [
                     [

@@ -127,7 +127,7 @@
 
                     @foreach($rssSecondaryItems as $item)
                         <tr>
-                            <td style="padding:0 0 18px;border-bottom:1px solid #d9d1c6;">
+                            <td style="padding:{{ $loop->first ? '0' : '18px' }} 0 18px;{{ $loop->last ? '' : 'border-bottom:1px solid #d9d1c6;' }}">
                                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                     <tr>
                                         @if(!empty($item['image_url']))
