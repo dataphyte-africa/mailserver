@@ -206,6 +206,12 @@
             <h2 class="font-semibold mb-2">Actions</h2>
             <a href="{{ cp_route('newsletter.campaigns.show', $campaign) }}"
                class="block text-blue hover:underline">View campaign &rarr;</a>
+            <form method="POST" action="{{ cp_route('newsletter.analytics.campaign.sync', $campaign) }}">
+                @csrf
+                <button type="submit" class="text-blue hover:underline">
+                    Sync Stats Now &rarr;
+                </button>
+            </form>
         </div>
 
     </div>

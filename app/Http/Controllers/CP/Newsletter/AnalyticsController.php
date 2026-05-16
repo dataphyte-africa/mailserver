@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CP\Newsletter;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\Newsletter\SyncCampaignStatsJob;
 use App\Models\Campaign;
 use App\Models\CampaignLinkClick;
 use App\Models\CampaignSend;
@@ -163,6 +164,16 @@ class AnalyticsController extends Controller
             'campaign', 'stats', 'opensByHour', 'topLinks',
             'statusBreakdown', 'opensOverTime', 'failedSends'
         ));
+    }
+
+    public function syncCampaign(Campaign $campaign)
+    {
+        abort_if(! in_array($campaign->status, ['sending', 'sent', 'partial', 'failed']), 403);
+
+        SyncCampaignStatsJob::dispatch($campaign->id)->onQueue('campaigns');
+
+        return redirect(cp_route('newsletter.analytics.campaign', $campaign))
+            ->with('success', 'Stats sync queued. Refresh in a moment.');
     }
 
     /* ------------------------------------------------------------------ */

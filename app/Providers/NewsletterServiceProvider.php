@@ -211,6 +211,7 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::get('/',                     [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'index'])->name('index');
                     \Route::get('/webhooks',             [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'webhooks'])->name('webhooks');
                     \Route::get('/campaign/{campaign}',  [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'campaign'])->name('campaign');
+                    \Route::post('/campaign/{campaign}/sync', [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'syncCampaign'])->name('campaign.sync');
                 });
 
                 // Campaigns
