@@ -170,6 +170,15 @@ class AnalyticsController extends Controller
     {
         abort_if(! in_array($campaign->status, ['sending', 'sent', 'partial', 'failed']), 403);
 
+        $campaign->forceFill([
+            'last_stats_sync_requested_at' => now(),
+            'last_stats_sync_completed_at' => null,
+            'last_stats_sync_status' => 'queued',
+            'last_stats_sync_total' => 0,
+            'last_stats_sync_processed' => 0,
+            'last_stats_sync_error' => null,
+        ])->save();
+
         SyncCampaignStatsJob::dispatch($campaign->id)->onQueue('campaigns');
 
         return redirect(cp_route('newsletter.analytics.campaign', $campaign))

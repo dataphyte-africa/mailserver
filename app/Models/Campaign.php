@@ -15,12 +15,17 @@ class Campaign extends Model
         'entry_id', 'collection', 'name', 'subject',
         'from_name', 'from_email', 'reply_to',
         'status', 'scheduled_at', 'sent_at',
+        'last_stats_sync_requested_at', 'last_stats_sync_completed_at',
+        'last_stats_sync_status', 'last_stats_sync_total',
+        'last_stats_sync_processed', 'last_stats_sync_error',
         'total_recipients', 'created_by',
     ];
 
     protected $casts = [
-        'scheduled_at' => 'datetime',
-        'sent_at'      => 'datetime',
+        'scheduled_at'                  => 'datetime',
+        'sent_at'                       => 'datetime',
+        'last_stats_sync_requested_at'  => 'datetime',
+        'last_stats_sync_completed_at'  => 'datetime',
     ];
 
     public function audiences(): HasMany
@@ -94,5 +99,17 @@ class Campaign extends Model
             ')
             ->first()
             ->toArray();
+    }
+
+    public function statsSyncProgress(): int
+    {
+        $total = (int) ($this->last_stats_sync_total ?? 0);
+        $processed = (int) ($this->last_stats_sync_processed ?? 0);
+
+        if ($total <= 0) {
+            return 0;
+        }
+
+        return (int) min(100, round(($processed / $total) * 100));
     }
 }

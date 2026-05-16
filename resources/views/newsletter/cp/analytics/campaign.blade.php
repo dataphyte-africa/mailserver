@@ -202,14 +202,48 @@
         @endif
 
         {{-- Quick actions --}}
-        <div class="card p-5 text-sm space-y-2">
+        <div class="card p-5 text-sm space-y-3">
             <h2 class="font-semibold mb-2">Actions</h2>
+            @php
+                $syncStatus = $campaign->last_stats_sync_status;
+                $syncTotal = (int) ($campaign->last_stats_sync_total ?? 0);
+                $syncProcessed = (int) ($campaign->last_stats_sync_processed ?? 0);
+                $syncProgress = $campaign->statsSyncProgress();
+                $syncBadgeClasses = match ($syncStatus) {
+                    'queued' => 'bg-yellow-lighter text-yellow-dark',
+                    'processing' => 'bg-blue-lighter text-blue-dark',
+                    'completed' => 'bg-green-lighter text-green-dark',
+                    'failed' => 'bg-red-lighter text-red-dark',
+                    default => 'bg-grey-20 text-grey-70',
+                };
+            @endphp
+            <div class="space-y-2 text-xs text-grey-60">
+                <div class="flex items-center justify-between">
+                    <span>Sync status</span>
+                    <span class="badge text-xs {{ $syncBadgeClasses }}">{{ $syncStatus ?: 'idle' }}</span>
+                </div>
+                @if($campaign->last_stats_sync_requested_at)
+                    <p>Requested {{ $campaign->last_stats_sync_requested_at->format('M j, Y g:i A') }}</p>
+                @endif
+                @if($syncStatus === 'processing' || $syncStatus === 'completed')
+                    <p>Progress {{ number_format($syncProcessed) }} / {{ number_format($syncTotal) }} @if($syncTotal > 0) ({{ $syncProgress }}%) @endif</p>
+                    <div class="w-full bg-grey-20 rounded-full h-2">
+                        <div class="bg-blue h-2 rounded-full" style="width:{{ $syncProgress }}%"></div>
+                    </div>
+                @endif
+                @if($campaign->last_stats_sync_completed_at)
+                    <p>Completed {{ $campaign->last_stats_sync_completed_at->format('M j, Y g:i A') }}</p>
+                @endif
+                @if($syncStatus === 'failed' && $campaign->last_stats_sync_error)
+                    <p class="text-red-dark">{{ \Illuminate\Support\Str::limit($campaign->last_stats_sync_error, 140) }}</p>
+                @endif
+            </div>
             <a href="{{ cp_route('newsletter.campaigns.show', $campaign) }}"
                class="block text-blue hover:underline">View campaign &rarr;</a>
             <form method="POST" action="{{ cp_route('newsletter.analytics.campaign.sync', $campaign) }}">
                 @csrf
                 <button type="submit" class="text-blue hover:underline">
-                    Sync Stats Now &rarr;
+                    {{ in_array($syncStatus, ['queued', 'processing', 'failed'], true) ? 'Re-queue Stats Sync' : 'Sync Stats Now' }} &rarr;
                 </button>
             </form>
         </div>

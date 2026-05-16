@@ -25,6 +25,7 @@ class CampaignStatsSyncService
         int $limit = 0,
         bool $dryRun = false,
         bool $applyWindow = true,
+        ?callable $onProgress = null,
     ): array {
         $apiKey = config('mail.mailers.elasticemail.key');
 
@@ -59,6 +60,10 @@ class CampaignStatsSyncService
         $total = $query->count();
 
         if ($total === 0) {
+            if ($onProgress) {
+                $onProgress(0, 0);
+            }
+
             return [
                 'ok' => true,
                 'total' => 0,
@@ -68,7 +73,12 @@ class CampaignStatsSyncService
         }
 
         $synced = 0;
+        $processed = 0;
         $errors = [];
+
+        if ($onProgress) {
+            $onProgress(0, $total);
+        }
 
         foreach ($query->cursor() as $send) {
             $send->loadMissing(['campaign', 'subscriber']);
@@ -145,6 +155,12 @@ class CampaignStatsSyncService
             } catch (\Throwable $e) {
                 $errors[] = "send #{$send->id}: {$e->getMessage()}";
                 Log::warning("CampaignStatsSyncService: send #{$send->id} — {$e->getMessage()}");
+            } finally {
+                $processed++;
+
+                if ($onProgress) {
+                    $onProgress($processed, $total);
+                }
             }
         }
 
@@ -152,6 +168,7 @@ class CampaignStatsSyncService
             'ok' => true,
             'total' => $total,
             'synced' => $synced,
+            'processed' => $processed,
             'errors' => $errors,
             'window' => $applyWindow ? ($hours ? "{$hours}h" : "{$days}d") : 'unbounded',
         ];
