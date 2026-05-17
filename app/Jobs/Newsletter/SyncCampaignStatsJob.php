@@ -17,7 +17,7 @@ class SyncCampaignStatsJob implements ShouldQueue
 
     public int $tries = 1;
     public int $timeout = 120;
-    private const CHUNK_SIZE = 250;
+    private const CHUNK_SIZE = 100;
 
     public function __construct(public readonly int $campaignId) {}
 

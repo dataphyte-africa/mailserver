@@ -155,3 +155,104 @@ CP queries campaign_sends for display
 | Unread rate | unread / delivered × 100 |
 
 Good benchmarks: delivery > 95%, open rate 20–40%, failure < 2%.
+
+---
+
+## Manual Stats Reconciliation In CP
+
+The analytics campaign page now supports a manual fallback reconciliation flow for
+campaigns whose webhook-derived analytics are incomplete or delayed.
+
+### CP actions
+
+On the per-campaign analytics page:
+- `Sync Stats Now`
+- `Re-queue Stats Sync`
+
+These actions queue a campaign-scoped fallback sync against Elastic Email and do not
+re-dispatch campaign emails.
+
+### What gets rechecked
+
+Manual reconciliation only targets sends that are still worth reconciling:
+- `sent`
+- `pending`
+- `delivered`
+- `opened`
+
+It intentionally skips already-terminal or fully resolved sends such as:
+- `clicked`
+- `failed`
+- `bounced`
+- `complained`
+
+That means a re-sync does **not** rescan the entire campaign blindly. It continues
+checking only the sends that may still advance to:
+- delivered
+- opened
+- clicked
+
+### Chunked queue model
+
+Large campaign syncs are split into small queue jobs.
+
+Current production-safe chunk size:
+- `100` campaign sends per chunk
+
+Flow:
+1. A dispatcher job finds eligible `campaign_sends` rows.
+2. It stores the campaign sync totals on the `campaigns` table.
+3. It dispatches chunk jobs in batches of `100`.
+4. Each chunk queries Elastic Email and writes synthetic `WebhookLog` rows.
+5. `ProcessWebhookJob` consumes those rows and updates `campaign_sends`.
+
+This avoids a single long-running sync job timing out on large campaigns.
+
+### Sync state stored on campaigns
+
+The following fields track reconciliation progress:
+- `last_stats_sync_requested_at`
+- `last_stats_sync_completed_at`
+- `last_stats_sync_status`
+- `last_stats_sync_total`
+- `last_stats_sync_processed`
+- `last_stats_sync_error`
+
+`last_stats_sync_status` values:
+- `queued`
+- `processing`
+- `completed`
+- `failed`
+
+### Live polling endpoint
+
+The analytics page polls a campaign-scoped JSON endpoint while sync is queued or running:
+
+- `GET /cp/newsletter/analytics/campaign/{campaign}/status`
+
+Returned payload includes:
+- sync state
+- progress numbers and percentage
+- KPI metrics
+- status breakdown
+- open-distribution chart data
+
+### Important behavior
+
+The live percentage reflects the reconciliation scan progress:
+
+```text
+processed / total * 100
+```
+
+Metrics do **not** need to wait for `100%` completion before changing. As each chunk
+finishes and its synthetic webhook jobs are processed, the analytics page can show
+updated metrics on refresh or via polling.
+
+### Operational note
+
+If queue workers are down or a chunk fails, the sync can stop in `queued`,
+`processing`, or `failed`. In that case:
+- inspect failed jobs
+- inspect webhook queue health
+- re-queue the sync from the campaign analytics page once the issue is resolved

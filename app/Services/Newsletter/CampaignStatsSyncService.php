@@ -125,7 +125,7 @@ class CampaignStatsSyncService
                 ];
 
                 if ($eventDate) {
-                    $payload['Date'] = $eventDate->toIso8601String();
+                    $payload['Date'] = $this->toIso8601String($eventDate);
                 }
 
                 $log = WebhookLog::create([
@@ -281,7 +281,7 @@ class CampaignStatsSyncService
                 ];
 
                 if ($eventDate) {
-                    $payload['Date'] = $eventDate->toIso8601String();
+                    $payload['Date'] = $this->toIso8601String($eventDate);
                 }
 
                 $log = WebhookLog::create([
@@ -479,5 +479,10 @@ class CampaignStatsSyncService
             'abusereport' => $event->getEventType() === EventType::COMPLAINT,
             default => false,
         };
+    }
+
+    private function toIso8601String(\DateTimeInterface $date): string
+    {
+        return $date->format(\DateTimeInterface::ATOM);
     }
 }

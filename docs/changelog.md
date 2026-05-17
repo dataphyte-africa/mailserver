@@ -2,6 +2,37 @@
 
 ---
 
+## Session 6 — 2026-05-17 (Live analytics sync and chunked reconciliation)
+
+### Documentation updates
+
+- Updated [docs/analytics.md](/Users/dataphytefoundation/Herd/mailserver/docs/analytics.md) to document:
+  - manual per-campaign stats reconciliation
+  - chunked queue processing
+  - campaign-level sync state fields
+  - the live analytics polling endpoint
+
+### Implementation completed
+
+- Added campaign sync tracking fields:
+  - `last_stats_sync_requested_at`
+  - `last_stats_sync_completed_at`
+  - `last_stats_sync_status`
+  - `last_stats_sync_total`
+  - `last_stats_sync_processed`
+  - `last_stats_sync_error`
+- Added a reusable `CampaignStatsSyncService` to centralize Elastic Email fallback reconciliation.
+- Reworked manual stats sync to use a dispatcher + chunk jobs instead of a single long-running job.
+- Reduced manual sync chunk size to `100` sends per job for lower production resource usage.
+- Added a campaign analytics JSON polling endpoint:
+  - `GET /cp/newsletter/analytics/campaign/{campaign}/status`
+- Added live in-page polling on the campaign analytics view so:
+  - sync status updates without a full page reload
+  - progress bar and percentage update while the sync runs
+  - KPI cards and status breakdown refresh in place
+- Hardened fallback event-date serialization so native `DateTime` values no longer break sync jobs.
+- Improved analytics page presentation with clearer card borders, visible action buttons, and stronger UI boundaries.
+
 ## Session 4 — 2026-05-14 (Subscription form architecture)
 
 ### Documentation updates
