@@ -16,7 +16,8 @@ class SyncCampaignStatsJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
-    public int $timeout = 900;
+    public int $timeout = 120;
+    private const CHUNK_SIZE = 250;
 
     public function __construct(public readonly int $campaignId) {}
 
@@ -38,46 +39,42 @@ class SyncCampaignStatsJob implements ShouldQueue
         ])->save();
 
         try {
-            $result = $syncService->sync(
+            $syncToken = optional($campaign->last_stats_sync_requested_at)?->toIso8601String();
+
+            $sendIds = $syncService->eligibleSendIds(
                 campaignId: $campaign->id,
                 hours: null,
                 days: 30,
                 limit: 0,
-                dryRun: false,
                 applyWindow: false,
-                onProgress: function (int $processed, int $total) use ($campaign): void {
-                    if ($processed === 0 || $processed === $total || $processed % 25 === 0) {
-                        $campaign->forceFill([
-                            'last_stats_sync_status' => 'processing',
-                            'last_stats_sync_total' => $total,
-                            'last_stats_sync_processed' => $processed,
-                        ])->save();
-                    }
-                },
             );
 
-            if (! ($result['ok'] ?? false)) {
-                $campaign->forceFill([
-                    'last_stats_sync_status' => 'failed',
-                    'last_stats_sync_error' => (string) ($result['error'] ?? 'Unable to sync campaign stats.'),
-                ])->save();
+            $total = count($sendIds);
 
-                Log::warning("SyncCampaignStatsJob: campaign {$campaign->id} could not sync stats");
+            if ($total === 0) {
+                $campaign->forceFill([
+                    'last_stats_sync_status' => 'completed',
+                    'last_stats_sync_total' => 0,
+                    'last_stats_sync_processed' => 0,
+                    'last_stats_sync_completed_at' => now(),
+                ])->save();
                 return;
             }
 
             $campaign->forceFill([
-                'last_stats_sync_status' => 'completed',
-                'last_stats_sync_total' => (int) ($result['total'] ?? 0),
-                'last_stats_sync_processed' => (int) ($result['processed'] ?? 0),
-                'last_stats_sync_completed_at' => now(),
-                'last_stats_sync_error' => empty($result['errors']) ? null : implode("\n", $result['errors']),
+                'last_stats_sync_status' => 'processing',
+                'last_stats_sync_total' => $total,
+                'last_stats_sync_processed' => 0,
             ])->save();
 
+            foreach (array_chunk($sendIds, self::CHUNK_SIZE) as $chunk) {
+                SyncCampaignStatsChunkJob::dispatch($campaign->id, $chunk, (string) $syncToken)
+                    ->onQueue('campaigns');
+            }
+
             Log::info(
-                "SyncCampaignStatsJob: campaign {$campaign->id} queued "
-                . (($result['synced'] ?? 0)) . ' / ' . (($result['total'] ?? 0))
-                . ' sync webhook jobs'
+                "SyncCampaignStatsJob: campaign {$campaign->id} dispatched "
+                . ceil($total / self::CHUNK_SIZE) . " chunk job(s) for {$total} sends"
             );
         } catch (\Throwable $e) {
             $campaign->forceFill([
