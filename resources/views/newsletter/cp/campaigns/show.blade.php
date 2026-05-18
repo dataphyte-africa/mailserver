@@ -97,7 +97,7 @@
 <div class="flex gap-6">
 
     {{-- Left: stats + sends --}}
-    <div class="flex-1 space-y-6">
+    <div class="flex-1 min-w-0 space-y-6">
 
         {{-- Stats cards --}}
         <div class="grid grid-cols-4 gap-4">
@@ -158,57 +158,69 @@
                     page {{ $sends->currentPage() }} of {{ $sends->lastPage() }}
                 </span>
             </div>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Subscriber</th>
-                        <th>Status</th>
-                        <th>Sent</th>
-                        <th>Opened</th>
-                        <th>Synced</th>
-                        <th>Transaction ID</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($sends as $send)
-                    <tr>
-                        <td class="text-sm">
-                            @if($send->subscriber)
-                                <a href="{{ cp_route('newsletter.subscribers.show', $send->subscriber) }}"
-                                   class="text-blue hover:underline">
-                                    {{ $send->subscriber->full_name }}
-                                </a>
-                                <span class="text-grey-50 text-xs ml-1">{{ $send->subscriber->email }}</span>
-                            @else
-                                <span class="text-grey-50">(deleted)</span>
-                            @endif
-                        </td>
-                        <td>
-                            <span class="badge text-xs {{ match($send->status) {
-                                'sent','delivered' => 'bg-green-lighter text-green-dark',
-                                'opened','clicked' => 'bg-blue-lighter text-blue-dark',
-                                'failed','bounced' => 'bg-red-lighter text-red-dark',
-                                default            => 'bg-grey-30 text-grey-80',
-                            } }}">{{ $send->status }}</span>
-                        </td>
-                        <td class="text-sm text-grey-60">{{ $send->sent_at?->format('M j H:i') ?? '—' }}</td>
-                        <td class="text-sm text-grey-60">
-                            @if($send->opened_at)
-                                {{ $send->opened_at->format('M j H:i') }}
-                            @elseif(in_array($send->status, ['opened', 'clicked']) && $send->synced_at)
-                                Unavailable
-                            @else
-                                —
-                            @endif
-                        </td>
-                        <td class="text-sm text-grey-60">{{ $send->synced_at?->format('M j H:i') ?? '—' }}</td>
-                        <td class="text-xs text-grey-50 font-mono truncate max-w-xs">
-                            {{ $send->elastic_email_transaction_id ?? '—' }}
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <div class="overflow-x-auto">
+                <table class="data-table min-w-full">
+                    <thead>
+                        <tr>
+                            <th>Subscriber</th>
+                            <th>Status</th>
+                            <th>Sent</th>
+                            <th>Opened</th>
+                            <th>Clicked</th>
+                            <th>Synced</th>
+                            <th>Transaction ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($sends as $send)
+                        <tr>
+                            <td class="text-sm">
+                                @if($send->subscriber)
+                                    <a href="{{ cp_route('newsletter.subscribers.show', $send->subscriber) }}"
+                                       class="text-blue hover:underline">
+                                        {{ $send->subscriber->full_name }}
+                                    </a>
+                                    <span class="text-grey-50 text-xs ml-1">{{ $send->subscriber->email }}</span>
+                                @else
+                                    <span class="text-grey-50">(deleted)</span>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="badge text-xs {{ match($send->status) {
+                                    'sent','delivered' => 'bg-green-lighter text-green-dark',
+                                    'opened','clicked' => 'bg-blue-lighter text-blue-dark',
+                                    'failed','bounced' => 'bg-red-lighter text-red-dark',
+                                    default            => 'bg-grey-30 text-grey-80',
+                                } }}">{{ $send->status }}</span>
+                            </td>
+                            <td class="text-sm text-grey-60 whitespace-nowrap">{{ $send->sent_at?->format('M j H:i') ?? '—' }}</td>
+                            <td class="text-sm text-grey-60 whitespace-nowrap">
+                                @if($send->opened_at)
+                                    {{ $send->opened_at->format('M j H:i') }}
+                                @elseif(in_array($send->status, ['opened', 'clicked']) && $send->synced_at)
+                                    Unavailable
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="text-sm text-grey-60 whitespace-nowrap">
+                                @if($send->clicked_at)
+                                    {{ $send->clicked_at->format('M j H:i') }}
+                                @elseif($send->status === 'clicked' && $send->synced_at)
+                                    Unavailable
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="text-sm text-grey-60 whitespace-nowrap">{{ $send->synced_at?->format('M j H:i') ?? '—' }}</td>
+                            <td class="text-xs text-grey-50 font-mono truncate max-w-xs">
+                                {{ $send->elastic_email_transaction_id ?? '—' }}
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
             {{-- Pagination --}}
             @if($sends->hasPages())
@@ -245,7 +257,7 @@
     </div>
 
     {{-- Sidebar --}}
-    <div class="w-72 space-y-6">
+    <div class="w-72 shrink-0 space-y-6">
 
         {{-- Campaign info --}}
         <div class="card p-6 text-sm space-y-3">

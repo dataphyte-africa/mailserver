@@ -237,6 +237,30 @@ Returned payload includes:
 - status breakdown
 - open-distribution chart data
 
+### Frontend pacing model
+
+The campaign analytics page now separates:
+- background polling
+- visible progress animation
+- metric repaint checkpoints
+
+Behavior:
+- background polling keeps fetching the latest confirmed backend sync payload
+- the visible progress counter and bar animate in `100`-send windows
+- at the end of a visible progress segment, the UI consumes the latest confirmed payload
+- KPI cards, status breakdown, and open charts fade to the new confirmed values
+
+This means the page can feel active during a long-running sync without requiring a full page reload.
+
+### Catch-up mode
+
+If backend polling gets ahead of the current visible animation:
+- the UI does not replay every stale intermediate segment
+- it fast-forwards to the latest confirmed checkpoint
+- then resumes the normal `100`-send pacing cycle from there
+
+This keeps long syncs responsive when queue processing is faster than the frontend animation pace.
+
 ### Important behavior
 
 The live percentage reflects the reconciliation scan progress:

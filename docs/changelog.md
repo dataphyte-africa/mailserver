@@ -30,6 +30,11 @@
   - sync status updates without a full page reload
   - progress bar and percentage update while the sync runs
   - KPI cards and status breakdown refresh in place
+- Refined the analytics page sync UX so:
+  - background polling remains the source of truth
+  - visible progress animates in `100`-send windows
+  - metric cards and charts repaint at animation checkpoints
+  - catch-up mode skips stale visual steps when polling confirms a newer checkpoint
 - Hardened fallback event-date serialization so native `DateTime` values no longer break sync jobs.
 - Improved analytics page presentation with clearer card borders, visible action buttons, and stronger UI boundaries.
 

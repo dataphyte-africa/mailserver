@@ -135,7 +135,9 @@ class AnalyticsController extends Controller
                 'reason' => $send->bounce_reason,
                 'date' => ($send->bounced_at ?? $send->failed_at)?->format('M j H:i'),
             ])->values()->all(),
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function syncCampaign(Campaign $campaign)
@@ -202,16 +204,20 @@ class AnalyticsController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
-        $opensOverTime = collect();
-        if ($campaign->sent_at) {
-            $opensOverTime = $campaign->sends()
-                ->selectRaw('TIMESTAMPDIFF(HOUR, ?, opened_at) as hours_after, COUNT(*) as count', [$campaign->sent_at])
-                ->whereNotNull('opened_at')
-                ->where('opened_at', '<=', $campaign->sent_at->copy()->addHours(48))
-                ->groupBy('hours_after')
-                ->orderBy('hours_after')
-                ->pluck('count', 'hours_after');
-        }
+        $opensOverTime = $campaign->sends()
+            ->whereNotNull('opened_at')
+            ->whereNotNull('sent_at')
+            ->get(['sent_at', 'opened_at'])
+            ->map(function ($send) {
+                if (! $send->sent_at || ! $send->opened_at) {
+                    return null;
+                }
+
+                return (int) floor($send->sent_at->diffInHours($send->opened_at));
+            })
+            ->filter(fn ($hoursAfter) => is_numeric($hoursAfter) && $hoursAfter >= 0 && $hoursAfter <= 48)
+            ->countBy()
+            ->sortKeys();
 
         $failedSends = $campaign->sends()
             ->whereIn('status', ['failed', 'bounced'])
