@@ -6,6 +6,7 @@ use App\Models\CampaignLinkClick;
 use App\Models\CampaignSend;
 use App\Models\Subscriber;
 use App\Models\WebhookLog;
+use App\Services\Newsletter\SubscriberEngagementService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -124,6 +125,10 @@ class ProcessWebhookJob implements ShouldQueue
             'failed'     => $this->handleBounce($send, $log, hard: false),
             default      => null,
         };
+
+        if ($send->subscriber) {
+            app(SubscriberEngagementService::class)->persist($send->subscriber);
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -135,7 +140,12 @@ class ProcessWebhookJob implements ShouldQueue
             return;
         }
 
-        $updates = ['status' => 'delivered'];
+        $updates = [
+            'status' => 'delivered',
+            'bounce_reason' => null,
+            'failed_at' => null,
+            'bounced_at' => null,
+        ];
         $eventDate = $this->eventDate($log);
         $this->markSyncedIfApplicable($updates, $log);
 
@@ -148,7 +158,11 @@ class ProcessWebhookJob implements ShouldQueue
 
     private function handleOpened(CampaignSend $send, WebhookLog $log): void
     {
-        $updates = [];
+        $updates = [
+            'bounce_reason' => null,
+            'failed_at' => null,
+            'bounced_at' => null,
+        ];
         $eventDate = $this->eventDate($log);
         $this->markSyncedIfApplicable($updates, $log);
 
@@ -175,7 +189,11 @@ class ProcessWebhookJob implements ShouldQueue
         $clickedAt = $this->eventDate($log);
         $url       = $this->extractField($log->payload, ['link', 'Link', 'clickedlink', 'ClickedLink', 'url', 'URL']);
 
-        $updates = [];
+        $updates = [
+            'bounce_reason' => null,
+            'failed_at' => null,
+            'bounced_at' => null,
+        ];
         $this->markSyncedIfApplicable($updates, $log);
 
         if (! $send->clicked_at && $clickedAt) {

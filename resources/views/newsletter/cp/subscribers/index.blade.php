@@ -2,12 +2,53 @@
 @section('title', 'Subscribers')
 
 @section('content')
+    @php
+        $sortLink = function (string $column) use ($sort, $direction) {
+            $nextDirection = $sort === $column && $direction === 'asc' ? 'desc' : 'asc';
+
+            return cp_route('newsletter.subscribers.index') . '?' . http_build_query(array_merge(
+                request()->except('page'),
+                ['sort' => $column, 'direction' => $nextDirection]
+            ));
+        };
+
+        $sortIndicator = function (string $column) use ($sort, $direction) {
+            if ($sort !== $column) {
+                return '';
+            }
+
+            return $direction === 'asc' ? ' ↑' : ' ↓';
+        };
+    @endphp
+
+    <style>
+        .subscriber-table-wrap {
+            overflow-x: auto;
+        }
+
+        .subscriber-table {
+            min-width: 1440px;
+        }
+
+        .subscriber-sticky-col {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #fff;
+        }
+
+        .subscriber-sticky-head {
+            z-index: 3;
+            background: #fff;
+        }
+    </style>
+
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-3xl font-bold">Subscribers</h1>
         <div class="flex gap-2">
             <a href="{{ cp_route('newsletter.subscribers.import.form') }}"
                class="btn-default">Import CSV</a>
-            <a href="{{ cp_route('newsletter.subscribers.export') . '?' . http_build_query(request()->only('status','sub_group')) }}"
+            <a href="{{ cp_route('newsletter.subscribers.export') . '?' . http_build_query(request()->only('search', 'status', 'sub_group', 'sort', 'direction')) }}"
                class="btn-default">Export CSV</a>
             <a href="{{ cp_route('newsletter.subscribers.create') }}"
                class="btn-primary">Add Subscriber</a>
@@ -73,21 +114,68 @@
 
     {{-- Table --}}
     <div class="card p-0 overflow-hidden">
-        <table class="data-table">
+        <div class="subscriber-table-wrap">
+        <table class="data-table subscriber-table">
             <thead>
                 <tr>
-                    <th>Email</th>
-                    <th>Name</th>
-                    <th>Status</th>
+                    <th class="subscriber-sticky-col subscriber-sticky-head">
+                        <a href="{{ $sortLink('email') }}" class="hover:underline">
+                            Email{!! $sortIndicator('email') !!}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $sortLink('name') }}" class="hover:underline">
+                            Name{!! $sortIndicator('name') !!}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $sortLink('status') }}" class="hover:underline">
+                            Status{!! $sortIndicator('status') !!}
+                        </a>
+                    </th>
                     <th>Sub-groups</th>
-                    <th>Added</th>
+                    <th>
+                        <a href="{{ $sortLink('engagement_rating') }}" class="hover:underline">
+                            Rating{!! $sortIndicator('engagement_rating') !!}
+                        </a>
+                    </th>
+                    <th class="text-right">
+                        <a href="{{ $sortLink('campaigns_count') }}" class="hover:underline">
+                            Campaigns{!! $sortIndicator('campaigns_count') !!}
+                        </a>
+                    </th>
+                    <th class="text-right">
+                        <a href="{{ $sortLink('delivered_count') }}" class="hover:underline">
+                            Delivered{!! $sortIndicator('delivered_count') !!}
+                        </a>
+                    </th>
+                    <th class="text-right">
+                        <a href="{{ $sortLink('failed_count') }}" class="hover:underline">
+                            Failed{!! $sortIndicator('failed_count') !!}
+                        </a>
+                    </th>
+                    <th class="text-right">
+                        <a href="{{ $sortLink('opened_count') }}" class="hover:underline">
+                            Opened{!! $sortIndicator('opened_count') !!}
+                        </a>
+                    </th>
+                    <th class="text-right">
+                        <a href="{{ $sortLink('clicked_count') }}" class="hover:underline">
+                            Clicked{!! $sortIndicator('clicked_count') !!}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $sortLink('created_at') }}" class="hover:underline">
+                            Added{!! $sortIndicator('created_at') !!}
+                        </a>
+                    </th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($subscribers as $subscriber)
                     <tr>
-                        <td>
+                        <td class="subscriber-sticky-col">
                             <a href="{{ cp_route('newsletter.subscribers.show', $subscriber) }}"
                                class="text-blue font-medium hover:underline">
                                 {{ $subscriber->email }}
@@ -103,6 +191,27 @@
                         <td class="text-sm text-gray-600">
                             {{ $subscriber->subGroups->pluck('name')->implode(', ') ?: '—' }}
                         </td>
+                        <td>
+                            @php
+                                $rating = $subscriber->engagement_rating ?: '—';
+                                $ratingClasses = match ($subscriber->engagement_rating) {
+                                    'engaged' => 'bg-green-100 text-green-700',
+                                    'warm' => 'bg-blue-100 text-blue-700',
+                                    'cold' => 'bg-gray-100 text-gray-600',
+                                    'at_risk' => 'bg-yellow-100 text-yellow-700',
+                                    'suppressed' => 'bg-red-100 text-red-600',
+                                    default => 'bg-gray-50 text-gray-400',
+                                };
+                            @endphp
+                            <span class="badge-sm {{ $ratingClasses }}">
+                                {{ $rating === '—' ? $rating : str_replace('_', ' ', ucfirst($rating)) }}
+                            </span>
+                        </td>
+                        <td class="text-sm text-right text-gray-700">{{ $subscriber->campaigns_count }}</td>
+                        <td class="text-sm text-right text-gray-700">{{ $subscriber->delivered_count }}</td>
+                        <td class="text-sm text-right text-gray-700">{{ $subscriber->failed_count }}</td>
+                        <td class="text-sm text-right text-gray-700">{{ $subscriber->opened_count }}</td>
+                        <td class="text-sm text-right text-gray-700">{{ $subscriber->clicked_count }}</td>
                         <td class="text-sm text-gray-500">
                             {{ $subscriber->created_at->format('d M Y') }}
                         </td>
@@ -120,11 +229,12 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-center text-gray-500 py-8">No subscribers found.</td>
+                        <td colspan="12" class="text-center text-gray-500 py-8">No subscribers found.</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     <div class="mt-4">

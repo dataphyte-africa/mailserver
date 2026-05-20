@@ -16,12 +16,14 @@ class Subscriber extends Model
         'email', 'first_name', 'last_name', 'status',
         'confirmation_token', 'confirmed_at', 'unsubscribed_at',
         'ip_address', 'user_agent', 'metadata',
+        'engagement_score', 'engagement_rating', 'last_engaged_at',
     ];
 
     protected $casts = [
         'confirmed_at'    => 'datetime',
         'unsubscribed_at' => 'datetime',
         'metadata'        => 'array',
+        'last_engaged_at' => 'datetime',
     ];
 
     public function subGroups(): BelongsToMany

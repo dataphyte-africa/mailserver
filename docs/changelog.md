@@ -2,6 +2,118 @@
 
 ---
 
+## Session 10 — 2026-05-20 (Subscriber rating phase 1)
+
+### Documentation updates
+
+- Updated [docs/subscriber-rating.md](/Users/dataphytefoundation/Herd/mailserver/docs/subscriber-rating.md) to reflect the implemented first phase:
+  - persisted engagement fields
+  - recompute command
+  - current thresholds
+  - CP and export visibility
+- Updated [docs/subscriber-management.md](/Users/dataphytefoundation/Herd/mailserver/docs/subscriber-management.md) to document:
+  - subscriber list `Rating` column
+  - subscriber detail rating/score fields
+  - subscriber export engagement fields
+
+### Implementation completed
+
+- Added persisted subscriber engagement fields:
+  - `engagement_score`
+  - `engagement_rating`
+  - `last_engaged_at`
+- Added `SubscriberEngagementService` to compute first-pass engagement state from the last `10` sends.
+- Added recompute command:
+  - `php artisan newsletter:recompute-subscriber-engagement`
+- Wired automatic engagement recompute into:
+  - subscriber create/update
+  - CSV import
+  - webhook / sync send-state updates
+- Added `Rating` to the subscriber list and made it sortable.
+- Added engagement score/rating visibility to the subscriber detail page.
+- Added engagement fields to:
+  - subscriber CSV export
+  - subscriber GDPR/detail export
+- Updated subscriber CSV export to preserve current filters and sort while including engagement totals.
+- Fixed PHP 8.5 `fputcsv()` deprecation warnings in CSV export controllers by passing the escape parameter explicitly.
+
+## Session 8 — 2026-05-19 (Subscriber rating feature review)
+
+### Documentation updates
+
+- Added [docs/subscriber-rating.md](/Users/dataphytefoundation/Herd/mailserver/docs/subscriber-rating.md) as a review-ready feature document covering:
+  - why subscriber rating is needed
+  - recommended scoring model
+  - rating buckets
+  - suggested weights and recency rules
+  - phased rollout guidance
+  - CP and export implications
+
+### Architectural direction
+
+- Subscriber rating should be built on top of existing `campaign_sends` history.
+- The first release should use:
+  - an internal `engagement_score`
+  - a visible `engagement_rating`
+  - a `last_engaged_at` timestamp
+- Suppression states (`unsubscribed`, `bounced`, `complained`) should override rating and resolve to `suppressed`.
+
+## Session 9 — 2026-05-20 (Subscriber CP engagement views)
+
+### Documentation updates
+
+- Updated [docs/subscriber-management.md](/Users/dataphytefoundation/Herd/mailserver/docs/subscriber-management.md) to document:
+  - subscriber list historical engagement columns
+  - sticky first-column + horizontal-scroll behavior
+  - subscriber detail engagement sections
+  - campaign history pagination
+  - current rating placement decision
+
+### Implementation completed
+
+- Added lifetime engagement columns to the subscriber list:
+  - campaigns
+  - delivered
+  - failed
+  - opened
+  - clicked
+- Added sortable subscriber-list metric headers.
+- Added sticky first-column behavior to the subscriber list.
+- Expanded subscriber detail to include:
+  - lifetime engagement totals
+  - links clicked total
+  - last engaged timestamp
+  - paginated campaign history
+  - recent clicked links
+- Improved subscriber detail card/table styling for better section separation.
+
+## Session 7 — 2026-05-18/19 (Campaign exports, analytics exports, sync cleanup)
+
+### Documentation updates
+
+- Updated [docs/analytics.md](/Users/dataphytefoundation/Herd/mailserver/docs/analytics.md) to reflect the current production operator model:
+  - manual-refresh analytics sync workflow
+  - analytics export options
+  - `Opens Over Time` and `Opens by Hour of Day` semantics
+  - top-links caveat and future reliability requirements
+  - stale failure-field cleanup on successful reconciliation
+  - Elastic Email `/view` fallback behavior
+
+### Implementation completed
+
+- Added campaign sends CSV export from the campaign detail page, preserving current sort order.
+- Added analytics CSV exports:
+  - summary
+  - top links
+  - open timing
+  - failed/bounced recipients
+- Added a local demo campaign seeder command for export and analytics verification:
+  - `php artisan newsletter:seed-demo-campaign --fresh`
+- Fixed stale `bounce_reason` / `failed_at` / `bounced_at` values lingering on successful sends.
+- Restricted synthetic sync `BounceError` payloads to real failure states only.
+- Hardened stats backfill so Elastic Email `/emails/{msgid}/view` failures now fall back to the events API instead of aborting send reconciliation.
+- Performed a one-off production cleanup to remove stale failure metadata from already-successful sends.
+
 ## Session 6 — 2026-05-17 (Live analytics sync and chunked reconciliation)
 
 ### Documentation updates

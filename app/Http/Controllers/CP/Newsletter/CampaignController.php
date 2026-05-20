@@ -115,7 +115,7 @@ class CampaignController extends Controller
     /* Show                                                                  */
     /* ------------------------------------------------------------------ */
 
-    public function show(Campaign $campaign)
+    public function show(Request $request, Campaign $campaign)
     {
         $campaign->load('audiences.targetable');
 
@@ -125,13 +125,68 @@ class CampaignController extends Controller
             ? Entry::find($campaign->entry_id)
             : null;
 
-        $sends = $campaign->sends()
-            ->with('subscriber')
-            ->latest('sent_at')
+        [$sort, $direction] = $this->resolveSendSort($request);
+
+        $sends = $this->buildSortedSendsQuery($campaign, $sort, $direction)
+            ->with('subscriber');
+
+        $sends = $sends
             ->paginate(50)
             ->withQueryString();
 
-        return view('newsletter.cp.campaigns.show', compact('campaign', 'stats', 'entry', 'sends'));
+        return view('newsletter.cp.campaigns.show', compact('campaign', 'stats', 'entry', 'sends', 'sort', 'direction'));
+    }
+
+    public function exportSends(Request $request, Campaign $campaign)
+    {
+        [$sort, $direction] = $this->resolveSendSort($request);
+
+        $filename = sprintf(
+            '%s-sends-%s.csv',
+            Str::slug($campaign->name ?: 'campaign'),
+            now()->format('Ymd-His')
+        );
+
+        $headers = [
+            'Subscriber Name',
+            'Subscriber Email',
+            'Status',
+            'Sent At',
+            'Opened At',
+            'Clicked At',
+            'Synced At',
+            'Transaction ID',
+            'Bounce Reason',
+        ];
+
+        return response()->streamDownload(function () use ($campaign, $sort, $direction, $headers) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headers, ',', '"', '\\');
+
+            $this->buildSortedSendsQuery($campaign, $sort, $direction)
+                ->with('subscriber')
+                ->chunk(500, function ($sends) use ($handle) {
+                    foreach ($sends as $send) {
+                        $subscriber = $send->subscriber;
+
+                        fputcsv($handle, [
+                            $subscriber ? trim((string) $subscriber->full_name) : '',
+                            $subscriber?->email ?? '',
+                            $send->status,
+                            $send->sent_at?->toDateTimeString() ?? '',
+                            $send->opened_at?->toDateTimeString() ?? '',
+                            $send->clicked_at?->toDateTimeString() ?? '',
+                            $send->synced_at?->toDateTimeString() ?? '',
+                            $send->elastic_email_transaction_id ?? '',
+                            $send->bounce_reason ?? '',
+                        ], ',', '"', '\\');
+                    }
+                });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     /* ------------------------------------------------------------------ */
@@ -516,6 +571,43 @@ class CampaignController extends Controller
     private function blankToNull(?string $value): ?string
     {
         return ($value === null || trim($value) === '') ? null : $value;
+    }
+
+    private function resolveSendSort(Request $request): array
+    {
+        $sort = $request->string('sort')->toString();
+        $direction = strtolower($request->string('direction')->toString()) === 'asc' ? 'asc' : 'desc';
+
+        $allowedSorts = [
+            'status',
+            'sent_at',
+            'opened_at',
+            'clicked_at',
+            'synced_at',
+            'elastic_email_transaction_id',
+        ];
+
+        if (! in_array($sort, $allowedSorts, true)) {
+            $sort = 'sent_at';
+            $direction = 'desc';
+        }
+
+        return [$sort, $direction];
+    }
+
+    private function buildSortedSendsQuery(Campaign $campaign, string $sort, string $direction)
+    {
+        $query = $campaign->sends();
+
+        if (in_array($sort, ['sent_at', 'opened_at', 'clicked_at', 'synced_at'], true)) {
+            $query
+                ->orderByRaw("{$sort} IS NULL")
+                ->orderBy($sort, $direction);
+        } else {
+            $query->orderBy($sort, $direction);
+        }
+
+        return $query;
     }
 
     private function normalizeSubjectText(?string $value): string

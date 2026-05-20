@@ -271,6 +271,30 @@
                 </form>
             </div>
         </div>
+
+        <div class="card border border-grey-20 rounded-lg shadow-sm bg-white p-5 text-sm space-y-2">
+            <h2 class="font-semibold mb-2">Exports</h2>
+            <a href="{{ cp_route('newsletter.analytics.campaign.export-summary', $campaign) }}"
+               class="inline-flex w-full items-center justify-between rounded-md border border-grey-20 bg-white px-3 py-2 text-sm font-medium text-grey-80 shadow-sm hover:bg-grey-10">
+                <span>Export Summary CSV</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{{ cp_route('newsletter.analytics.campaign.export-top-links', $campaign) }}"
+               class="inline-flex w-full items-center justify-between rounded-md border border-grey-20 bg-white px-3 py-2 text-sm font-medium text-grey-80 shadow-sm hover:bg-grey-10">
+                <span>Export Top Links CSV</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{{ cp_route('newsletter.analytics.campaign.export-open-timing', $campaign) }}"
+               class="inline-flex w-full items-center justify-between rounded-md border border-grey-20 bg-white px-3 py-2 text-sm font-medium text-grey-80 shadow-sm hover:bg-grey-10">
+                <span>Export Open Timing CSV</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{{ cp_route('newsletter.analytics.campaign.export-failures', $campaign) }}"
+               class="inline-flex w-full items-center justify-between rounded-md border border-grey-20 bg-white px-3 py-2 text-sm font-medium text-grey-80 shadow-sm hover:bg-grey-10">
+                <span>Export Failed/Bounced CSV</span>
+                <span>&rarr;</span>
+            </a>
+        </div>
     </div>
 </div>
 

@@ -11,6 +11,7 @@ use App\Models\WebhookLog;
 use App\Services\Newsletter\CollectionRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AnalyticsController extends Controller
 {
@@ -157,6 +158,140 @@ class AnalyticsController extends Controller
 
         return redirect(cp_route('newsletter.analytics.campaign', $campaign))
             ->with('success', 'Stats sync queued. Refresh in a moment.');
+    }
+
+    public function exportSummary(Campaign $campaign)
+    {
+        $campaign->load('audiences.targetable');
+        $data = $this->campaignAnalyticsData($campaign);
+        $stats = $data['stats'];
+        $filename = sprintf('%s-analytics-summary-%s.csv', Str::slug($campaign->name ?: 'campaign'), now()->format('Ymd-His'));
+
+        return response()->streamDownload(function () use ($campaign, $stats) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'Campaign Name',
+                'Collection',
+                'Subject',
+                'Sent At',
+                'Total Sent',
+                'Delivered',
+                'Opened',
+                'Clicked',
+                'Unread',
+                'Bounced',
+                'Failed',
+                'Complained',
+                'Delivery Rate',
+                'Open Rate',
+                'Click Rate',
+                'Click To Delivery',
+            ], ',', '"', '\\');
+            fputcsv($handle, [
+                $campaign->name,
+                $campaign->collection,
+                $campaign->subject,
+                $campaign->sent_at?->toDateTimeString() ?? '',
+                (int) ($stats['total_sent'] ?? 0),
+                (int) ($stats['delivered'] ?? 0),
+                (int) ($stats['opened'] ?? 0),
+                (int) ($stats['clicked'] ?? 0),
+                (int) ($stats['unread'] ?? 0),
+                (int) ($stats['bounced'] ?? 0),
+                (int) ($stats['failed'] ?? 0),
+                (int) ($stats['complained'] ?? 0),
+                (float) ($stats['delivery_rate'] ?? 0),
+                (float) ($stats['open_rate'] ?? 0),
+                (float) ($stats['click_rate'] ?? 0),
+                (float) ($stats['click_to_delivery'] ?? 0),
+            ], ',', '"', '\\');
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function exportTopLinks(Campaign $campaign)
+    {
+        $topLinks = CampaignLinkClick::query()
+            ->whereHas('campaignSend', fn ($q) => $q->where('campaign_id', $campaign->id))
+            ->selectRaw('url, COUNT(*) as clicks, COUNT(DISTINCT campaign_send_id) as unique_clicks, MIN(clicked_at) as first_clicked_at, MAX(clicked_at) as last_clicked_at')
+            ->groupBy('url')
+            ->orderByDesc('clicks')
+            ->get();
+
+        $filename = sprintf('%s-top-links-%s.csv', Str::slug($campaign->name ?: 'campaign'), now()->format('Ymd-His'));
+
+        return response()->streamDownload(function () use ($topLinks) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['URL', 'Total Clicks', 'Unique Clicks', 'First Clicked At', 'Last Clicked At'], ',', '"', '\\');
+            foreach ($topLinks as $link) {
+                fputcsv($handle, [
+                    $link->url,
+                    (int) $link->clicks,
+                    (int) $link->unique_clicks,
+                    $link->first_clicked_at,
+                    $link->last_clicked_at,
+                ], ',', '"', '\\');
+            }
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function exportOpenTiming(Campaign $campaign)
+    {
+        $data = $this->campaignAnalyticsData($campaign);
+        $opensOverTime = $data['opensOverTime'];
+        $opensByHour = $data['opensByHour'];
+        $filename = sprintf('%s-open-timing-%s.csv', Str::slug($campaign->name ?: 'campaign'), now()->format('Ymd-His'));
+
+        return response()->streamDownload(function () use ($opensOverTime, $opensByHour) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, ['Opens Over Time (hours after send)'], ',', '"', '\\');
+            fputcsv($handle, ['Hour Bucket', 'Open Count'], ',', '"', '\\');
+            foreach ($opensOverTime as $hour => $count) {
+                fputcsv($handle, [(string) $hour, (int) $count], ',', '"', '\\');
+            }
+
+            fputcsv($handle, [], ',', '"', '\\');
+            fputcsv($handle, ['Opens By Hour Of Day'], ',', '"', '\\');
+            fputcsv($handle, ['Hour Of Day', 'Open Count'], ',', '"', '\\');
+            for ($hour = 0; $hour < 24; $hour++) {
+                fputcsv($handle, [$hour, (int) $opensByHour->get($hour, 0)], ',', '"', '\\');
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function exportFailures(Campaign $campaign)
+    {
+        $filename = sprintf('%s-failures-%s.csv', Str::slug($campaign->name ?: 'campaign'), now()->format('Ymd-His'));
+
+        return response()->streamDownload(function () use ($campaign) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Subscriber Name', 'Subscriber Email', 'Status', 'Reason', 'Failed At', 'Bounced At', 'Transaction ID'], ',', '"', '\\');
+
+            $campaign->sends()
+                ->whereIn('status', ['failed', 'bounced'])
+                ->with('subscriber:id,email,first_name,last_name')
+                ->orderByRaw('COALESCE(bounced_at, failed_at) DESC')
+                ->chunk(500, function ($sends) use ($handle) {
+                    foreach ($sends as $send) {
+                        $subscriber = $send->subscriber;
+                        fputcsv($handle, [
+                            $subscriber ? trim($subscriber->first_name . ' ' . $subscriber->last_name) : '',
+                            $subscriber?->email ?? '',
+                            $send->status,
+                            $send->bounce_reason ?? '',
+                            $send->failed_at?->toDateTimeString() ?? '',
+                            $send->bounced_at?->toDateTimeString() ?? '',
+                            $send->elastic_email_transaction_id ?? '',
+                        ], ',', '"', '\\');
+                    }
+                });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     private function campaignAnalyticsData(Campaign $campaign): array

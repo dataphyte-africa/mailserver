@@ -120,9 +120,12 @@ class CampaignStatsSyncService
                     'EventType' => $eventType,
                     'TransactionID' => $send->elastic_email_transaction_id,
                     'To' => $send->subscriber?->email,
-                    'BounceError' => $bounceReason,
                     '_source' => 'sync-command',
                 ];
+
+                if (in_array($status, ['failed', 'bounced'], true) && $bounceReason) {
+                    $payload['BounceError'] = $bounceReason;
+                }
 
                 if ($eventDate) {
                     $payload['Date'] = $this->toIso8601String($eventDate);
@@ -276,9 +279,12 @@ class CampaignStatsSyncService
                     'EventType' => $eventType,
                     'TransactionID' => $send->elastic_email_transaction_id,
                     'To' => $send->subscriber?->email,
-                    'BounceError' => $bounceReason,
                     '_source' => 'sync-command',
                 ];
+
+                if (in_array($status, ['failed', 'bounced'], true) && $bounceReason) {
+                    $payload['BounceError'] = $bounceReason;
+                }
 
                 if ($eventDate) {
                     $payload['Date'] = $this->toIso8601String($eventDate);
@@ -397,11 +403,20 @@ class CampaignStatsSyncService
             : [];
 
         if (! empty($messageIds[0])) {
-            $emailData = $emailsApi->emailsByMsgidViewGet($messageIds[0]);
-            $timestamp = $this->timestampFromEmailData($emailData, $status);
+            try {
+                $emailData = $emailsApi->emailsByMsgidViewGet($messageIds[0]);
+                $timestamp = $this->timestampFromEmailData($emailData, $status);
 
-            if ($timestamp) {
-                return [$eventType, $timestamp];
+                if ($timestamp) {
+                    return [$eventType, $timestamp];
+                }
+            } catch (\Throwable $e) {
+                Log::notice(sprintf(
+                    'CampaignStatsSyncService: message view unavailable for send #%d (%s): %s',
+                    $send->id,
+                    $messageIds[0],
+                    $e->getMessage()
+                ));
             }
         }
 

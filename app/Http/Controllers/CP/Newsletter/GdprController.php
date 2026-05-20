@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CP\Newsletter;
 
 use App\Http\Controllers\Controller;
+use App\Models\CampaignLinkClick;
 use App\Models\Subscriber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,10 @@ class GdprController extends Controller
 
     public function export(Subscriber $subscriber)
     {
+        $totalLinkClicks = CampaignLinkClick::query()
+            ->whereHas('campaignSend', fn ($q) => $q->where('subscriber_id', $subscriber->id))
+            ->count();
+
         $data = [
             'exported_at' => now()->toIso8601String(),
             'profile'     => [
@@ -31,6 +36,9 @@ class GdprController extends Controller
                 'first_name'       => $subscriber->first_name,
                 'last_name'        => $subscriber->last_name,
                 'status'           => $subscriber->status,
+                'engagement_rating'=> $subscriber->engagement_rating,
+                'engagement_score' => $subscriber->engagement_score,
+                'last_engaged_at'  => $subscriber->last_engaged_at?->toIso8601String(),
                 'ip_address'       => $subscriber->ip_address,
                 'confirmed_at'     => $subscriber->confirmed_at?->toIso8601String(),
                 'unsubscribed_at'  => $subscriber->unsubscribed_at?->toIso8601String(),
@@ -57,6 +65,25 @@ class GdprController extends Controller
                     'status'      => $send->status,
                     'opened_at'   => $send->opened_at?->toIso8601String(),
                     'clicked_at'  => $send->clicked_at?->toIso8601String(),
+                ]),
+            'engagement_totals' => [
+                'campaigns' => $subscriber->campaignSends()->count(),
+                'delivered' => $subscriber->campaignSends()->whereIn('status', ['delivered', 'opened', 'clicked'])->count(),
+                'failed' => $subscriber->campaignSends()->whereIn('status', ['failed', 'bounced'])->count(),
+                'opened' => $subscriber->campaignSends()->whereNotNull('opened_at')->count(),
+                'clicked' => $subscriber->campaignSends()->whereNotNull('clicked_at')->count(),
+                'links_clicked' => $totalLinkClicks,
+            ],
+            'recent_clicked_links' => CampaignLinkClick::query()
+                ->whereHas('campaignSend', fn ($q) => $q->where('subscriber_id', $subscriber->id))
+                ->with(['campaignSend.campaign:id,name'])
+                ->latest('clicked_at')
+                ->limit(20)
+                ->get()
+                ->map(fn ($click) => [
+                    'campaign' => $click->campaignSend?->campaign?->name,
+                    'clicked_at' => $click->clicked_at?->toIso8601String(),
+                    'url' => $click->url,
                 ]),
         ];
 

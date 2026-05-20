@@ -5,6 +5,7 @@ namespace App\Http\Controllers\CP\Newsletter;
 use App\Http\Controllers\Controller;
 use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\SubscriberEngagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -118,6 +119,8 @@ class ImportController extends Controller
                             ['subscribed_at' => now()]
                         );
                     }
+
+                    app(SubscriberEngagementService::class)->persist($subscriber);
                 });
 
                 $imported++;
@@ -140,7 +143,14 @@ class ImportController extends Controller
 
     public function export(Request $request)
     {
-        $query = Subscriber::with('subGroups.group')->orderBy('email');
+        $query = Subscriber::with('subGroups.group')
+            ->withCount([
+                'campaignSends as campaigns_count',
+                'campaignSends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
+                'campaignSends as failed_count' => fn ($q) => $q->whereIn('status', ['failed', 'bounced']),
+                'campaignSends as opened_count' => fn ($q) => $q->whereNotNull('opened_at'),
+                'campaignSends as clicked_count' => fn ($q) => $q->whereNotNull('clicked_at'),
+            ]);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -150,6 +160,50 @@ class ImportController extends Controller
             $query->whereHas('subGroups', fn ($q) =>
                 $q->where('subscriber_sub_groups.id', $request->sub_group)
             );
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(fn ($q) =>
+                $q->where('email', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+            );
+        }
+
+        $sort = $request->string('sort')->value() ?: 'created_at';
+        $direction = strtolower($request->string('direction')->value() ?: 'desc');
+        $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
+
+        $sortable = [
+            'email' => 'email',
+            'status' => 'status',
+            'engagement_score' => 'engagement_score',
+            'campaigns_count' => 'campaigns_count',
+            'delivered_count' => 'delivered_count',
+            'failed_count' => 'failed_count',
+            'opened_count' => 'opened_count',
+            'clicked_count' => 'clicked_count',
+            'created_at' => 'created_at',
+        ];
+
+        if ($sort === 'name') {
+            $query->orderByRaw(
+                "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))), ''), email) {$direction}"
+            );
+        } elseif ($sort === 'engagement_rating') {
+            $query->orderByRaw("
+                CASE engagement_rating
+                    WHEN 'engaged' THEN 5
+                    WHEN 'warm' THEN 4
+                    WHEN 'cold' THEN 3
+                    WHEN 'at_risk' THEN 2
+                    WHEN 'suppressed' THEN 1
+                    ELSE 0
+                END {$direction}
+            ")->orderBy('engagement_score', $direction);
+        } else {
+            $query->orderBy($sortable[$sort] ?? 'created_at', $direction);
         }
 
         $subscribers = $query->get();
@@ -165,7 +219,22 @@ class ImportController extends Controller
             $handle = fopen('php://output', 'w');
 
             // Header row
-            fputcsv($handle, ['email', 'first_name', 'last_name', 'status', 'sub_groups', 'subscribed_at']);
+            fputcsv($handle, [
+                'email',
+                'first_name',
+                'last_name',
+                'status',
+                'sub_groups',
+                'engagement_rating',
+                'engagement_score',
+                'last_engaged_at',
+                'campaigns',
+                'delivered',
+                'failed',
+                'opened',
+                'clicked',
+                'subscribed_at',
+            ], ',', '"', '\\');
 
             foreach ($subscribers as $subscriber) {
                 $subGroupSlugs = $subscriber->subGroups->pluck('slug')->implode(',');
@@ -176,8 +245,16 @@ class ImportController extends Controller
                     $subscriber->last_name,
                     $subscriber->status,
                     $subGroupSlugs,
+                    $subscriber->engagement_rating,
+                    $subscriber->engagement_score,
+                    $subscriber->last_engaged_at?->toDateTimeString(),
+                    $subscriber->campaigns_count,
+                    $subscriber->delivered_count,
+                    $subscriber->failed_count,
+                    $subscriber->opened_count,
+                    $subscriber->clicked_count,
                     $subscriber->created_at->toDateString(),
-                ]);
+                ], ',', '"', '\\');
             }
 
             fclose($handle);

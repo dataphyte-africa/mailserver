@@ -42,6 +42,7 @@ Groups remain explicit DB records. Sub-groups may be created manually or provisi
 - View subscriber send history
 - Manage groups and sub-groups
 - Create and manage collection-linked subscription forms
+- Subscriber historical engagement totals in the CP
 
 ---
 
@@ -184,6 +185,120 @@ This data is written after the subscriber pipeline runs. It lets admins confirm 
 - Filter by group/sub-group/status
 - Columns: email, first_name, last_name, status, groups, subscribed_at
 - Queue for large datasets, provide download link when ready
+
+---
+
+## Subscriber Control Panel Views
+
+### Subscriber list
+
+The subscriber index in the Statamic CP now supports historical engagement columns.
+
+Current columns:
+- `Email`
+- `Name`
+- `Status`
+- `Sub-groups`
+- `Rating`
+- `Campaigns`
+- `Delivered`
+- `Failed`
+- `Opened`
+- `Clicked`
+- `Added`
+
+Definitions:
+- `Campaigns`
+  - total lifetime `campaign_sends` rows for that subscriber
+- `Delivered`
+  - lifetime sends with status in `delivered`, `opened`, `clicked`
+- `Failed`
+  - lifetime sends with status in `failed`, `bounced`
+- `Opened`
+  - lifetime sends where `opened_at` is present
+- `Clicked`
+  - lifetime sends where `clicked_at` is present
+- `Rating`
+  - current persisted `engagement_rating`
+  - one of `engaged`, `warm`, `cold`, `at_risk`, `suppressed`
+
+Behavior:
+- the first column (`Email`) is sticky
+- the remaining columns can scroll horizontally
+- metric headers are sortable by click
+
+Supported sort fields:
+- email
+- name
+- status
+- rating
+- campaigns
+- delivered
+- failed
+- opened
+- clicked
+- added
+
+### Subscriber detail
+
+The subscriber detail page is the deeper engagement-inspection view.
+
+It currently includes:
+- lifetime totals:
+  - total sent
+  - delivered
+  - opened
+  - clicked
+  - links clicked
+  - failed / bounced
+- details:
+  - status
+  - engagement rating
+  - engagement score
+  - added date
+  - campaigns total
+  - last engaged at
+- subgroup membership
+- engagement snapshot
+- paginated campaign history
+- recent clicked links
+
+`Campaign History` is paginated at:
+- `20` rows per page
+
+### Subscriber exports
+
+The subscriber CSV export now includes:
+- `engagement_rating`
+- `engagement_score`
+- `last_engaged_at`
+- `campaigns`
+- `delivered`
+- `failed`
+- `opened`
+- `clicked`
+
+The GDPR / subscriber-detail export now also includes:
+- engagement profile fields
+- engagement totals
+- recent clicked links
+
+`Recent Clicked Links` currently shows:
+- the last `20` clicked link rows
+
+### Rating placement
+
+Subscriber rating is planned, but is intentionally not yet implemented in the current
+subscriber list or detail page.
+
+Accepted direction:
+- do **not** add rating before the underlying scoring model is approved
+- once implemented, rating should appear in the subscriber list as its own column
+- rating should also appear on the subscriber detail page with supporting context
+
+The subscriber list should remain the high-level sortable table, while the subscriber
+detail page should remain the place to understand *why* a subscriber appears engaged,
+warm, cold, or at risk.
 
 ### Package
 ```

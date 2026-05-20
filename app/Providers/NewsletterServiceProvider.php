@@ -212,6 +212,10 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::get('/webhooks',             [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'webhooks'])->name('webhooks');
                     \Route::get('/campaign/{campaign}',  [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'campaign'])->name('campaign');
                     \Route::get('/campaign/{campaign}/status', [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'campaignStatus'])->name('campaign.status');
+                    \Route::get('/campaign/{campaign}/export-summary', [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'exportSummary'])->name('campaign.export-summary');
+                    \Route::get('/campaign/{campaign}/export-top-links', [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'exportTopLinks'])->name('campaign.export-top-links');
+                    \Route::get('/campaign/{campaign}/export-open-timing', [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'exportOpenTiming'])->name('campaign.export-open-timing');
+                    \Route::get('/campaign/{campaign}/export-failures', [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'exportFailures'])->name('campaign.export-failures');
                     \Route::post('/campaign/{campaign}/sync', [\App\Http\Controllers\CP\Newsletter\AnalyticsController::class, 'syncCampaign'])->name('campaign.sync');
                 });
 
@@ -230,6 +234,7 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::post('/{campaign}/reset',      [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'resetToDraft'])->name('reset');
                     \Route::post('/{campaign}/test-send',  [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'testSend'])->name('test-send');
                     \Route::get('/{campaign}/preview',     [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'preview'])->name('preview');
+                    \Route::get('/{campaign}/export-sends', [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'exportSends'])->name('export-sends');
                 });
 
                 // GDPR

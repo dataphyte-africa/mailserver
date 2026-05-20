@@ -237,29 +237,18 @@ Returned payload includes:
 - status breakdown
 - open-distribution chart data
 
-### Frontend pacing model
+### Current CP behavior
 
-The campaign analytics page now separates:
-- background polling
-- visible progress animation
-- metric repaint checkpoints
+The backend reconciliation remains chunked and campaign-scoped, but the current CP
+operator workflow should be treated as refresh-based.
 
-Behavior:
-- background polling keeps fetching the latest confirmed backend sync payload
-- the visible progress counter and bar animate in `100`-send windows
-- at the end of a visible progress segment, the UI consumes the latest confirmed payload
-- KPI cards, status breakdown, and open charts fade to the new confirmed values
+In practice:
+- click `Sync Stats Now` or `Re-queue Stats Sync`
+- wait for chunk jobs and webhook-processing jobs to run
+- refresh the analytics page to see updated metrics and progress
 
-This means the page can feel active during a long-running sync without requiring a full page reload.
-
-### Catch-up mode
-
-If backend polling gets ahead of the current visible animation:
-- the UI does not replay every stale intermediate segment
-- it fast-forwards to the latest confirmed checkpoint
-- then resumes the normal `100`-send pacing cycle from there
-
-This keeps long syncs responsive when queue processing is faster than the frontend animation pace.
+The JSON endpoint remains available for future refinement, but the production-safe
+expectation today is manual refresh rather than live in-page animation.
 
 ### Important behavior
 
@@ -273,6 +262,31 @@ Metrics do **not** need to wait for `100%` completion before changing. As each c
 finishes and its synthetic webhook jobs are processed, the analytics page can show
 updated metrics on refresh or via polling.
 
+### Re-sync cleanup behavior
+
+Reconciliation now also cleans up stale failure metadata when a send is later confirmed
+as successful:
+- `bounce_reason` is cleared on `delivered`, `opened`, and `clicked`
+- `failed_at` is cleared on `delivered`, `opened`, and `clicked`
+- `bounced_at` is cleared on `delivered`, `opened`, and `clicked`
+
+This prevents exported successful rows from continuing to show old provider errors in
+the `Bounce Reason` column.
+
+### Elastic Email `/view` fallback
+
+The backfill resolver first attempts:
+- `GET /emails/{msgid}/view`
+
+Some Elastic Email message IDs return:
+- `400 Bad Request`
+- content unavailable / missing view record
+
+That lookup is now treated as recoverable:
+- the sync logs the `/view` failure
+- then falls back to the events API for the same send
+- the send reconciliation continues instead of failing the whole item
+
 ### Operational note
 
 If queue workers are down or a chunk fails, the sync can stop in `queued`,
@@ -280,3 +294,122 @@ If queue workers are down or a chunk fails, the sync can stop in `queued`,
 - inspect failed jobs
 - inspect webhook queue health
 - re-queue the sync from the campaign analytics page once the issue is resolved
+
+---
+
+## Analytics Exports
+
+The analytics page supports focused CSV exports instead of one mixed file.
+
+Available exports:
+- `Export Summary CSV`
+- `Export Top Links CSV`
+- `Export Open Timing CSV`
+- `Export Failed/Bounced CSV`
+
+The campaign detail page separately supports:
+- `Export CSV` for the sends table
+
+### Summary export
+
+One row per campaign including:
+- campaign name
+- collection
+- subject
+- sent at
+- total sent
+- delivered
+- opened
+- clicked
+- unread
+- bounced
+- failed
+- complained
+- delivery rate
+- open rate
+- click rate
+- click-to-delivery rate
+
+### Top Links export
+
+One row per clicked URL including:
+- URL
+- total clicks
+- unique clicks
+- first clicked at
+- last clicked at
+
+Important caveat:
+- `Top Links` depends on stored `campaign_link_clicks` rows
+- a campaign can show click totals while `Top Links` remains empty if no URL-level
+  click rows were captured
+
+Reliable future `Top Links` requires:
+- Elastic Email click tracking enabled
+- click webhook payloads that include the clicked URL (`target`, `link`, or equivalent)
+- webhook ingestion storing those URLs in `campaign_link_clicks`
+
+Historical URL-level reconstruction is not guaranteed from the current transaction
+status sync endpoint because that endpoint does not reliably expose clicked-link URLs.
+
+### Open Timing export
+
+Contains two sections:
+- opens over time
+- opens by hour of day
+
+This is useful for editorial timing analysis rather than recipient audit.
+
+### Failed/Bounced export
+
+Contains recipient-level failure rows with:
+- subscriber name
+- subscriber email
+- status
+- failure reason
+- failure timestamp
+- transaction ID
+
+---
+
+## Open Timing Metrics In The CP
+
+### Opens Over Time (first 48 hours)
+
+This metric answers:
+- how long after send recipients opened the email
+
+It is **not** grouped by clock time of day.
+
+Current CP presentation:
+- summary sentence highlighting the strongest bucket
+- `5` grouped buckets:
+  - `0–4h`
+  - `4–8h`
+  - `8–12h`
+  - `12–24h`
+  - `24–48h`
+- shown as a simple two-column list:
+  - hour range
+  - open count
+
+Use it to understand:
+- whether most engagement happens immediately
+- whether a campaign keeps attracting opens deep into the first two days
+- when a campaign can be judged “mostly done” from an open perspective
+
+### Opens by Hour of Day
+
+This metric answers a different question:
+- what clock hour recipients tend to open
+
+It groups all recorded opens by the hour of day when they happened:
+- `12am`
+- `6am`
+- `12pm`
+- `6pm`
+- etc.
+
+Use it to understand:
+- when during the day this audience tends to engage
+- whether future send timing should be adjusted toward those open windows

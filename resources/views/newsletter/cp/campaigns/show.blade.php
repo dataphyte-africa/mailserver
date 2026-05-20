@@ -2,9 +2,132 @@
 @section('title', $campaign->name)
 
 @section('content')
+@php
+    $sortLink = function (string $column) use ($sort, $direction) {
+        $nextDirection = $sort === $column && $direction === 'asc' ? 'desc' : 'asc';
+
+        return request()->fullUrlWithQuery([
+            'sort' => $column,
+            'direction' => $nextDirection,
+            'page' => 1,
+        ]);
+    };
+
+    $sortIndicator = function (string $column) use ($sort, $direction) {
+        if ($sort !== $column) {
+            return null;
+        }
+
+        return $direction === 'asc' ? '↑' : '↓';
+    };
+
+    $exportUrl = cp_route('newsletter.campaigns.export-sends', $campaign) . '?' . http_build_query([
+        'sort' => $sort,
+        'direction' => $direction,
+    ]);
+@endphp
+
+<style>
+    .campaign-show-page {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .campaign-show-shell {
+        display: block;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .campaign-show-main,
+    .campaign-show-sidebar {
+        min-width: 0;
+    }
+
+    .campaign-show-stats {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1px;
+        background: #e5e7eb;
+    }
+
+    .campaign-show-stat {
+        background: #fff;
+    }
+
+    .campaign-show-table-wrap {
+        overflow-x: auto;
+        overflow-y: hidden;
+        width: 100%;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .campaign-show-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .campaign-show-table .campaign-show-sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background: #fff;
+        min-width: 320px;
+        width: 320px;
+        box-shadow: 1px 0 0 #e5e7eb;
+    }
+
+    .campaign-show-table thead .campaign-show-sticky-col {
+        z-index: 4;
+        background: #f9fafb;
+    }
+
+    .campaign-show-table tbody .campaign-show-sticky-col {
+        vertical-align: top;
+    }
+
+    .campaign-show-sidebar {
+        width: 100%;
+    }
+
+    @media (min-width: 900px) {
+        .campaign-show-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1280px) {
+        .campaign-show-shell {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.5rem;
+        }
+
+        .campaign-show-main {
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: calc(100% - 344px);
+            overflow-x: hidden;
+        }
+
+        .campaign-show-sidebar {
+            width: 320px;
+            flex: 0 0 320px;
+            position: sticky;
+            top: 1.5rem;
+            align-self: flex-start;
+        }
+
+        .campaign-show-stats {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+</style>
 
 {{-- Header --}}
-<div class="flex items-start justify-between mb-6">
+<div class="campaign-show-page">
+<div class="flex flex-col gap-4 mb-6 xl:flex-row xl:items-start xl:justify-between">
     <div>
         <div class="mb-1">
             <a href="{{ cp_route('newsletter.campaigns.index') }}"
@@ -18,7 +141,7 @@
         </p>
     </div>
 
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3 xl:justify-end">
         @php
             $badge = match($campaign->status) {
                 'draft'     => 'bg-grey-30 text-grey-80',
@@ -94,93 +217,154 @@
     </div>
 @endif
 
-<div class="flex gap-6">
+<div class="campaign-show-shell space-y-6 xl:space-y-0">
 
     {{-- Left: stats + sends --}}
-    <div class="flex-1 min-w-0 space-y-6">
+    <div class="campaign-show-main space-y-6">
 
         {{-- Stats cards --}}
-        <div class="grid grid-cols-4 gap-4">
-            @php
-                $totalRecipients = $stats['total_recipients'] ?? 0;
-                $sentCount = $stats['total_sent'] ?? 0;
-                $deliveredCount = $stats['total_delivered'] ?? 0;
-                $statCards = [
-                    [
-                        'label' => 'Sent',
-                        'value' => $sentCount,
-                        'color' => 'text-grey-80',
-                        'percentage' => $totalRecipients > 0 ? round(($sentCount / $totalRecipients) * 100, 1) : null,
-                    ],
-                    [
-                        'label' => 'Delivered',
-                        'value' => $deliveredCount,
-                        'color' => 'text-green-dark',
-                        'percentage' => $sentCount > 0 ? round(($deliveredCount / $sentCount) * 100, 1) : null,
-                    ],
-                    [
-                        'label' => 'Opened',
-                        'value' => $stats['total_opened'] ?? 0,
-                        'color' => 'text-blue-dark',
-                        'percentage' => $deliveredCount > 0 ? round((($stats['total_opened'] ?? 0) / $deliveredCount) * 100, 1) : null,
-                    ],
-                    [
-                        'label' => 'Failed',
-                        'value' => $stats['total_failed'] ?? 0,
-                        'color' => 'text-red-dark',
-                        'percentage' => $totalRecipients > 0 ? round((($stats['total_failed'] ?? 0) / $totalRecipients) * 100, 1) : null,
-                    ],
-                ];
-            @endphp
-            @foreach($statCards as $card)
-            <div class="card p-4 text-center">
-                <p class="text-3xl font-bold {{ $card['color'] }}">
-                    {{ number_format($card['value']) }}
-                </p>
-                <p class="text-sm text-grey-60 mt-1">{{ $card['label'] }}</p>
-                @if($card['percentage'] !== null)
-                <p class="text-xs text-grey-50 mt-0.5">
-                    {{ $card['percentage'] }}%
-                </p>
-                @endif
+        <div class="card overflow-hidden">
+            <div class="border-b border-grey-20 px-5 py-4">
+                <h2 class="font-semibold text-base">Performance Snapshot</h2>
+                <p class="text-sm text-grey-60 mt-1">Core campaign delivery and engagement totals.</p>
             </div>
-            @endforeach
+            <div class="campaign-show-stats">
+                @php
+                    $totalRecipients = $stats['total_recipients'] ?? 0;
+                    $sentCount = $stats['total_sent'] ?? 0;
+                    $deliveredCount = $stats['total_delivered'] ?? 0;
+                    $statCards = [
+                        [
+                            'label' => 'Sent',
+                            'value' => $sentCount,
+                            'color' => 'text-grey-80',
+                            'percentage' => $totalRecipients > 0 ? round(($sentCount / $totalRecipients) * 100, 1) : null,
+                        ],
+                        [
+                            'label' => 'Delivered',
+                            'value' => $deliveredCount,
+                            'color' => 'text-green-dark',
+                            'percentage' => $sentCount > 0 ? round(($deliveredCount / $sentCount) * 100, 1) : null,
+                        ],
+                        [
+                            'label' => 'Opened',
+                            'value' => $stats['total_opened'] ?? 0,
+                            'color' => 'text-blue-dark',
+                            'percentage' => $deliveredCount > 0 ? round((($stats['total_opened'] ?? 0) / $deliveredCount) * 100, 1) : null,
+                        ],
+                        [
+                            'label' => 'Failed',
+                            'value' => $stats['total_failed'] ?? 0,
+                            'color' => 'text-red-dark',
+                            'percentage' => $totalRecipients > 0 ? round((($stats['total_failed'] ?? 0) / $totalRecipients) * 100, 1) : null,
+                        ],
+                    ];
+                @endphp
+                @foreach($statCards as $card)
+                <div class="campaign-show-stat px-5 py-5">
+                    <p class="text-xs uppercase tracking-wide text-grey-50">{{ $card['label'] }}</p>
+                    <p class="mt-2 text-3xl font-bold {{ $card['color'] }}">
+                        {{ number_format($card['value']) }}
+                    </p>
+                    @if($card['percentage'] !== null)
+                    <p class="mt-1 text-sm text-grey-60">{{ $card['percentage'] }}%</p>
+                    @endif
+                </div>
+                @endforeach
+            </div>
         </div>
 
         {{-- Sends --}}
         @if($sends->isNotEmpty())
-        <div class="card p-0 overflow-hidden">
-            <div class="p-4 border-b border-grey-20 flex items-center justify-between">
-                <h2 class="font-semibold">Sends</h2>
-                <span class="text-xs text-grey-50">
-                    {{ number_format($sends->total()) }} total
-                    &nbsp;&middot;&nbsp;
-                    page {{ $sends->currentPage() }} of {{ $sends->lastPage() }}
-                </span>
+        <div class="card p-0 overflow-hidden border border-grey-20 shadow">
+            <div class="border-b border-grey-20 px-5 py-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <h2 class="font-semibold text-base">Sends</h2>
+                    <p class="text-sm text-grey-60 mt-1">Scroll horizontally inside this table for delivery detail columns.</p>
+                </div>
+                <div class="flex flex-col items-start gap-2 text-xs text-grey-50 lg:items-end">
+                    <div>
+                        {{ number_format($sends->total()) }} total
+                        &nbsp;&middot;&nbsp;
+                        page {{ $sends->currentPage() }} of {{ $sends->lastPage() }}
+                    </div>
+                    <a href="{{ $exportUrl }}" class="btn btn-sm">
+                        Export CSV
+                    </a>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="data-table min-w-full">
+            <div class="campaign-show-table-wrap px-0">
+                <table class="data-table campaign-show-table w-full" style="min-width: 1500px;">
                     <thead>
                         <tr>
-                            <th>Subscriber</th>
-                            <th>Status</th>
-                            <th>Sent</th>
-                            <th>Opened</th>
-                            <th>Clicked</th>
-                            <th>Synced</th>
-                            <th>Transaction ID</th>
+                            <th class="campaign-show-sticky-col whitespace-nowrap">Subscriber</th>
+                            <th class="whitespace-nowrap">
+                                <a href="{{ $sortLink('status') }}" class="inline-flex items-center gap-1 hover:text-blue">
+                                    Status
+                                    @if($sortIndicator('status'))
+                                        <span class="text-xs">{{ $sortIndicator('status') }}</span>
+                                    @endif
+                                </a>
+                            </th>
+                            <th class="whitespace-nowrap">
+                                <a href="{{ $sortLink('sent_at') }}" class="inline-flex items-center gap-1 hover:text-blue">
+                                    Sent
+                                    @if($sortIndicator('sent_at'))
+                                        <span class="text-xs">{{ $sortIndicator('sent_at') }}</span>
+                                    @endif
+                                </a>
+                            </th>
+                            <th class="whitespace-nowrap">
+                                <a href="{{ $sortLink('opened_at') }}" class="inline-flex items-center gap-1 hover:text-blue">
+                                    Opened
+                                    @if($sortIndicator('opened_at'))
+                                        <span class="text-xs">{{ $sortIndicator('opened_at') }}</span>
+                                    @endif
+                                </a>
+                            </th>
+                            <th class="whitespace-nowrap">
+                                <a href="{{ $sortLink('clicked_at') }}" class="inline-flex items-center gap-1 hover:text-blue">
+                                    Clicked
+                                    @if($sortIndicator('clicked_at'))
+                                        <span class="text-xs">{{ $sortIndicator('clicked_at') }}</span>
+                                    @endif
+                                </a>
+                            </th>
+                            <th class="whitespace-nowrap">
+                                <a href="{{ $sortLink('synced_at') }}" class="inline-flex items-center gap-1 hover:text-blue">
+                                    Synced
+                                    @if($sortIndicator('synced_at'))
+                                        <span class="text-xs">{{ $sortIndicator('synced_at') }}</span>
+                                    @endif
+                                </a>
+                            </th>
+                            <th class="whitespace-nowrap">
+                                <a href="{{ $sortLink('elastic_email_transaction_id') }}" class="inline-flex items-center gap-1 hover:text-blue">
+                                    Transaction ID
+                                    @if($sortIndicator('elastic_email_transaction_id'))
+                                        <span class="text-xs">{{ $sortIndicator('elastic_email_transaction_id') }}</span>
+                                    @endif
+                                </a>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($sends as $send)
                         <tr>
-                            <td class="text-sm">
+                            <td class="campaign-show-sticky-col text-sm align-top">
                                 @if($send->subscriber)
+                                    @php
+                                        $subscriberName = trim((string) $send->subscriber->full_name);
+                                        $subscriberEmail = (string) $send->subscriber->email;
+                                        $showName = $subscriberName !== '' && strcasecmp($subscriberName, $subscriberEmail) !== 0;
+                                    @endphp
                                     <a href="{{ cp_route('newsletter.subscribers.show', $send->subscriber) }}"
-                                       class="text-blue hover:underline">
-                                        {{ $send->subscriber->full_name }}
+                                       class="block text-blue hover:underline">
+                                        {{ $showName ? $subscriberName : $subscriberEmail }}
                                     </a>
-                                    <span class="text-grey-50 text-xs ml-1">{{ $send->subscriber->email }}</span>
+                                    @if($showName)
+                                        <span class="mt-1 block text-grey-50 text-xs">{{ $subscriberEmail }}</span>
+                                    @endif
                                 @else
                                     <span class="text-grey-50">(deleted)</span>
                                 @endif
@@ -213,8 +397,10 @@
                                 @endif
                             </td>
                             <td class="text-sm text-grey-60 whitespace-nowrap">{{ $send->synced_at?->format('M j H:i') ?? '—' }}</td>
-                            <td class="text-xs text-grey-50 font-mono truncate max-w-xs">
-                                {{ $send->elastic_email_transaction_id ?? '—' }}
+                            <td class="text-xs text-grey-50 font-mono whitespace-nowrap">
+                                <span class="inline-block max-w-xs truncate align-bottom" title="{{ $send->elastic_email_transaction_id ?? '—' }}">
+                                    {{ $send->elastic_email_transaction_id ?? '—' }}
+                                </span>
                             </td>
                         </tr>
                         @endforeach
@@ -224,7 +410,7 @@
 
             {{-- Pagination --}}
             @if($sends->hasPages())
-            <div class="p-4 border-t border-grey-20 flex items-center justify-between">
+            <div class="px-5 py-4 border-t border-grey-20 flex items-center justify-between">
                 <span class="text-xs text-grey-50">
                     Showing {{ $sends->firstItem() }}–{{ $sends->lastItem() }} of {{ number_format($sends->total()) }}
                 </span>
@@ -257,11 +443,14 @@
     </div>
 
     {{-- Sidebar --}}
-    <div class="w-72 shrink-0 space-y-6">
+    <div class="campaign-show-sidebar space-y-6">
 
         {{-- Campaign info --}}
-        <div class="card p-6 text-sm space-y-3">
-            <h2 class="font-semibold text-base mb-2">Details</h2>
+        <div class="card p-6 text-sm space-y-4 border border-grey-20 shadow">
+            <div class="pb-3 border-b border-grey-20">
+                <h2 class="font-semibold text-base">Details</h2>
+                <p class="text-xs text-grey-50 mt-1">Sending configuration and linked editorial source.</p>
+            </div>
 
             <div>
                 <p class="text-xs text-grey-50 uppercase tracking-wide mb-0.5">Subject</p>
@@ -307,7 +496,7 @@
         </div>
 
         {{-- Audiences --}}
-        <div class="card p-6 text-sm">
+        <div class="card p-6 text-sm border border-grey-20 shadow">
             <h2 class="font-semibold text-base mb-3">Audiences</h2>
             @forelse($campaign->audiences as $audience)
                 @if($audience->targetable)
@@ -386,4 +575,5 @@ document.addEventListener('click', function (e) {
 });
 </script>
 
+</div>
 @endsection

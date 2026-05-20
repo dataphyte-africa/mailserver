@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\CP\Newsletter;
 
 use App\Http\Controllers\Controller;
+use App\Models\CampaignLinkClick;
 use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\SubscriberEngagementService;
 use Illuminate\Http\Request;
 
 class SubscriberController extends Controller
@@ -12,7 +14,13 @@ class SubscriberController extends Controller
     public function index(Request $request)
     {
         $query = Subscriber::with('subGroups.group')
-            ->orderBy('created_at', 'desc');
+            ->withCount([
+                'campaignSends as campaigns_count',
+                'campaignSends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
+                'campaignSends as failed_count' => fn ($q) => $q->whereIn('status', ['failed', 'bounced']),
+                'campaignSends as opened_count' => fn ($q) => $q->whereNotNull('opened_at'),
+                'campaignSends as clicked_count' => fn ($q) => $q->whereNotNull('clicked_at'),
+            ]);
 
         // Filters
         if ($request->filled('status')) {
@@ -34,10 +42,45 @@ class SubscriberController extends Controller
             );
         }
 
+        $sort = $request->string('sort')->value() ?: 'created_at';
+        $direction = strtolower($request->string('direction')->value() ?: 'desc');
+        $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
+
+        $sortable = [
+            'email' => 'email',
+            'status' => 'status',
+            'engagement_score' => 'engagement_score',
+            'campaigns_count' => 'campaigns_count',
+            'delivered_count' => 'delivered_count',
+            'failed_count' => 'failed_count',
+            'opened_count' => 'opened_count',
+            'clicked_count' => 'clicked_count',
+            'created_at' => 'created_at',
+        ];
+
+        if ($sort === 'name') {
+            $query->orderByRaw(
+                "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))), ''), email) {$direction}"
+            );
+        } elseif ($sort === 'engagement_rating') {
+            $query->orderByRaw("
+                CASE engagement_rating
+                    WHEN 'engaged' THEN 5
+                    WHEN 'warm' THEN 4
+                    WHEN 'cold' THEN 3
+                    WHEN 'at_risk' THEN 2
+                    WHEN 'suppressed' THEN 1
+                    ELSE 0
+                END {$direction}
+            ")->orderBy('engagement_score', $direction);
+        } else {
+            $query->orderBy($sortable[$sort] ?? 'created_at', $direction);
+        }
+
         $subscribers = $query->paginate(50)->withQueryString();
         $subGroups   = SubscriberSubGroup::with('group')->orderBy('subscriber_group_id')->get();
 
-        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups'));
+        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction'));
     }
 
     public function create()
@@ -70,6 +113,8 @@ class SubscriberController extends Controller
             ['subscribed_at' => now()]
         );
 
+        app(SubscriberEngagementService::class)->persist($subscriber);
+
         return redirect()
             ->route('statamic.cp.newsletter.subscribers.index')
             ->with('success', 'Subscriber created successfully.');
@@ -77,16 +122,44 @@ class SubscriberController extends Controller
 
     public function show(Subscriber $subscriber)
     {
-        $subscriber->load('subGroups.group');
+        $subscriber->load('subGroups.group')
+            ->loadCount([
+                'campaignSends as campaigns_count',
+                'campaignSends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
+                'campaignSends as failed_count' => fn ($q) => $q->whereIn('status', ['failed', 'bounced']),
+                'campaignSends as opened_count' => fn ($q) => $q->whereNotNull('opened_at'),
+                'campaignSends as clicked_count' => fn ($q) => $q->whereNotNull('clicked_at'),
+            ]);
 
         $sendHistory = $subscriber->campaignSends()
             ->with('campaign')
-            ->orderBy('created_at', 'desc')
+            ->orderByRaw('COALESCE(clicked_at, opened_at, sent_at, created_at) desc')
             ->paginate(20);
 
-        $stats = $subscriber->sendStats();
+        $recentLinkClicks = CampaignLinkClick::query()
+            ->whereHas('campaignSend', fn ($q) => $q->where('subscriber_id', $subscriber->id))
+            ->with(['campaignSend.campaign'])
+            ->latest('clicked_at')
+            ->limit(20)
+            ->get();
 
-        return view('newsletter.cp.subscribers.show', compact('subscriber', 'sendHistory', 'stats'));
+        $totalLinkClicks = CampaignLinkClick::query()
+            ->whereHas('campaignSend', fn ($q) => $q->where('subscriber_id', $subscriber->id))
+            ->count();
+
+        $stats = [
+            'total_sent' => (int) $subscriber->campaigns_count,
+            'total_delivered' => (int) $subscriber->delivered_count,
+            'total_failed' => (int) $subscriber->failed_count,
+            'total_opened' => (int) $subscriber->opened_count,
+            'total_clicked' => (int) $subscriber->clicked_count,
+            'total_link_clicks' => (int) $totalLinkClicks,
+            'last_engaged_at' => $subscriber->campaignSends()
+                ->selectRaw('MAX(COALESCE(clicked_at, opened_at)) as last_engaged_at')
+                ->value('last_engaged_at'),
+        ];
+
+        return view('newsletter.cp.subscribers.show', compact('subscriber', 'sendHistory', 'stats', 'recentLinkClicks'));
     }
 
     public function edit(Subscriber $subscriber)
@@ -128,6 +201,8 @@ class SubscriberController extends Controller
         if ($toAttach) {
             $subscriber->subGroups()->attach($toAttach, ['subscribed_at' => now()]);
         }
+
+        app(SubscriberEngagementService::class)->persist($subscriber);
 
         return redirect()
             ->route('statamic.cp.newsletter.subscribers.show', $subscriber)
