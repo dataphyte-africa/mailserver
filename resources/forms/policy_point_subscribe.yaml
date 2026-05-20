@@ -1,0 +1,26 @@
+newsletter_group: 3
+newsletter_endpoint: policy-point
+newsletter_preference_field: preference
+newsletter_resubscribe_body: |-
+  Welcome back, and thank you for re-subscribing to Dataphyte Policy Point updates.
+
+  You will start receiving our latest policy insights and updates in your inbox again based on the preference you selected.
+
+  If you would like to manage how often you hear from us or unsubscribe at any time, you can use the links in the footer of any email we send.
+
+  Best regards,
+  Dataphyte Policy Point
+newsletter_confirmation_body: |-
+  Thank you for subscribing to receive Dataphyte Policy Point updates.
+
+  You will now receive our latest policy insights and updates in your inbox based on the preference you selected.
+
+  If you ever want to change how often you hear from us or unsubscribe, you can use the links in the footer of any email we send.
+
+  Best regards,
+  Dataphyte Policy Point
+newsletter_send_update_email: true
+newsletter_resubscribe_subject: 'Welcome Back! You have re-subscribed to Dataphyte Policy Point updates.'
+newsletter_confirmation_subject: 'Thank you! You are subscribed to receive Dataphyte Policy Point updates.'
+newsletter_send_confirmation_email: true
+title: policy-point-subscribe

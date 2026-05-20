@@ -245,7 +245,7 @@ resources/views/emails/culture/spotlight.blade.php
 
 Use an existing template as your base:
 ```bash
-cp resources/views/emails/insight/feature-lead.blade.php \
+cp resources/views/emails/insight/pocket-science.blade.php \
    resources/views/emails/culture/weekly.blade.php
 ```
 
@@ -297,14 +297,45 @@ Examples:
 ```
 public/assets/email/culture-weekly.png
 public/assets/email/culture-spotlight.png
-public/assets/email/insight-feature-lead.png
+public/assets/email/insight-pocket-science.png
 ```
 
 Replace the `@section('nameplate')` text span with an `<img>` tag once the file exists.
 
 ---
 
-## Step 8 — Upload Logo via CP (after deploying)
+## Step 8.5 — Export DB-backed Blueprints and Forms to YAML Replication Files
+
+In this project, the database remains the runtime source of truth. YAML files are
+kept as replication artifacts so structure can be recreated in another environment
+without manual CP work.
+
+After creating or updating a collection/form in the DB, export the current
+definitions:
+
+```bash
+/opt/homebrew/bin/php artisan statamic:eloquent:export-blueprints
+/opt/homebrew/bin/php artisan statamic:eloquent:export-forms --only-forms --force
+```
+
+Relevant output paths:
+
+- `resources/blueprints/collections/{collection_handle}/*.yaml`
+- `resources/blueprints/forms/{form_handle}.yaml`
+- `resources/forms/{form_handle}.yaml`
+
+Example current Insight outputs:
+
+- `resources/blueprints/collections/insight_newsletters/pocket_science.yaml`
+- `resources/blueprints/collections/insight_newsletters/senorrita.yaml`
+- `resources/blueprints/collections/insight_newsletters/marina_maitama.yaml`
+- `resources/blueprints/collections/insight_newsletters/data_dive.yaml`
+- `resources/blueprints/forms/insight_subscribe.yaml`
+- `resources/forms/insight_subscribe.yaml`
+
+---
+
+## Step 9 — Upload Logo via CP (after deploying)
 
 1. Log in to CP
 2. **Globals → Newsletter Settings**
@@ -316,7 +347,7 @@ Changes take effect on the next campaign send. The 1-hour cache clears automatic
 
 ---
 
-## Step 9 — DNS (only if new sending domain)
+## Step 10 — DNS (only if new sending domain)
 
 Skip this step if the new collection sends from a domain already verified in Elastic Email.
 

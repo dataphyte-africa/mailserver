@@ -1,0 +1,227 @@
+tabs:
+  main:
+    display: Content
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: text
+              required: true
+            handle: title
+          -
+            field:
+              type: text
+              width: 100
+              display: 'Subject Line'
+              listable: true
+              validate: required
+              instructions: 'The email subject line shown in the inbox.'
+            handle: subject
+          -
+            field:
+              type: text
+              width: 100
+              display: Preheader
+              instructions: 'Short preview text after the subject in most inboxes (50–90 chars).'
+            handle: preheader
+          -
+            field:
+              type: assets
+              width: 100
+              display: 'Hero Image'
+              restrict: false
+              container: assets
+              max_files: 1
+              allow_uploads: true
+            handle: hero_image
+          -
+            field:
+              type: bard
+              width: 100
+              buttons:
+                - h2
+                - h3
+                - bold
+                - italic
+                - underline
+                - unorderedlist
+                - orderedlist
+                - quote
+                - anchor
+                - image
+              display: Content
+              validate: required
+              save_html: true
+            handle: content
+          -
+            field:
+              type: text
+              width: 100
+              display: 'RSS 1 Feed URL'
+              instructions: 'Primary RSS source for Pocket Science. This feed populates the lead story and the reorderable story list.'
+            handle: rss_feed_url
+          -
+            field:
+              type: integer
+              width: 50
+              default: 6
+              display: 'RSS 1 Item Limit'
+              instructions: 'How many stories to fetch from the primary RSS feed for this newsletter issue.'
+            handle: rss_item_limit
+          -
+            field:
+              type: toggle
+              width: 50
+              default: false
+              display: 'Refresh RSS 1 Stories On Save'
+              instructions: 'Turn on to repopulate the primary story list from RSS 1 the next time this entry is saved.'
+            handle: refresh_rss_items
+          -
+            field:
+              mode: stacked
+              type: grid
+              fields:
+                -
+                  field:
+                    type: toggle
+                    width: 25
+                    display: 'Lead Story'
+                  handle: is_lead
+                -
+                  field:
+                    type: text
+                    width: 100
+                    display: Title
+                  handle: title
+                -
+                  field:
+                    type: text
+                    width: 100
+                    display: URL
+                  handle: url
+                -
+                  field:
+                    type: text
+                    width: 100
+                    display: 'Image URL'
+                  handle: image_url
+                -
+                  field:
+                    type: textarea
+                    width: 100
+                    display: Excerpt
+                  handle: excerpt
+                -
+                  field:
+                    type: text
+                    width: 50
+                    display: Author
+                  handle: author
+                -
+                  field:
+                    type: text
+                    width: 50
+                    display: 'Published Label'
+                  handle: published_label
+                -
+                  field:
+                    type: text
+                    width: 50
+                    display: Category
+                  handle: primary_taxonomy_title
+              add_row: 'Add Story'
+              display: 'RSS 1 Stories'
+              fullscreen: true
+              reorderable: true
+              instructions: 'Fetched primary stories appear here. Reorder rows to control newsletter order and toggle one row as the lead story.'
+            handle: rss_items
+          -
+            field:
+              type: text
+              width: 100
+              display: 'RSS 2 Feed URL'
+              instructions: 'Related articles feed across Dataphyte newsletters.'
+            handle: related_rss_feed_url
+          -
+            field:
+              type: integer
+              width: 50
+              default: 4
+              display: 'RSS 2 Item Limit'
+              instructions: 'How many related articles to fetch from RSS 2.'
+            handle: related_rss_item_limit
+          -
+            field:
+              type: text
+              width: 100
+              display: 'RSS 3 Feed URL'
+              instructions: 'Recommended reads feed for trending socio-economic issues.'
+            handle: recommended_rss_feed_url
+          -
+            field:
+              type: integer
+              width: 50
+              default: 4
+              display: 'RSS 3 Item Limit'
+              instructions: 'How many recommended stories to fetch from RSS 3.'
+            handle: recommended_rss_item_limit
+          -
+            field:
+              type: text
+              width: 100
+              default: emails.insight.pocket-science
+              display: 'Email Template'
+              listable: false
+              visibility: hidden
+            handle: template
+  sidebar:
+    display: Settings
+    sections:
+      -
+        fields:
+          -
+            field:
+              mode: select
+              type: terms
+              width: 100
+              display: 'Send To (Audiences)'
+              taxonomies:
+                - newsletter_audiences
+              instructions: 'Select the sub-groups that will receive this newsletter.'
+            handle: audiences
+          -
+            field:
+              type: toggle
+              width: 100
+              default: false
+              display: 'Send to All'
+              instructions: 'Override audience selection and send to every subscriber in this group.'
+            handle: send_to_all
+          -
+            field:
+              type: text
+              width: 100
+              display: 'Author / Byline'
+            handle: author
+          -
+            field:
+              type: text
+              width: 100
+              display: 'Reply-To (override)'
+              input_type: email
+              instructions: 'Leave blank to use the collection default.'
+            handle: reply_to
+          -
+            field:
+              type: slug
+              validate: 'max:200'
+              localizable: true
+            handle: slug
+          -
+            field:
+              type: date
+              default: now
+              required: true
+            handle: date
+title: 'Pocket Science'

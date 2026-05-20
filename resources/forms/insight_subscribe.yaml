@@ -1,0 +1,26 @@
+newsletter_group: 1
+newsletter_endpoint: insight
+newsletter_success_message: 'Thanks for subscribing to Dataphyte Insight.'
+newsletter_preference_field: preference
+newsletter_resubscribe_body: |-
+  Welcome back, and thank you for re-subscribing to Dataphyte Insight updates.
+
+  You will start receiving our latest newsletters again based on the preference you selected.
+
+  If you would like to manage your preferences or unsubscribe at any time, you can use the links in the footer of any email we send.
+
+  Best regards,
+  Dataphyte Insight
+newsletter_confirmation_body: |-
+  Thank you for subscribing to receive Dataphyte Insight updates.
+
+  You will now receive our latest newsletters based on the preference you selected.
+
+  If you ever want to change how often you hear from us or unsubscribe, you can use the links in the footer of any email we send.
+
+  Best regards,
+  Dataphyte Insight
+newsletter_resubscribe_subject: 'Welcome Back! You have re-subscribed to Dataphyte Insight updates.'
+newsletter_confirmation_subject: 'Thank you! You are subscribed to receive Dataphyte Insight updates.'
+newsletter_send_confirmation_email: true
+title: insight-subscribe

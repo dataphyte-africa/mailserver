@@ -49,7 +49,7 @@ class TemplateResolverTest extends TestCase
         view()->addNamespace('test', __DIR__);
 
         // We'll point to the real emails.layout which must exist
-        $entry = $this->entryStub('emails.layout', 'insight_newsletters', 'feature_lead');
+        $entry = $this->entryStub('emails.layout', 'insight_newsletters', 'pocket_science');
 
         $result = $this->resolver->resolve($entry);
 
@@ -61,7 +61,7 @@ class TemplateResolverTest extends TestCase
         $entry = $this->entryStub(
             'emails.nonexistent.template',
             'insight_newsletters',
-            'feature_lead'       // convention emails.insight-newsletters.feature-lead also won't exist
+            'pocket_science'
         );
 
         // Falls through to hard fallback
@@ -72,13 +72,11 @@ class TemplateResolverTest extends TestCase
 
     public function test_convention_uses_collection_and_blueprint_handle(): void
     {
-        // feature-lead template exists in the app
-        $entry = $this->entryStub(null, 'insight_newsletters', 'feature_lead');
+        $entry = $this->entryStub(null, 'insight_newsletters', 'pocket_science');
 
         $result = $this->resolver->resolve($entry);
 
-        // Either convention 'emails.insight-newsletters.feature-lead'
-        // or fallback 'emails.layout' — either is valid since we can't guarantee
+        // Either convention path or fallback 'emails.layout' — either is valid since we can't guarantee
         // the view path in the test environment. The key test is it doesn't throw.
         $this->assertIsString($result);
         $this->assertStringStartsWith('emails.', $result);
@@ -104,17 +102,17 @@ class TemplateResolverTest extends TestCase
         $this->assertEquals('emails.layout', $result);
     }
 
-    public function test_resolves_insight_feature_lead_via_stored_field(): void
+    public function test_resolves_insight_pocket_science_via_stored_field(): void
     {
         $entry = $this->entryStub(
-            'emails.insight.feature-lead',
+            'emails.insight.pocket-science',
             'insight_newsletters',
-            'feature_lead'
+            'pocket_science'
         );
 
         $result = $this->resolver->resolve($entry);
 
-        $this->assertEquals('emails.insight.feature-lead', $result);
+        $this->assertEquals('emails.insight.pocket-science', $result);
     }
 
     public function test_resolves_foundation_weekly_via_stored_field(): void

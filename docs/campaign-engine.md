@@ -31,7 +31,7 @@ Draft → Scheduled → Sending → Sent
 1. Go to Statamic CP → Collections → Foundation Newsletters (or Insight Newsletters)
 2. Click **New Entry**
 3. Choose a **blueprint** — this determines both the content fields and the email template:
-   - **Insight:** Feature Lead, Single Story, Digest, Newsroom Roundup, Breaking News, Data Story
+   - **Insight:** Pocket Science, SenorRita, Marina and Maitama, Data Dive
    - **Foundation:** Weekly Update, Activities, Project Update
 4. Fill in the content fields (title, subject, body via Bard, preheader, hero image, author)
 5. **Publish** the entry
@@ -76,12 +76,10 @@ Each blueprint has a hidden `template` field auto-filled on first save. `Templat
 
 | Collection | Blueprint | Template |
 |---|---|---|
-| insight_newsletters | feature_lead | `emails.insight.feature-lead` |
-| insight_newsletters | single_story | `emails.insight.single-story` |
-| insight_newsletters | digest | `emails.insight.digest` |
-| insight_newsletters | roundup | `emails.insight.roundup` |
-| insight_newsletters | breaking_news | `emails.insight.breaking` |
-| insight_newsletters | data_story | `emails.insight.data-story` |
+| insight_newsletters | pocket_science | `emails.insight.pocket-science` |
+| insight_newsletters | senorrita | `emails.insight.senorrita` |
+| insight_newsletters | marina_maitama | `emails.insight.marina-maitama` |
+| insight_newsletters | data_dive | `emails.insight.data-dive` |
 | foundation_newsletters | weekly | `emails.foundation.weekly` |
 | foundation_newsletters | activities | `emails.foundation.activities` |
 | foundation_newsletters | project_update | `emails.foundation.project-update` |

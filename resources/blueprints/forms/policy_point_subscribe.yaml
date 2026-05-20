@@ -1,0 +1,36 @@
+tabs:
+  main:
+    display: Main
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: text
+              antlers: true
+              display: Firstname
+            handle: firstname
+          -
+            field:
+              type: text
+              display: Lastname
+            handle: lastname
+          -
+            field:
+              type: text
+              antlers: true
+              display: Email
+              input_type: email
+            handle: email
+          -
+            field:
+              type: select
+              display: Preference
+              options:
+                -
+                  key: regular
+                  value: Regular
+                -
+                  key: monthly
+                  value: monthly
+            handle: preference

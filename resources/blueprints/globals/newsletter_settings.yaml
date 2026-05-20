@@ -1,0 +1,66 @@
+tabs:
+  site:
+    display: Site
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: assets
+              width: 100
+              display: 'Site Logo'
+              restrict: false
+              container: assets
+              max_files: 1
+              instructions: 'Shown in the platform landing page.'
+              allow_uploads: true
+            handle: site_logo
+  insight:
+    display: 'Insight Newsletter'
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: assets
+              width: 50
+              display: 'Insight Collection Logo'
+              restrict: false
+              container: assets
+              max_files: 1
+              instructions: 'Appears in the header of every Insight newsletter email.'
+              allow_uploads: true
+            handle: insight_logo
+          -
+            field:
+              type: color
+              width: 50
+              default: '#0d1b2a'
+              display: 'Insight Brand Color'
+              instructions: 'Header background color for Insight emails.'
+            handle: insight_brand_color
+  foundation:
+    display: 'Foundation Newsletter'
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: assets
+              width: 50
+              display: 'Foundation Collection Logo'
+              restrict: false
+              container: assets
+              max_files: 1
+              instructions: 'Appears in the header of every Foundation newsletter email.'
+              allow_uploads: true
+            handle: foundation_logo
+          -
+            field:
+              type: color
+              width: 50
+              default: '#1b4332'
+              display: 'Foundation Brand Color'
+              instructions: 'Header background color for Foundation emails.'
+            handle: foundation_brand_color
+title: 'Newsletter Settings'

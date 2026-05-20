@@ -84,15 +84,23 @@ Collection
 
 ### insight_newsletters blueprint
 ```
-subject          (text)           - Email subject line
-from_name        (text)           - Sender display name
-from_email       (text)           - Sender email
-reply_to         (text, optional)
-template         (select)         - Choose from email_templates
-content          (bard/richtext)  - Newsletter body
-audiences        (terms)          - Taxonomy: newsletter_audiences (filtered to Insight terms)
-send_to_all      (toggle)         - Override: send to all Insight Subscribers
-scheduled_at     (date/time)      - Leave blank for manual send
+subject                     (text)           - Email subject line
+preheader                   (text)           - Inbox preview text
+hero_image                  (asset)          - Lead visual
+content                     (bard/richtext)  - Intro/editorial body
+rss_feed_url                (text)           - Primary product feed
+rss_item_limit              (integer)        - Primary feed item count
+refresh_rss_items           (toggle)         - Repull primary feed on save
+rss_items                   (grid)           - Curated/reorderable primary stories
+related_rss_feed_url        (text)           - Related articles across Dataphyte newsletters
+related_rss_item_limit      (integer)        - Related feed item count
+recommended_rss_feed_url    (text)           - Recommended socio-economic reads feed
+recommended_rss_item_limit  (integer)        - Recommended feed item count
+template                    (hidden text)    - Blade template path
+audiences                   (terms)          - Taxonomy: newsletter_audiences
+send_to_all                 (toggle)         - Override: send to all Insight Subscribers
+author                      (text)           - Byline
+reply_to                    (text, optional) - Reply-to override
 ```
 
 ### foundation_newsletters blueprint
@@ -157,20 +165,18 @@ They work together — Blade handles the template structure, Statamic handles th
 ### Template Selection in Blueprint
 
 Each collection Blueprint has an `email_template` select field. The editor picks the
-layout when writing the entry. The Mailable maps the selected value directly to a Blade file.
+layout when writing the entry. In the current newsletter setup, product blueprints
+usually store a hidden `template` field rather than exposing an editor-facing
+template picker.
 
 ```yaml
 # In Blueprint YAML
 -
-  handle: email_template
+  handle: template
   field:
-    type: select
-    display: Email Template
-    options:
-      emails/insight/feature-lead: Feature Lead (large hero image)
-      emails/insight/digest: Digest (multiple short items)
-      emails/insight/single-story: Single Story
-    required: true
+    type: text
+    default: emails.insight.pocket-science
+    visibility: hidden
 ```
 
 ### Blueprint Fields → Blade Variables
@@ -182,7 +188,7 @@ return URLs — pass them straight into Blade:
 // In the Mailable class
 $entry = Entry::find($campaign->entry_id);
 
-return $this->view($entry->email_template)
+return $this->view($entry->template)
     ->with([
         'subject'        => $entry->subject,
         'content'        => $entry->content->toHtml(),  // Bard → HTML
@@ -202,9 +208,11 @@ resources/views/emails/
 ├── layouts/
 │   └── base.blade.php           ← shared: DOCTYPE, head, footer, unsubscribe link
 ├── insight/
-│   ├── feature-lead.blade.php   ← hero image + headline + body
-│   ├── digest.blade.php         ← multiple short story items
-│   └── single-story.blade.php  ← clean single article layout
+│   ├── _product-issue.blade.php ← shared product issue shell
+│   ├── pocket-science.blade.php
+│   ├── senorrita.blade.php
+│   ├── marina-maitama.blade.php
+│   └── data-dive.blade.php
 └── foundation/
     ├── weekly.blade.php
     └── activities.blade.php
@@ -213,7 +221,7 @@ resources/views/emails/
 Each template extends base and slots in the Blueprint variables:
 
 ```blade
-{{-- emails/insight/feature-lead.blade.php --}}
+{{-- emails/insight/pocket-science.blade.php --}}
 @extends('emails.layouts.base')
 
 @section('content')

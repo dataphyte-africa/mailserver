@@ -357,12 +357,10 @@ class ScaffoldCollections extends Command
     {
         return match ($collectionHandle) {
             'insight_newsletters' => [
-                ['handle' => 'feature_lead',  'title' => 'Feature Lead',       'template' => 'emails.insight.feature-lead'],
-                ['handle' => 'single_story',  'title' => 'Single Story',        'template' => 'emails.insight.single-story'],
-                ['handle' => 'digest',        'title' => 'Digest',              'template' => 'emails.insight.digest'],
-                ['handle' => 'roundup',       'title' => 'Newsroom Roundup',    'template' => 'emails.insight.roundup'],
-                ['handle' => 'breaking_news', 'title' => 'Breaking News',       'template' => 'emails.insight.breaking'],
-                ['handle' => 'data_story',    'title' => 'Data Story',          'template' => 'emails.insight.data-story'],
+                ['handle' => 'pocket_science', 'title' => 'Pocket Science', 'template' => 'emails.insight.pocket-science'],
+                ['handle' => 'senorrita', 'title' => 'SenorRita', 'template' => 'emails.insight.senorrita'],
+                ['handle' => 'marina_maitama', 'title' => 'Marina and Maitama', 'template' => 'emails.insight.marina-maitama'],
+                ['handle' => 'data_dive', 'title' => 'Data Dive', 'template' => 'emails.insight.data-dive'],
             ],
             'foundation_newsletters' => [
                 ['handle' => 'weekly',          'title' => 'Weekly Update',   'template' => 'emails.foundation.weekly'],

@@ -88,6 +88,19 @@ class NewsletterMailable extends Mailable
             $rssItemLimit,
         );
         $curatedRss = app(CuratedRssStoriesService::class)->preparedItems($entry, $rssItems);
+        $relatedRssFeedUrl = $entry?->get('related_rss_feed_url');
+        $relatedRssItemLimit = (int) ($entry?->get('related_rss_item_limit') ?: 4);
+        $recommendedRssFeedUrl = $entry?->get('recommended_rss_feed_url');
+        $recommendedRssItemLimit = (int) ($entry?->get('recommended_rss_item_limit') ?: 4);
+
+        $relatedRssItems = app(RssFeedService::class)->items(
+            is_string($relatedRssFeedUrl) ? $relatedRssFeedUrl : null,
+            $relatedRssItemLimit,
+        );
+        $recommendedRssItems = app(RssFeedService::class)->items(
+            is_string($recommendedRssFeedUrl) ? $recommendedRssFeedUrl : null,
+            $recommendedRssItemLimit,
+        );
 
         return new Content(
             view: $template,
@@ -115,6 +128,10 @@ class NewsletterMailable extends Mailable
                 'rssItems'            => $curatedRss['items'],
                 'rssLeadItem'         => $curatedRss['lead'],
                 'rssSecondaryItems'   => $curatedRss['secondary'],
+                'relatedRssFeedUrl'   => $relatedRssFeedUrl,
+                'relatedRssItems'     => $relatedRssItems,
+                'recommendedRssFeedUrl' => $recommendedRssFeedUrl,
+                'recommendedRssItems' => $recommendedRssItems,
             ],
         );
     }

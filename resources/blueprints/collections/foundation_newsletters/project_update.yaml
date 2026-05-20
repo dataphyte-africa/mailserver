@@ -1,0 +1,98 @@
+tabs:
+  main:
+    display: Content
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: text
+              width: 100
+              display: 'Subject Line'
+              listable: true
+              validate: required
+              instructions: 'The email subject line shown in the inbox.'
+            handle: subject
+          -
+            field:
+              type: text
+              width: 100
+              display: Preheader
+              instructions: 'Short preview text after the subject in most inboxes (50–90 chars).'
+            handle: preheader
+          -
+            field:
+              type: assets
+              width: 100
+              display: 'Hero Image'
+              restrict: false
+              container: assets
+              max_files: 1
+              allow_uploads: true
+            handle: hero_image
+          -
+            field:
+              type: bard
+              width: 100
+              buttons:
+                - h2
+                - h3
+                - bold
+                - italic
+                - underline
+                - unorderedlist
+                - orderedlist
+                - quote
+                - anchor
+                - image
+              display: Content
+              validate: required
+              save_html: true
+            handle: content
+          -
+            field:
+              type: text
+              width: 100
+              default: emails.foundation.project-update
+              display: 'Email Template'
+              listable: false
+              visibility: hidden
+            handle: template
+  sidebar:
+    display: Settings
+    sections:
+      -
+        fields:
+          -
+            field:
+              mode: select
+              type: terms
+              width: 100
+              display: 'Send To (Audiences)'
+              taxonomies:
+                - newsletter_audiences
+              instructions: 'Select the sub-groups that will receive this newsletter.'
+            handle: audiences
+          -
+            field:
+              type: toggle
+              width: 100
+              default: false
+              display: 'Send to All'
+              instructions: 'Override audience selection and send to every subscriber in this group.'
+            handle: send_to_all
+          -
+            field:
+              type: text
+              width: 100
+              display: 'Author / Byline'
+            handle: author
+          -
+            field:
+              type: text
+              width: 100
+              display: 'Reply-To (override)'
+              input_type: email
+              instructions: 'Leave blank to use the collection default.'
+            handle: reply_to
+title: 'Project Update'

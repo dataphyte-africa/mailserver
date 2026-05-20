@@ -24,10 +24,33 @@
     <style>
         .subscriber-table-wrap {
             overflow-x: auto;
+            max-width: 100%;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
         }
 
         .subscriber-table {
-            min-width: 1440px;
+            min-width: 1560px;
+            width: max-content;
+            table-layout: auto;
+        }
+
+        .subscriber-table th,
+        .subscriber-table td {
+            white-space: nowrap;
+        }
+
+        .subscriber-email-col {
+            min-width: 280px;
+            max-width: 280px;
+        }
+
+        .subscriber-name-col {
+            min-width: 220px;
+        }
+
+        .subscriber-subgroup-col {
+            min-width: 220px;
         }
 
         .subscriber-sticky-col {
@@ -35,6 +58,7 @@
             left: 0;
             z-index: 2;
             background: #fff;
+            box-shadow: 1px 0 0 #e5e7eb;
         }
 
         .subscriber-sticky-head {
@@ -113,17 +137,17 @@
     </form>
 
     {{-- Table --}}
-    <div class="card p-0 overflow-hidden">
+    <div class="card p-0 overflow-visible">
         <div class="subscriber-table-wrap">
         <table class="data-table subscriber-table">
             <thead>
                 <tr>
-                    <th class="subscriber-sticky-col subscriber-sticky-head">
+                    <th class="subscriber-sticky-col subscriber-sticky-head subscriber-email-col">
                         <a href="{{ $sortLink('email') }}" class="hover:underline">
                             Email{!! $sortIndicator('email') !!}
                         </a>
                     </th>
-                    <th>
+                    <th class="subscriber-name-col">
                         <a href="{{ $sortLink('name') }}" class="hover:underline">
                             Name{!! $sortIndicator('name') !!}
                         </a>
@@ -133,7 +157,7 @@
                             Status{!! $sortIndicator('status') !!}
                         </a>
                     </th>
-                    <th>Sub-groups</th>
+                    <th class="subscriber-subgroup-col">Sub-groups</th>
                     <th>
                         <a href="{{ $sortLink('engagement_rating') }}" class="hover:underline">
                             Rating{!! $sortIndicator('engagement_rating') !!}
@@ -175,20 +199,20 @@
             <tbody>
                 @forelse($subscribers as $subscriber)
                     <tr>
-                        <td class="subscriber-sticky-col">
+                        <td class="subscriber-sticky-col subscriber-email-col">
                             <a href="{{ cp_route('newsletter.subscribers.show', $subscriber) }}"
                                class="text-blue font-medium hover:underline">
                                 {{ $subscriber->email }}
                             </a>
                         </td>
-                        <td>{{ $subscriber->full_name }}</td>
+                        <td class="subscriber-name-col">{{ $subscriber->full_name }}</td>
                         <td>
                             <span class="badge-sm
                                 {{ $subscriber->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
                                 {{ ucfirst($subscriber->status) }}
                             </span>
                         </td>
-                        <td class="text-sm text-gray-600">
+                        <td class="text-sm text-gray-600 subscriber-subgroup-col">
                             {{ $subscriber->subGroups->pluck('name')->implode(', ') ?: '—' }}
                         </td>
                         <td>

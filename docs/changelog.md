@@ -2,6 +2,54 @@
 
 ---
 
+## Session 11 - 2026-05-20 (Insight collection conversion to product-based newsletter model)
+
+### Documentation updates
+
+- Recorded the Dataphyte Insight collection conversion from the older generic blueprint set to the new product-based model:
+  - `Pocket Science`
+  - `SenorRita`
+  - `Marina and Maitama`
+  - `Data Dive`
+
+### Implementation completed
+
+- Added `InsightProvisioner` to create/update:
+  - the `insight_newsletters` collection
+  - four collection blueprints
+  - the `Insight Subscribers` parent group
+  - the `insight_subscribe` form blueprint
+  - the `insight_subscribe` form configuration
+- Added `newsletter:provision-insight`.
+- Replaced the old scaffolded `insight_newsletters` blueprint map in `ScaffoldCollections` with the four requested product blueprints.
+- Added the `insight_subscribe` form preference options:
+  - `Pocket Science`
+  - `SenorRita`
+  - `Marina and Maitama`
+  - `Data Dive`
+- Updated seeded Insight sub-groups to match the same four products.
+- Extended `NewsletterMailable` so Insight entries can supply:
+  - primary curated RSS content via `rss_feed_url` / `rss_items`
+  - related feed content via `related_rss_feed_url`
+  - recommended feed content via `recommended_rss_feed_url`
+- Added four Insight template entrypoints:
+  - `emails.insight.pocket-science`
+  - `emails.insight.senorrita`
+  - `emails.insight.marina-maitama`
+  - `emails.insight.data-dive`
+- Removed the old generic Insight blueprint/template model from runtime code:
+  - `feature_lead`
+  - `single_story`
+  - `digest`
+  - `roundup`
+  - `breaking_news`
+  - `data_story`
+- Exported the current DB-backed Insight blueprints and form definitions to YAML replication artifacts:
+  - `resources/blueprints/collections/insight_newsletters/*.yaml`
+  - `resources/blueprints/forms/insight_subscribe.yaml`
+  - `resources/forms/insight_subscribe.yaml`
+- Added the missing fourth local Insight sample entry so there is now one entry per new blueprint handle.
+
 ## Session 10 — 2026-05-20 (Subscriber rating phase 1)
 
 ### Documentation updates

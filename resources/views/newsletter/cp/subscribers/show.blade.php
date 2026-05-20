@@ -13,17 +13,19 @@
             border: 1px solid #e5e7eb;
             border-radius: 0.75rem;
             background: #fff;
+            overflow: hidden;
         }
 
         .subscriber-show-block {
             border: 1px solid #e5e7eb;
             border-radius: 0.75rem;
             background: #fff;
+            overflow: hidden;
         }
 
         .subscriber-show-list > div,
         .subscriber-show-subgroups > li {
-            border-top: 1px solid #eef2f7;
+            border-top: 1px solid #e5e7eb;
         }
 
         .subscriber-show-list > div:first-child,
@@ -31,10 +33,52 @@
             border-top: 0;
         }
 
+        .subscriber-show-list > div {
+            display: grid;
+            grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+            align-items: center;
+            min-height: 58px;
+        }
+
+        .subscriber-show-list > div dt {
+            border-right: 1px solid #e5e7eb;
+            padding: 1rem 1.25rem;
+            background: #fafbfd;
+        }
+
+        .subscriber-show-list > div dd {
+            padding: 1rem 1.5rem 1rem 1.25rem;
+            text-align: right;
+        }
+
+        .subscriber-show-subgroups > li {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
+            align-items: center;
+            min-height: 58px;
+        }
+
+        .subscriber-show-subgroups > li span:first-child {
+            padding: 1rem 1.25rem;
+            background: #fafbfd;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .subscriber-show-subgroups > li span:last-child {
+            padding: 1rem 1.5rem 1rem 1.25rem;
+            text-align: right;
+        }
+
         .subscriber-show-table thead th {
             background: #f8fafc;
             border-bottom: 1px solid #e5e7eb;
             font-weight: 600;
+            padding: 0.9rem 1.25rem;
+        }
+
+        .subscriber-show-table thead th + th,
+        .subscriber-show-table tbody td + td {
+            border-left: 1px solid #eef2f7;
         }
 
         .subscriber-show-table tbody tr {
@@ -43,6 +87,33 @@
 
         .subscriber-show-table tbody tr:last-child {
             border-bottom: 0;
+        }
+
+        .subscriber-show-table td,
+        .subscriber-show-table th {
+            padding-right: 1rem;
+        }
+
+        .subscriber-show-table tbody td {
+            padding: 1rem 1.25rem;
+        }
+
+        .subscriber-show-section-title {
+            padding: 1.25rem 1.25rem 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: #fff;
+        }
+
+        .subscriber-show-section-body {
+            padding: 0;
+        }
+
+        .subscriber-show-table-wrap {
+            padding: 0 1.25rem 1.25rem;
+        }
+
+        .subscriber-show-meta {
+            padding: 1rem 1.25rem 0.75rem;
         }
     </style>
 
@@ -107,8 +178,11 @@
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {{-- Subscriber info --}}
         <div class="space-y-6">
-        <div class="subscriber-show-block p-5 shadow-sm">
-            <h2 class="font-semibold mb-3 text-gray-700">Details</h2>
+        <div class="subscriber-show-block shadow-sm">
+            <div class="subscriber-show-section-title">
+                <h2 class="font-semibold text-gray-700">Details</h2>
+            </div>
+            <div class="subscriber-show-section-body">
             <dl class="subscriber-show-list text-sm">
                 <div class="flex justify-between py-3">
                     <dt class="text-gray-500">Status</dt>
@@ -152,10 +226,12 @@
                 @endif
             </dl>
 
-            <h2 class="font-semibold mt-6 mb-3 text-gray-700">Sub-groups</h2>
+            <div class="subscriber-show-section-title border-t">
+                <h2 class="font-semibold text-gray-700">Sub-groups</h2>
+            </div>
             <ul class="subscriber-show-subgroups text-sm">
                 @forelse($subscriber->subGroups as $sg)
-                    <li class="flex justify-between py-3">
+                    <li class="py-3">
                         <span>{{ $sg->name }}</span>
                         <span class="text-gray-400 text-xs">{{ $sg->group->name }}</span>
                     </li>
@@ -163,9 +239,13 @@
                     <li class="text-gray-400 py-3">None</li>
                 @endforelse
             </ul>
+            </div>
         </div>
-        <div class="subscriber-show-block p-5 shadow-sm">
-            <h2 class="font-semibold mb-3 text-gray-700">Engagement Snapshot</h2>
+        <div class="subscriber-show-block shadow-sm">
+            <div class="subscriber-show-section-title">
+                <h2 class="font-semibold text-gray-700">Engagement Snapshot</h2>
+            </div>
+            <div class="subscriber-show-section-body">
             <dl class="subscriber-show-list text-sm">
                 <div class="flex justify-between py-3">
                     <dt class="text-gray-500">Delivered</dt>
@@ -188,46 +268,49 @@
                     <dd>{{ $stats['total_failed'] ?? 0 }}</dd>
                 </div>
             </dl>
+            </div>
         </div>
         </div>
 
         {{-- Send history --}}
         <div class="space-y-6 xl:col-span-2">
-        <div class="subscriber-show-block p-5 shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="font-semibold text-gray-700">Campaign History</h2>
-                <p class="text-xs text-gray-400">20 rows per page</p>
+        <div class="subscriber-show-block shadow-sm">
+            <div class="subscriber-show-section-title">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-semibold text-gray-700">Campaign History</h2>
+                    <p class="text-xs text-gray-400">20 rows per page</p>
+                </div>
             </div>
             @if($sendHistory->count())
-                <div class="overflow-x-auto">
+                <div class="subscriber-show-table-wrap overflow-x-auto">
                 <table class="w-full text-sm min-w-[760px] subscriber-show-table">
                     <thead>
                         <tr class="text-left text-gray-500">
-                            <th class="px-3 py-3">Campaign</th>
-                            <th class="px-3 py-3">Status</th>
-                            <th class="px-3 py-3">Sent</th>
-                            <th class="px-3 py-3">Opened</th>
-                            <th class="px-3 py-3">Clicked</th>
+                            <th>Campaign</th>
+                            <th>Status</th>
+                            <th>Sent</th>
+                            <th>Opened</th>
+                            <th>Clicked</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($sendHistory as $send)
                             <tr>
-                                <td class="px-3 py-3">{{ $send->campaign->name }}</td>
-                                <td class="px-3 py-3">
+                                <td>{{ $send->campaign->name }}</td>
+                                <td>
                                     <span class="capitalize text-xs font-medium
                                         {{ in_array($send->status, ['opened', 'clicked']) ? 'text-green-600' : '' }}
                                         {{ in_array($send->status, ['bounced','failed']) ? 'text-red-500' : '' }}">
                                         {{ $send->status }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-3 text-gray-400">
+                                <td class="text-gray-400">
                                     {{ $send->sent_at?->format('d M Y H:i') ?? '—' }}
                                 </td>
-                                <td class="px-3 py-3 text-gray-400">
+                                <td class="text-gray-400">
                                     {{ $send->opened_at?->format('d M Y H:i') ?? '—' }}
                                 </td>
-                                <td class="px-3 py-3 text-gray-400">
+                                <td class="text-gray-400">
                                     {{ $send->clicked_at?->format('d M Y H:i') ?? '—' }}
                                 </td>
                             </tr>
@@ -235,29 +318,31 @@
                     </tbody>
                 </table>
                 </div>
-                <div class="mt-3">{{ $sendHistory->links() }}</div>
+                <div class="subscriber-show-meta">{{ $sendHistory->links() }}</div>
             @else
-                <p class="text-gray-400 text-sm">No campaigns sent yet.</p>
+                <p class="subscriber-show-meta text-gray-400 text-sm">No campaigns sent yet.</p>
             @endif
         </div>
-        <div class="subscriber-show-block p-5 shadow-sm">
-            <h2 class="font-semibold mb-3 text-gray-700">Recent Clicked Links</h2>
+        <div class="subscriber-show-block shadow-sm">
+            <div class="subscriber-show-section-title">
+                <h2 class="font-semibold text-gray-700">Recent Clicked Links</h2>
+            </div>
             @if($recentLinkClicks->count())
-                <div class="overflow-x-auto">
+                <div class="subscriber-show-table-wrap overflow-x-auto">
                 <table class="w-full text-sm min-w-[760px] subscriber-show-table">
                     <thead>
                         <tr class="text-left text-gray-500">
-                            <th class="px-3 py-3">Campaign</th>
-                            <th class="px-3 py-3">Clicked At</th>
-                            <th class="px-3 py-3">URL</th>
+                            <th>Campaign</th>
+                            <th>Clicked At</th>
+                            <th>URL</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($recentLinkClicks as $click)
                             <tr>
-                                <td class="px-3 py-3">{{ $click->campaignSend?->campaign?->name ?? '—' }}</td>
-                                <td class="px-3 py-3 text-gray-400">{{ $click->clicked_at?->format('d M Y H:i') ?? '—' }}</td>
-                                <td class="px-3 py-3">
+                                <td>{{ $click->campaignSend?->campaign?->name ?? '—' }}</td>
+                                <td class="text-gray-400">{{ $click->clicked_at?->format('d M Y H:i') ?? '—' }}</td>
+                                <td>
                                     <a href="{{ $click->url }}"
                                        target="_blank"
                                        rel="noopener"
@@ -271,7 +356,7 @@
                 </table>
                 </div>
             @else
-                <p class="text-gray-400 text-sm">No clicked links recorded yet.</p>
+                <p class="subscriber-show-meta text-gray-400 text-sm">No clicked links recorded yet.</p>
             @endif
         </div>
         </div>

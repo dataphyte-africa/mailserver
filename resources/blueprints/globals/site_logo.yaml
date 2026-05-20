@@ -1,0 +1,14 @@
+tabs:
+  main:
+    display: Main
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: assets
+              display: logo
+              container: assets
+              max_files: 6
+            handle: logo
+title: 'site logo'

@@ -17,9 +17,10 @@ class SubscriberGroupSeeder extends Seeder
                 'collection_handle' => 'insight_newsletters',
                 'description' => 'Dataphyte Insight newsletter subscribers',
                 'sub_groups'  => [
-                    ['name' => 'Topics',           'slug' => 'topics'],
-                    ['name' => 'Marina & Maitama', 'slug' => 'marina-maitama'],
-                    ['name' => 'SenorRita',         'slug' => 'senorrita'],
+                    ['name' => 'Pocket Science', 'slug' => 'pocket-science'],
+                    ['name' => 'SenorRita', 'slug' => 'senorrita'],
+                    ['name' => 'Marina and Maitama', 'slug' => 'marina-maitama'],
+                    ['name' => 'Data Dive', 'slug' => 'data-dive'],
                 ],
             ],
             [

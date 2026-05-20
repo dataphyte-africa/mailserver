@@ -1,0 +1,44 @@
+tabs:
+  main:
+    display: Main
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: text
+              antlers: true
+              display: Firstname
+            handle: firstname
+          -
+            field:
+              type: text
+              display: Lastname
+            handle: lastname
+          -
+            field:
+              type: text
+              antlers: true
+              display: Email
+              input_type: email
+            handle: email
+          -
+            field:
+              type: select
+              default: 'pocket-science,senorrita,marina-maitama,data-dive'
+              display: Preference
+              options:
+                -
+                  key: pocket-science
+                  value: 'Pocket Science'
+                -
+                  key: senorrita
+                  value: SenorRita
+                -
+                  key: marina-maitama
+                  value: 'Marina and Maitama'
+                -
+                  key: data-dive
+                  value: 'Data Dive'
+              multiple: true
+            handle: preference
