@@ -195,16 +195,16 @@
                             @php
                                 $rating = $subscriber->engagement_rating ?: '—';
                                 $ratingClasses = match ($subscriber->engagement_rating) {
-                                    'engaged' => 'bg-green-100 text-green-700',
-                                    'warm' => 'bg-blue-100 text-blue-700',
-                                    'cold' => 'bg-gray-100 text-gray-600',
-                                    'at_risk' => 'bg-yellow-100 text-yellow-700',
+                                    'high' => 'bg-green-100 text-green-700',
+                                    'moderate' => 'bg-blue-100 text-blue-700',
+                                    'low' => 'bg-gray-100 text-gray-600',
+                                    'inactive' => 'bg-yellow-100 text-yellow-700',
                                     'suppressed' => 'bg-red-100 text-red-600',
                                     default => 'bg-gray-50 text-gray-400',
                                 };
                             @endphp
                             <span class="badge-sm {{ $ratingClasses }}">
-                                {{ $rating === '—' ? $rating : str_replace('_', ' ', ucfirst($rating)) }}
+                                {{ $rating === '—' ? $rating : ucfirst($rating) }}
                             </span>
                         </td>
                         <td class="text-sm text-right text-gray-700">{{ $subscriber->campaigns_count }}</td>

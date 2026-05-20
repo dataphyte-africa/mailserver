@@ -38,10 +38,10 @@ class SubscriberEngagementService
         $sentCount = (int) $subscriber->campaignSends()->count();
 
         $rating = match (true) {
-            $recentClick && $score >= 8 => 'engaged',
-            $this->isAtRisk($sentCount, $engagementCount, $lastEngagedAt) => 'at_risk',
-            $score >= 4 && $this->engagedRecently($lastEngagedAt, 90) => 'warm',
-            default => 'cold',
+            $recentClick && $score >= 8 => 'high',
+            $this->isAtRisk($sentCount, $engagementCount, $lastEngagedAt) => 'inactive',
+            $score >= 4 && $this->engagedRecently($lastEngagedAt, 90) => 'moderate',
+            default => 'low',
         };
 
         return [

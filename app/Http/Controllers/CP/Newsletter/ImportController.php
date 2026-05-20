@@ -194,10 +194,10 @@ class ImportController extends Controller
         } elseif ($sort === 'engagement_rating') {
             $query->orderByRaw("
                 CASE engagement_rating
-                    WHEN 'engaged' THEN 5
-                    WHEN 'warm' THEN 4
-                    WHEN 'cold' THEN 3
-                    WHEN 'at_risk' THEN 2
+                    WHEN 'high' THEN 5
+                    WHEN 'moderate' THEN 4
+                    WHEN 'low' THEN 3
+                    WHEN 'inactive' THEN 2
                     WHEN 'suppressed' THEN 1
                     ELSE 0
                 END {$direction}

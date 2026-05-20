@@ -220,7 +220,7 @@ Definitions:
   - lifetime sends where `clicked_at` is present
 - `Rating`
   - current persisted `engagement_rating`
-  - one of `engaged`, `warm`, `cold`, `at_risk`, `suppressed`
+  - one of `high`, `moderate`, `low`, `inactive`, `suppressed`
 
 Behavior:
 - the first column (`Email`) is sticky
@@ -288,17 +288,24 @@ The GDPR / subscriber-detail export now also includes:
 
 ### Rating placement
 
-Subscriber rating is planned, but is intentionally not yet implemented in the current
-subscriber list or detail page.
+Subscriber rating is now implemented in the current subscriber list and detail page.
 
-Accepted direction:
-- do **not** add rating before the underlying scoring model is approved
-- once implemented, rating should appear in the subscriber list as its own column
-- rating should also appear on the subscriber detail page with supporting context
+Current direction:
+- the subscriber list shows `Rating` as a high-level sortable column
+- the subscriber detail page shows:
+  - `engagement_rating`
+  - `engagement_score`
+  - `last_engaged_at`
+- the current operator-facing labels are:
+  - `high`
+  - `moderate`
+  - `low`
+  - `inactive`
+  - `suppressed`
 
 The subscriber list should remain the high-level sortable table, while the subscriber
-detail page should remain the place to understand *why* a subscriber appears engaged,
-warm, cold, or at risk.
+detail page should remain the place to understand *why* a subscriber appears high,
+moderate, low, or inactive.
 
 ### Package
 ```
