@@ -49,6 +49,7 @@
   - `resources/blueprints/forms/insight_subscribe.yaml`
   - `resources/forms/insight_subscribe.yaml`
 - Added the missing fourth local Insight sample entry so there is now one entry per new blueprint handle.
+- Added `newsletter:import-yaml-files` so specific blueprint/form YAML files can be imported into the DB without running the generic global Statamic import commands.
 
 ## Session 10 — 2026-05-20 (Subscriber rating phase 1)
 

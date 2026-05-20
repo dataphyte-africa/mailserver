@@ -333,6 +333,21 @@ Example current Insight outputs:
 - `resources/blueprints/forms/insight_subscribe.yaml`
 - `resources/forms/insight_subscribe.yaml`
 
+When you need to write only selected files back into the DB, use the project
+file-specific import command instead of the generic global Statamic import:
+
+```bash
+/opt/homebrew/bin/php artisan newsletter:import-yaml-files \
+  resources/blueprints/collections/insight_newsletters/pocket_science.yaml \
+  resources/blueprints/forms/insight_subscribe.yaml \
+  resources/forms/insight_subscribe.yaml
+```
+
+Supported file roots:
+
+- `resources/blueprints/...`
+- `resources/forms/...`
+
 ---
 
 ## Step 9 — Upload Logo via CP (after deploying)
