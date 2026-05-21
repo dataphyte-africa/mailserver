@@ -79,4 +79,61 @@ class CuratedRssStoriesServiceTest extends TestCase
         $this->assertCount(1, $prepared['secondary']);
         $this->assertSame('Second Story', $prepared['secondary'][0]['title']);
     }
+
+    public function test_it_prepares_secondary_feed_lists_from_stored_rows(): void
+    {
+        $entry = new class
+        {
+            public function get(string $key): mixed
+            {
+                return match ($key) {
+                    'related_rss_items' => [
+                        [
+                            'type' => 'story',
+                            'title' => 'Related One',
+                            'url' => 'https://example.com/related-one',
+                        ],
+                        [
+                            'type' => 'story',
+                            'title' => 'Related Two',
+                            'url' => 'https://example.com/related-two',
+                        ],
+                    ],
+                    default => null,
+                };
+            }
+        };
+
+        $items = app(CuratedRssStoriesService::class)->preparedList($entry, 'related_rss_items');
+
+        $this->assertCount(2, $items);
+        $this->assertSame('Related One', $items[0]['title']);
+        $this->assertSame('Related Two', $items[1]['title']);
+    }
+
+    public function test_it_falls_back_to_fetched_rows_for_secondary_lists(): void
+    {
+        $entry = new class
+        {
+            public function get(string $key): mixed
+            {
+                return null;
+            }
+        };
+
+        $items = app(CuratedRssStoriesService::class)->preparedList($entry, 'recommended_rss_items', [
+            [
+                'title' => 'Recommended One',
+                'url' => 'https://example.com/recommended-one',
+            ],
+            [
+                'title' => 'Recommended Two',
+                'url' => 'https://example.com/recommended-two',
+            ],
+        ]);
+
+        $this->assertCount(2, $items);
+        $this->assertSame('Recommended One', $items[0]['title']);
+        $this->assertSame('Recommended Two', $items[1]['title']);
+    }
 }

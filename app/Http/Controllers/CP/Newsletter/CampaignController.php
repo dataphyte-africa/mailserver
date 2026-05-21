@@ -12,8 +12,9 @@ use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\CampaignSendRetryService;
 use App\Services\Newsletter\CollectionRegistry;
+use App\Services\Newsletter\CuratedRssStoriesService;
+use App\Services\Newsletter\RssFeedService;
 use App\Services\Newsletter\TemplateResolver;
-use App\Services\Newsletter\UtmInjector;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -363,6 +364,13 @@ class CampaignController extends Controller
         $entry    = $campaign->entry_id ? Entry::find($campaign->entry_id) : null;
         $settings = $this->campaignNewsletterSettings();
         $sender   = $campaign->sender();
+        $previewSubscriber = new \App\Models\Subscriber([
+            'email' => '[email@example.com]',
+            'first_name' => '[First Name]',
+            'last_name' => '[Last Name]',
+            'status' => 'active',
+            'confirmation_token' => (string) Str::uuid(),
+        ]);
 
         $collection      = $campaign->collection ?? '';
         $collectionKey   = str_replace('_newsletters', '', $collection);
@@ -377,15 +385,41 @@ class CampaignController extends Controller
         $heroUrl    = $this->campaignAssetUrl($entry?->get('hero_image'));
 
         $rawContent = $entry?->get('content') ?? '<p><em>(No content yet — link an entry to this campaign.)</em></p>';
-        $content    = UtmInjector::inject($rawContent, [
-            'utm_source' => 'newsletter', 'utm_medium' => 'email', 'utm_campaign' => 'preview',
-        ]);
-
-        // Replace merge tags with visible placeholders for the preview
-        $content = str_replace(
-            ['{{first_name}}', '{{last_name}}', '{{full_name}}', '{{email}}'],
-            ['[First Name]',   '[Last Name]',   '[Full Name]',   '[email@example.com]'],
-            $content
+        $content = (new NewsletterMailable($campaign, $previewSubscriber, 'preview'))
+            ->prepareCampaignContent($rawContent, [
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'preview',
+            ]);
+        $rssFeedUrl = $entry?->get('rss_feed_url');
+        $rssItemLimit = (int) ($entry?->get('rss_item_limit') ?: 6);
+        $rssItems = app(RssFeedService::class)->items(
+            is_string($rssFeedUrl) ? $rssFeedUrl : null,
+            $rssItemLimit,
+        );
+        $curatedRss = app(CuratedRssStoriesService::class)->preparedItems($entry, $rssItems);
+        $relatedRssFeedUrl = $entry?->get('related_rss_feed_url');
+        $relatedRssItemLimit = (int) ($entry?->get('related_rss_item_limit') ?: 4);
+        $recommendedRssFeedUrl = $entry?->get('recommended_rss_feed_url');
+        $recommendedRssItemLimit = (int) ($entry?->get('recommended_rss_item_limit') ?: 4);
+        $feedStories = app(CuratedRssStoriesService::class);
+        $relatedRssItems = $feedStories->preparedList(
+            $entry,
+            'related_rss_items',
+            app(RssFeedService::class)->items(
+                is_string($relatedRssFeedUrl) ? $relatedRssFeedUrl : null,
+                $relatedRssItemLimit,
+            ),
+            $relatedRssItemLimit,
+        );
+        $recommendedRssItems = $feedStories->preparedList(
+            $entry,
+            'recommended_rss_items',
+            app(RssFeedService::class)->items(
+                is_string($recommendedRssFeedUrl) ? $recommendedRssFeedUrl : null,
+                $recommendedRssItemLimit,
+            ),
+            $recommendedRssItemLimit,
         );
 
         $html = view($template, [
@@ -406,6 +440,20 @@ class CampaignController extends Controller
             'subscriberLastName'  => '[Last Name]',
             'subscriberFullName'  => '[Full Name]',
             'subscriberEmail'     => '[email@example.com]',
+            'pocketIntelligenceTitle' => $entry?->get('travel_intelligence_title') ?? '',
+            'pocketIntelligenceSubtitle' => $entry?->get('travel_intelligence_subtitle') ?? '',
+            'pocketIntelligenceItems' => collect($entry?->get('travel_intelligence_items') ?? [])
+                ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                ->values()
+                ->all(),
+            'rssFeedUrl'          => $rssFeedUrl,
+            'rssItems'            => $curatedRss['items'],
+            'rssLeadItem'         => $curatedRss['lead'],
+            'rssSecondaryItems'   => $curatedRss['secondary'],
+            'relatedRssFeedUrl'   => $relatedRssFeedUrl,
+            'relatedRssItems'     => $relatedRssItems,
+            'recommendedRssFeedUrl' => $recommendedRssFeedUrl,
+            'recommendedRssItems' => $recommendedRssItems,
         ])->render();
 
         $banner = '<div style="background:#1a73e8;color:#fff;padding:10px 20px;'

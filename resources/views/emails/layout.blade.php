@@ -66,7 +66,7 @@
                     {{-- Upper: collection logo (editor-controlled via GlobalSet)     --}}
                     {{-- Lower: product/template nameplate (hardcoded per template)   --}}
                     {{-- ============================================================ --}}
-                    @if(!empty($collectionLogo))
+                    @if(empty($hideCollectionHeader) && !empty($collectionLogo))
                         <tr>
                             <td style="background-color:{{ $headerColor ?? '#1a1a2e' }};padding:0;">
                                 <img src="{{ $collectionLogo }}"
@@ -74,7 +74,7 @@
                                      style="width:100%;height:auto;display:block;border:0;">
                             </td>
                         </tr>
-                    @elseif($__env->hasSection('nameplate'))
+                    @elseif(empty($hideCollectionHeader) && $__env->hasSection('nameplate'))
                         <tr>
                             <td class="mobile-tight" style="background-color:{{ $headerColor ?? '#1a1a2e' }};padding:22px 32px 18px;text-align:center;">
                                 @yield('nameplate')

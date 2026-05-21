@@ -8,6 +8,7 @@ preferences:
       view: list
     insight_newsletters:
       view: list
+      after_save: continue_editing
     policy_point_newsletters:
       view: list
       after_save: continue_editing

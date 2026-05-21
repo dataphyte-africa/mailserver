@@ -44,15 +44,15 @@ return [
                 'offices' => [
                     [
                         'label' => 'Dataphyte, Nigeria',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria.',
                     ],
                     [
                         'label' => 'Dataphyte, United State',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => '1007 N Orange St. 4th Floor, Wilmington, Delaware, United States.',
                     ],
                     [
                         'label' => 'Dataphyte, United Kingdom',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => 'Chalice House Bromley Road, Elmstead, Colchester, England, CO7 7BY.',
                     ],
                 ],
             ],
@@ -80,15 +80,15 @@ return [
                 'offices' => [
                     [
                         'label' => 'Dataphyte, Nigeria',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria.',
                     ],
                     [
                         'label' => 'Dataphyte, United State',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => '1007 N Orange St. 4th Floor, Wilmington, Delaware, United States.',
                     ],
                     [
                         'label' => 'Dataphyte, United Kingdom',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => 'Chalice House Bromley Road, Elmstead, Colchester, England, CO7 7BY.',
                     ],
                 ],
             ],
@@ -116,15 +116,15 @@ return [
                 'offices' => [
                     [
                         'label' => 'Dataphyte, Nigeria',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria.',
                     ],
                     [
                         'label' => 'Dataphyte, United State',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => '1007 N Orange St. 4th Floor, Wilmington, Delaware, United States.',
                     ],
                     [
                         'label' => 'Dataphyte, United Kingdom',
-                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria',
+                        'address' => 'Chalice House Bromley Road, Elmstead, Colchester, England, CO7 7BY.',
                     ],
                 ],
             ],

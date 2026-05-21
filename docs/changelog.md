@@ -50,6 +50,9 @@
   - `resources/forms/insight_subscribe.yaml`
 - Added the missing fourth local Insight sample entry so there is now one entry per new blueprint handle.
 - Added `newsletter:import-yaml-files` so specific blueprint/form YAML files can be imported into the DB without running the generic global Statamic import commands.
+- Switched Insight RSS story lists from Grid to Replicator so story cards can collapse in the CP while still supporting reordering.
+- Extended Insight feed syncing so RSS 2 and RSS 3 also populate stored story lists in the entry edit form instead of only loading at email render time.
+- Applied the same collapsible Replicator story-card pattern to the Policy Point collection blueprint and to the generic scaffolded RSS story list definition so future collections inherit the same behavior.
 
 ## Session 10 — 2026-05-20 (Subscriber rating phase 1)
 

@@ -472,76 +472,87 @@ class ScaffoldCollections extends Command
                         [
                             'handle' => 'rss_items',
                             'field'  => [
-                                'type'         => 'grid',
+                                'type'         => 'replicator',
                                 'display'      => 'RSS Stories',
                                 'instructions' => 'Fetched stories appear here. Reorder rows to control newsletter order and toggle one row as the lead story.',
-                                'mode'         => 'stacked',
-                                'reorderable'  => true,
+                                'collapse'     => true,
+                                'previews'     => true,
                                 'fullscreen'   => true,
-                                'add_row'      => 'Add Story',
-                                'fields'       => [
-                                    [
-                                        'handle' => 'is_lead',
-                                        'field'  => [
-                                            'type'    => 'toggle',
-                                            'display' => 'Lead Story',
-                                            'width'   => 25,
-                                        ],
-                                    ],
-                                    [
-                                        'handle' => 'title',
-                                        'field'  => [
-                                            'type'    => 'text',
-                                            'display' => 'Title',
-                                            'width'   => 100,
-                                        ],
-                                    ],
-                                    [
-                                        'handle' => 'url',
-                                        'field'  => [
-                                            'type'    => 'text',
-                                            'display' => 'URL',
-                                            'width'   => 100,
-                                        ],
-                                    ],
-                                    [
-                                        'handle' => 'image_url',
-                                        'field'  => [
-                                            'type'    => 'text',
-                                            'display' => 'Image URL',
-                                            'width'   => 100,
-                                        ],
-                                    ],
-                                    [
-                                        'handle' => 'excerpt',
-                                        'field'  => [
-                                            'type'    => 'textarea',
-                                            'display' => 'Excerpt',
-                                            'width'   => 100,
-                                        ],
-                                    ],
-                                    [
-                                        'handle' => 'author',
-                                        'field'  => [
-                                            'type'    => 'text',
-                                            'display' => 'Author',
-                                            'width'   => 50,
-                                        ],
-                                    ],
-                                    [
-                                        'handle' => 'published_label',
-                                        'field'  => [
-                                            'type'    => 'text',
-                                            'display' => 'Published Label',
-                                            'width'   => 50,
-                                        ],
-                                    ],
-                                    [
-                                        'handle' => 'primary_taxonomy_title',
-                                        'field'  => [
-                                            'type'    => 'text',
-                                            'display' => 'Category',
-                                            'width'   => 50,
+                                'sets'         => [
+                                    'story' => [
+                                        'display' => 'Story',
+                                        'fields'  => [
+                                            [
+                                                'handle' => 'is_lead',
+                                                'field'  => [
+                                                    'type'               => 'toggle',
+                                                    'display'            => 'Lead Story',
+                                                    'width'              => 25,
+                                                    'replicator_preview' => false,
+                                                ],
+                                            ],
+                                            [
+                                                'handle' => 'title',
+                                                'field'  => [
+                                                    'type'    => 'text',
+                                                    'display' => 'Title',
+                                                    'width'   => 100,
+                                                ],
+                                            ],
+                                            [
+                                                'handle' => 'url',
+                                                'field'  => [
+                                                    'type'               => 'text',
+                                                    'display'            => 'URL',
+                                                    'width'              => 100,
+                                                    'replicator_preview' => false,
+                                                ],
+                                            ],
+                                            [
+                                                'handle' => 'image_url',
+                                                'field'  => [
+                                                    'type'               => 'text',
+                                                    'display'            => 'Image URL',
+                                                    'width'              => 100,
+                                                    'replicator_preview' => false,
+                                                ],
+                                            ],
+                                            [
+                                                'handle' => 'excerpt',
+                                                'field'  => [
+                                                    'type'               => 'textarea',
+                                                    'display'            => 'Excerpt',
+                                                    'width'              => 100,
+                                                    'replicator_preview' => false,
+                                                ],
+                                            ],
+                                            [
+                                                'handle' => 'author',
+                                                'field'  => [
+                                                    'type'               => 'text',
+                                                    'display'            => 'Author',
+                                                    'width'              => 50,
+                                                    'replicator_preview' => false,
+                                                ],
+                                            ],
+                                            [
+                                                'handle' => 'published_label',
+                                                'field'  => [
+                                                    'type'               => 'text',
+                                                    'display'            => 'Published Label',
+                                                    'width'              => 50,
+                                                    'replicator_preview' => false,
+                                                ],
+                                            ],
+                                            [
+                                                'handle' => 'primary_taxonomy_title',
+                                                'field'  => [
+                                                    'type'               => 'text',
+                                                    'display'            => 'Category',
+                                                    'width'              => 50,
+                                                    'replicator_preview' => false,
+                                                ],
+                                            ],
                                         ],
                                     ],
                                 ],

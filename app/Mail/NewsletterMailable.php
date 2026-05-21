@@ -15,6 +15,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
+use Statamic\Facades\AssetContainer;
 use Statamic\Facades\Entry;
 use Statamic\Facades\GlobalSet;
 
@@ -79,8 +80,7 @@ class NewsletterMailable extends Mailable
             'utm_medium'   => 'email',
             'utm_campaign' => 'campaign-' . $this->campaign->id,
         ];
-        $content = UtmInjector::inject($rawContent, $utmParams);
-        $content = $this->applyMergeTags($content);
+        $content = $this->prepareCampaignContent($rawContent, $utmParams);
         $rssFeedUrl = $entry?->get('rss_feed_url');
         $rssItemLimit = (int) ($entry?->get('rss_item_limit') ?: 6);
         $rssItems = app(RssFeedService::class)->items(
@@ -93,12 +93,25 @@ class NewsletterMailable extends Mailable
         $recommendedRssFeedUrl = $entry?->get('recommended_rss_feed_url');
         $recommendedRssItemLimit = (int) ($entry?->get('recommended_rss_item_limit') ?: 4);
 
-        $relatedRssItems = app(RssFeedService::class)->items(
+        $relatedFetchedItems = app(RssFeedService::class)->items(
             is_string($relatedRssFeedUrl) ? $relatedRssFeedUrl : null,
             $relatedRssItemLimit,
         );
-        $recommendedRssItems = app(RssFeedService::class)->items(
+        $recommendedFetchedItems = app(RssFeedService::class)->items(
             is_string($recommendedRssFeedUrl) ? $recommendedRssFeedUrl : null,
+            $recommendedRssItemLimit,
+        );
+        $feedStories = app(CuratedRssStoriesService::class);
+        $relatedRssItems = $feedStories->preparedList(
+            $entry,
+            'related_rss_items',
+            $relatedFetchedItems,
+            $relatedRssItemLimit,
+        );
+        $recommendedRssItems = $feedStories->preparedList(
+            $entry,
+            'recommended_rss_items',
+            $recommendedFetchedItems,
             $recommendedRssItemLimit,
         );
 
@@ -124,6 +137,12 @@ class NewsletterMailable extends Mailable
                 'subscriberLastName'  => $this->subscriber->last_name  ?? '',
                 'subscriberFullName'  => $this->subscriber->full_name  ?? $this->subscriber->email,
                 'subscriberEmail'     => $this->subscriber->email      ?? '',
+                'pocketIntelligenceTitle' => $entry?->get('travel_intelligence_title') ?? '',
+                'pocketIntelligenceSubtitle' => $entry?->get('travel_intelligence_subtitle') ?? '',
+                'pocketIntelligenceItems' => collect($entry?->get('travel_intelligence_items') ?? [])
+                    ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                    ->values()
+                    ->all(),
                 'rssFeedUrl'          => $rssFeedUrl,
                 'rssItems'            => $curatedRss['items'],
                 'rssLeadItem'         => $curatedRss['lead'],
@@ -134,6 +153,16 @@ class NewsletterMailable extends Mailable
                 'recommendedRssItems' => $recommendedRssItems,
             ],
         );
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    public function prepareCampaignContent(string $rawContent, array $utmParams): string
+    {
+        $content = UtmInjector::inject($rawContent, $utmParams);
+        $content = $this->applyMergeTags($content);
+
+        return $this->renderEmailContentHtml($content);
     }
 
     /* ------------------------------------------------------------------ */
@@ -209,6 +238,14 @@ class NewsletterMailable extends Mailable
                 return null;
             }
 
+            if (str_starts_with($value, 'statamic://asset::')) {
+                $resolved = $this->resolveStatamicAssetUrl($value);
+
+                if ($resolved) {
+                    return $resolved;
+                }
+            }
+
             if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://') || str_starts_with($value, '//')) {
                 return $this->normalizeAssetUrl($value);
             }
@@ -221,6 +258,26 @@ class NewsletterMailable extends Mailable
         }
 
         return null;
+    }
+
+    private function resolveStatamicAssetUrl(string $value): ?string
+    {
+        $identifier = substr($value, strlen('statamic://asset::'));
+        [$containerHandle, $path] = array_pad(explode('::', $identifier, 2), 2, null);
+
+        if (! $containerHandle || ! $path) {
+            return null;
+        }
+
+        $container = AssetContainer::findByHandle($containerHandle);
+
+        if (! $container) {
+            return null;
+        }
+
+        $asset = $container->asset($path);
+
+        return $asset ? $this->normalizeAssetUrl($asset->url()) : null;
     }
 
     private function normalizeAssetUrl(?string $url): ?string
@@ -284,6 +341,249 @@ class NewsletterMailable extends Mailable
         ];
 
         return str_replace(array_keys($map), array_values($map), $content);
+    }
+
+    private function renderEmailContentHtml(string $content): string
+    {
+        $content = trim($content);
+
+        if ($content === '') {
+            return '';
+        }
+
+        $previous = libxml_use_internal_errors(true);
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $html = '<!DOCTYPE html><html><body><div id="newsletter-content">' . $content . '</div></body></html>';
+
+        if (! $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD)) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+
+            return $content;
+        }
+
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $container = $dom->getElementById('newsletter-content');
+
+        if (! $container) {
+            return $content;
+        }
+
+        $this->styleRichTextNodes($container);
+
+        $rendered = '';
+        foreach ($container->childNodes as $child) {
+            $rendered .= $dom->saveHTML($child);
+        }
+
+        return $rendered;
+    }
+
+    private function styleRichTextNodes(\DOMNode $container): void
+    {
+        if (! $container instanceof \DOMElement) {
+            return;
+        }
+
+        $this->promoteStandaloneHeadings($container);
+
+        $styles = [
+            'p' => "margin:0 0 18px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.75;color:#1f2937;",
+            'h2' => "margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.22;color:#0d1b2a;",
+            'h3' => "margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-size:20px;line-height:1.28;color:#0d1b2a;",
+            'ul' => "margin:0 0 18px;padding-left:22px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.75;color:#1f2937;",
+            'ol' => "margin:0 0 18px;padding-left:22px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.75;color:#1f2937;",
+            'li' => "margin:0 0 8px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.75;color:#1f2937;",
+            'blockquote' => "margin:0 0 24px;padding:28px 26px 26px 34px;background:#e8eefb;border-left:6px solid #0f4c81;font-family:Georgia,'Times New Roman',serif;font-size:20px;line-height:1.7;color:#35528a;font-style:italic;",
+            'a' => "color:#0d1b2a;text-decoration:underline;",
+            'strong' => "font-weight:700;color:#0d1b2a;",
+            'em' => "font-style:italic;",
+            'img' => "display:block;width:100%;max-width:100%;height:auto;margin:0 0 18px;border:0;",
+            'figure' => "margin:0 0 18px;",
+            'figcaption' => "margin:8px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#6b7280;",
+            'hr' => "border:0;border-top:1px solid #d4d9e2;margin:22px 0;",
+        ];
+
+        foreach ($styles as $tag => $style) {
+            foreach ($container->getElementsByTagName($tag) as $node) {
+                if ($tag === 'img') {
+                    $src = trim((string) $node->getAttribute('src'));
+                    if ($src !== '') {
+                        $resolved = $this->resolveAssetUrl($src);
+                        if ($resolved) {
+                            $node->setAttribute('src', $resolved);
+                        }
+                    }
+                }
+
+                if ($tag === 'a') {
+                    $href = trim((string) $node->getAttribute('href'));
+                    if (
+                        $href !== ''
+                        && ! str_starts_with($href, '#')
+                        && ! str_starts_with($href, 'mailto:')
+                        && ! str_starts_with($href, 'tel:')
+                        && (
+                            str_starts_with($href, 'http://')
+                            || str_starts_with($href, 'https://')
+                            || str_starts_with($href, '//')
+                            || str_starts_with($href, '/')
+                        )
+                    ) {
+                        $resolved = $this->resolveAssetUrl($href);
+                        if ($resolved) {
+                            $node->setAttribute('href', $resolved);
+                        }
+                    }
+                }
+
+                $this->mergeInlineStyle($node, $style);
+            }
+        }
+
+        $this->styleGreetingParagraph($container);
+
+        foreach ($container->getElementsByTagName('blockquote') as $node) {
+            $this->styleBlockquoteNode($node);
+        }
+    }
+
+    private function promoteStandaloneHeadings(\DOMElement $container): void
+    {
+        $paragraphs = [];
+
+        foreach ($container->getElementsByTagName('p') as $paragraph) {
+            $paragraphs[] = $paragraph;
+        }
+
+        foreach ($paragraphs as $paragraph) {
+            if (! $paragraph instanceof \DOMElement) {
+                continue;
+            }
+
+            if ($this->paragraphHasStructuralChildren($paragraph)) {
+                continue;
+            }
+
+            $text = trim(preg_replace('/\s+/', ' ', $paragraph->textContent ?? ''));
+
+            if ($text === '') {
+                continue;
+            }
+
+            $targetTag = match (true) {
+                preg_match('/^Heading\s*2$/i', $text) === 1 => 'h2',
+                preg_match('/^Heading\s*3$/i', $text) === 1 => 'h3',
+                $this->looksLikeStandaloneHeading($text) => 'h3',
+                default => null,
+            };
+
+            if (! $targetTag) {
+                continue;
+            }
+
+            $replacement = $paragraph->ownerDocument->createElement($targetTag);
+
+            while ($paragraph->firstChild) {
+                $replacement->appendChild($paragraph->firstChild);
+            }
+
+            $paragraph->parentNode?->replaceChild($replacement, $paragraph);
+        }
+    }
+
+    private function paragraphHasStructuralChildren(\DOMElement $paragraph): bool
+    {
+        foreach ($paragraph->childNodes as $child) {
+            if (! $child instanceof \DOMElement) {
+                continue;
+            }
+
+            if (! in_array(strtolower($child->tagName), ['strong', 'em', 'a', 'u', 'span', 'br'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function looksLikeStandaloneHeading(string $text): bool
+    {
+        if (preg_match('/^Dear\s+.+,\s*$/u', $text) === 1) {
+            return false;
+        }
+
+        if (mb_strlen($text) > 70) {
+            return false;
+        }
+
+        if (preg_match('/[.!?:]$/', $text) === 1) {
+            return false;
+        }
+
+        $words = preg_split('/\s+/', $text) ?: [];
+
+        if (count($words) < 2 || count($words) > 8) {
+            return false;
+        }
+
+        return preg_match('/^[A-Z0-9“"\'(]/u', $text) === 1;
+    }
+
+    private function styleBlockquoteNode(\DOMElement $node): void
+    {
+        if (! $node->hasAttribute('data-email-quote-mark')) {
+            $marker = $node->ownerDocument->createElement('div', '“');
+            $marker->setAttribute(
+                'style',
+                "font-family:Georgia,'Times New Roman',serif;font-size:52px;line-height:0.8;color:#bdd0ed;margin:0 0 4px;"
+            );
+            $marker->setAttribute('data-email-quote-mark', '1');
+            $node->insertBefore($marker, $node->firstChild);
+        }
+
+        foreach ($node->getElementsByTagName('p') as $paragraph) {
+            $this->mergeInlineStyle(
+                $paragraph,
+                "margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-size:20px;line-height:1.7;color:#35528a;font-style:italic;"
+            );
+        }
+    }
+
+    private function styleGreetingParagraph(\DOMElement $container): void
+    {
+        foreach ($container->childNodes as $child) {
+            if (! $child instanceof \DOMElement || strtolower($child->tagName) !== 'p') {
+                continue;
+            }
+
+            $text = trim(preg_replace('/\s+/', ' ', $child->textContent ?? ''));
+
+            if (preg_match('/^Dear\s+.+,\s*$/u', $text) !== 1) {
+                return;
+            }
+
+            $child->setAttribute(
+                'style',
+                "margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1f2937;"
+            );
+
+            return;
+        }
+    }
+
+    private function mergeInlineStyle(\DOMElement $node, string $style): void
+    {
+        $existing = trim((string) $node->getAttribute('style'));
+        $merged = rtrim($style, ';') . ';';
+
+        if ($existing !== '') {
+            $merged .= ' ' . rtrim($existing, ';') . ';';
+        }
+
+        $node->setAttribute('style', trim($merged));
     }
 
     private function buildSignedUrl(string $routeName): string

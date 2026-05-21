@@ -76,22 +76,24 @@ class RssFeedService
         $publishedAt = $this->parseDate((string) $item->pubDate);
 
         return [
-            'title' => trim((string) $item->title),
+            'title' => $this->decodeText((string) $item->title),
             'url' => trim((string) $item->link),
             'guid' => trim((string) $item->guid),
             'published_at' => $publishedAt?->toIso8601String(),
             'published_label' => $publishedAt?->format('F j, Y'),
-            'author' => trim((string) ($dc?->creator ?? '')),
+            'author' => $this->decodeText((string) ($dc?->creator ?? '')),
             'excerpt' => $this->excerpt((string) $item->description),
             'image_url' => $this->mediaUrl($mediaContent) ?: $this->mediaUrl($mediaThumb),
-            'collection' => trim((string) ($insight?->collection ?? '')),
+            'collection' => $this->decodeText((string) ($insight?->collection ?? '')),
             'primary_taxonomy' => [
                 'handle' => trim((string) ($insight?->primaryTaxonomyHandle ?? '')),
                 'slug' => trim((string) ($insight?->primaryTaxonomySlug ?? '')),
-                'title' => trim((string) ($insight?->primaryTaxonomyTitle ?? '')),
+                'title' => $this->decodeText((string) ($insight?->primaryTaxonomyTitle ?? '')),
                 'url' => trim((string) ($insight?->primaryTaxonomyUrl ?? '')),
             ],
-            'categories' => $categories,
+            'categories' => collect($categories)
+                ->map(fn (string $category) => $this->decodeText($category))
+                ->all(),
         ];
     }
 
@@ -124,8 +126,13 @@ class RssFeedService
 
     private function excerpt(string $value): string
     {
-        $text = trim(strip_tags($value));
+        $text = $this->decodeText(strip_tags($value));
 
         return Str::limit($text, 220);
+    }
+
+    private function decodeText(string $value): string
+    {
+        return trim(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 }

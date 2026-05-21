@@ -1,6 +1,6 @@
 tabs:
   main:
-    display: Content
+    display: Main
     sections:
       -
         fields:
@@ -30,6 +30,12 @@ tabs:
               max_files: 1
               allow_uploads: true
             handle: hero_image
+  editorial:
+    display: Editorial
+    sections:
+      -
+        display: Body
+        fields:
           -
             field:
               type: bard
@@ -49,6 +55,23 @@ tabs:
               validate: required
               save_html: true
             handle: content
+      -
+        fields:
+          -
+            field:
+              type: text
+              width: 100
+              default: emails.insight.senorrita
+              display: 'Email Template'
+              listable: false
+              visibility: hidden
+            handle: template
+  rss_1:
+    display: 'RSS 1'
+    sections:
+      -
+        display: Source
+        fields:
           -
             field:
               type: text
@@ -72,65 +95,83 @@ tabs:
               display: 'Refresh RSS 1 Stories On Save'
               instructions: 'Turn on to repopulate the primary story list from RSS 1 the next time this entry is saved.'
             handle: refresh_rss_items
+      -
+        display: Stories
+        fields:
           -
             field:
-              mode: stacked
-              type: grid
-              fields:
-                -
-                  field:
-                    type: toggle
-                    width: 25
-                    display: 'Lead Story'
-                  handle: is_lead
-                -
-                  field:
-                    type: text
-                    width: 100
-                    display: Title
-                  handle: title
-                -
-                  field:
-                    type: text
-                    width: 100
-                    display: URL
-                  handle: url
-                -
-                  field:
-                    type: text
-                    width: 100
-                    display: 'Image URL'
-                  handle: image_url
-                -
-                  field:
-                    type: textarea
-                    width: 100
-                    display: Excerpt
-                  handle: excerpt
-                -
-                  field:
-                    type: text
-                    width: 50
-                    display: Author
-                  handle: author
-                -
-                  field:
-                    type: text
-                    width: 50
-                    display: 'Published Label'
-                  handle: published_label
-                -
-                  field:
-                    type: text
-                    width: 50
-                    display: Category
-                  handle: primary_taxonomy_title
-              add_row: 'Add Story'
+              type: replicator
+              collapse: true
+              previews: true
+              sets:
+                story:
+                  display: Story
+                  fields:
+                    -
+                      field:
+                        type: toggle
+                        width: 25
+                        display: 'Lead Story'
+                        replicator_preview: false
+                      handle: is_lead
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: URL
+                        replicator_preview: false
+                      handle: url
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: 'Image URL'
+                        replicator_preview: false
+                      handle: image_url
+                    -
+                      field:
+                        type: textarea
+                        width: 100
+                        display: Excerpt
+                        replicator_preview: false
+                      handle: excerpt
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: Author
+                        replicator_preview: false
+                      handle: author
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: 'Published Label'
+                        replicator_preview: false
+                      handle: published_label
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: Category
+                        replicator_preview: false
+                      handle: primary_taxonomy_title
               display: 'RSS 1 Stories'
               fullscreen: true
-              reorderable: true
               instructions: 'Fetched primary stories appear here. Reorder rows to control newsletter order and toggle one row as the lead story.'
             handle: rss_items
+  rss_2:
+    display: 'RSS 2'
+    sections:
+      -
+        display: Source
+        fields:
           -
             field:
               type: text
@@ -148,6 +189,84 @@ tabs:
             handle: related_rss_item_limit
           -
             field:
+              type: toggle
+              width: 50
+              default: false
+              display: 'Refresh RSS 2 Stories On Save'
+              instructions: 'Turn on to repopulate the RSS 2 story list the next time this entry is saved.'
+            handle: refresh_related_rss_items
+      -
+        display: Stories
+        fields:
+          -
+            field:
+              type: replicator
+              collapse: true
+              previews: true
+              sets:
+                story:
+                  display: Story
+                  fields:
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: URL
+                        replicator_preview: false
+                      handle: url
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: 'Image URL'
+                        replicator_preview: false
+                      handle: image_url
+                    -
+                      field:
+                        type: textarea
+                        width: 100
+                        display: Excerpt
+                        replicator_preview: false
+                      handle: excerpt
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: Author
+                        replicator_preview: false
+                      handle: author
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: 'Published Label'
+                        replicator_preview: false
+                      handle: published_label
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: Category
+                        replicator_preview: false
+                      handle: primary_taxonomy_title
+              display: 'RSS 2 Stories'
+              fullscreen: true
+              instructions: 'Fetched RSS 2 stories appear here for review before send.'
+            handle: related_rss_items
+  rss_3:
+    display: 'RSS 3'
+    sections:
+      -
+        display: Source
+        fields:
+          -
+            field:
               type: text
               width: 100
               display: 'RSS 3 Feed URL'
@@ -163,13 +282,76 @@ tabs:
             handle: recommended_rss_item_limit
           -
             field:
-              type: text
-              width: 100
-              default: emails.insight.senorrita
-              display: 'Email Template'
-              listable: false
-              visibility: hidden
-            handle: template
+              type: toggle
+              width: 50
+              default: false
+              display: 'Refresh RSS 3 Stories On Save'
+              instructions: 'Turn on to repopulate the RSS 3 story list the next time this entry is saved.'
+            handle: refresh_recommended_rss_items
+      -
+        display: Stories
+        fields:
+          -
+            field:
+              type: replicator
+              collapse: true
+              previews: true
+              sets:
+                story:
+                  display: Story
+                  fields:
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: URL
+                        replicator_preview: false
+                      handle: url
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: 'Image URL'
+                        replicator_preview: false
+                      handle: image_url
+                    -
+                      field:
+                        type: textarea
+                        width: 100
+                        display: Excerpt
+                        replicator_preview: false
+                      handle: excerpt
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: Author
+                        replicator_preview: false
+                      handle: author
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: 'Published Label'
+                        replicator_preview: false
+                      handle: published_label
+                    -
+                      field:
+                        type: text
+                        width: 50
+                        display: Category
+                        replicator_preview: false
+                      handle: primary_taxonomy_title
+              display: 'RSS 3 Stories'
+              fullscreen: true
+              instructions: 'Fetched RSS 3 stories appear here for review before send.'
+            handle: recommended_rss_items
   sidebar:
     display: Settings
     sections:
