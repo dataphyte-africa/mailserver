@@ -8,6 +8,16 @@ tabs:
             field:
               type: text
               width: 100
+              display: 'Belongs To'
+              default: 'Marina & Maitama'
+              instructions: 'Derived from the blueprint/template mapping for editor clarity.'
+              read_only: true
+              listable: false
+            handle: belongs_to
+          -
+            field:
+              type: text
+              width: 100
               display: 'Subject Line'
               listable: true
               validate: required
@@ -43,6 +53,7 @@ tabs:
               buttons:
                 - h2
                 - h3
+                - h5
                 - bold
                 - italic
                 - underline
@@ -54,7 +65,25 @@ tabs:
               display: Content
               validate: required
               save_html: true
+              instructions: 'Use this field for the short issue intro and the two editorial lenses. Add `Marina` and `Maitama` as H5 headings, followed by one compact summary paragraph each.'
             handle: content
+      -
+        display: Highlight
+        fields:
+          -
+            field:
+              type: text
+              width: 33
+              display: 'Highlight Stat'
+              instructions: 'Short numeric/stat highlight, for example `85%`.'
+            handle: highlight_stat
+          -
+            field:
+              type: text
+              width: 67
+              display: 'Highlight Stat Label'
+              instructions: 'Short explanatory line that gives the stat context.'
+            handle: highlight_stat_label
       -
         fields:
           -

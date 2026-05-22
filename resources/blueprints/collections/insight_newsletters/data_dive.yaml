@@ -8,6 +8,16 @@ tabs:
             field:
               type: text
               width: 100
+              display: 'Belongs To'
+              default: 'Data Dive'
+              instructions: 'Derived from the blueprint/template mapping for editor clarity.'
+              read_only: true
+              listable: false
+            handle: belongs_to
+          -
+            field:
+              type: text
+              width: 100
               display: 'Subject Line'
               listable: true
               validate: required

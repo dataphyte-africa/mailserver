@@ -2,6 +2,50 @@
 
 ---
 
+## Session 13 - 2026-05-22 (Marina & Maitama template section hierarchy and parser fix)
+
+### Documentation updates
+
+- Updated [docs/marina-maitama.md](/Users/dataphytefoundation/Herd/mailserver/docs/marina-maitama.md) to reflect the implemented presentation hierarchy:
+  - `What the Data Says` for the highlight-stat section
+  - `The Dual Business & Policy Sneak Peek` for the combined Marina/Maitama section
+  - distinct editorial treatment for the Marina and Maitama sub-sections
+
+### Implementation completed
+
+- Fixed `NewsletterMailable::extractDualPerspectiveSections()` so headings that start with `Marina` or `Maitama` are recognized as section boundaries, instead of requiring the heading text to be exactly those single words.
+- Updated `emails.insight.marina-maitama` so:
+  - the stat block now has the section label `What the Data Says`
+  - the dual-lens block now has the parent section label `The Dual Business & Policy Sneak Peek`
+  - the Marina and Maitama treatments use stronger editorial styling with distinct tinted panels
+  - vertical spacing between the stat block and dual-lens block is more clearly separated
+
+## Session 12 - 2026-05-21 (Marina & Maitama blueprint definition and editorial handoff)
+
+### Documentation updates
+
+- Added [docs/marina-maitama.md](/Users/dataphytefoundation/Herd/mailserver/docs/marina-maitama.md) to define:
+  - the `Marina & Maitama` editorial philosophy
+  - the streamlined blueprint field structure
+  - the intended use of the `content` field with `h5` markers for `Marina` and `Maitama`
+  - highlight-stat usage
+  - the seeded sample editorial pattern for template work
+
+### Implementation completed
+
+- Streamlined the `marina_maitama` blueprint to rely on:
+  - `content`
+  - `highlight_stat`
+  - `highlight_stat_label`
+  instead of separate structured fields for `marina_heading`, `marina_summary`, `maitama_heading`, and `maitama_summary`.
+- Enabled `h5` in the `marina_maitama` Bard toolbar and documented its intended use for the two editorial lenses.
+- Added the derived read-only `Belongs To` field across all four Insight product blueprints.
+- Seeded the local `sample-marina-maitama` entry with:
+  - compact issue intro content
+  - `Marina` and `Maitama` `h5` sections
+  - `highlight_stat = 85%`
+  - a matching explanatory stat label
+
 ## Session 11 - 2026-05-20 (Insight collection conversion to product-based newsletter model)
 
 ### Documentation updates

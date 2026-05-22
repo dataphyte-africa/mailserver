@@ -114,14 +114,21 @@ class NewsletterMailable extends Mailable
             $recommendedFetchedItems,
             $recommendedRssItemLimit,
         );
+        $marinaMaitamaSections = $this->extractDualPerspectiveSections($content);
 
         return new Content(
             view: $template,
             with: [
+                'entryTitle'          => $entry?->get('title') ?? $this->campaign->name,
                 'subject'            => $this->envelope()->subject,
                 'preheader'          => $entry?->get('preheader') ?? '',
                 'heroImageUrl'       => $heroUrl,
                 'content'            => $content,
+                'introContent'       => $marinaMaitamaSections['intro_html'],
+                'marinaContent'      => $marinaMaitamaSections['marina_html'],
+                'maitamaContent'     => $marinaMaitamaSections['maitama_html'],
+                'highlightStat'      => $entry?->get('highlight_stat') ?? '',
+                'highlightStatLabel' => $entry?->get('highlight_stat_label') ?? '',
                 'author'             => $entry?->get('author') ?? $sender['from_name'],
                 'fromName'           => $sender['from_name'],
                 'sentDate'           => $this->campaign->sent_at?->format('F j, Y') ?? now()->format('F j, Y'),
@@ -163,6 +170,76 @@ class NewsletterMailable extends Mailable
         $content = $this->applyMergeTags($content);
 
         return $this->renderEmailContentHtml($content);
+    }
+
+    public function extractDualPerspectiveSections(string $content): array
+    {
+        $content = trim($content);
+
+        if ($content === '') {
+            return [
+                'intro_html' => '',
+                'marina_html' => '',
+                'maitama_html' => '',
+            ];
+        }
+
+        $previous = libxml_use_internal_errors(true);
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $html = '<!DOCTYPE html><html><body><div id="newsletter-content">' . $content . '</div></body></html>';
+
+        if (! $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD)) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+
+            return [
+                'intro_html' => $content,
+                'marina_html' => '',
+                'maitama_html' => '',
+            ];
+        }
+
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $container = $dom->getElementById('newsletter-content');
+
+        if (! $container) {
+            return [
+                'intro_html' => $content,
+                'marina_html' => '',
+                'maitama_html' => '',
+            ];
+        }
+
+        $sections = [
+            'intro_html' => '',
+            'marina_html' => '',
+            'maitama_html' => '',
+        ];
+        $current = 'intro_html';
+
+        foreach (iterator_to_array($container->childNodes) as $child) {
+            if ($child instanceof \DOMElement && strtolower($child->tagName) === 'h5') {
+                $label = trim(preg_replace('/\s+/', ' ', $child->textContent ?? ''));
+
+                if (preg_match('/^Marina\b/i', $label) === 1) {
+                    $current = 'marina_html';
+                    $sections[$current] .= $dom->saveHTML($child);
+                    continue;
+                }
+
+                if (preg_match('/^Maitama\b/i', $label) === 1) {
+                    $current = 'maitama_html';
+                    $sections[$current] .= $dom->saveHTML($child);
+                    continue;
+                }
+            }
+
+            $sections[$current] .= $dom->saveHTML($child);
+        }
+
+        return $sections;
     }
 
     /* ------------------------------------------------------------------ */

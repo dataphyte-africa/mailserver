@@ -385,12 +385,13 @@ class CampaignController extends Controller
         $heroUrl    = $this->campaignAssetUrl($entry?->get('hero_image'));
 
         $rawContent = $entry?->get('content') ?? '<p><em>(No content yet — link an entry to this campaign.)</em></p>';
-        $content = (new NewsletterMailable($campaign, $previewSubscriber, 'preview'))
-            ->prepareCampaignContent($rawContent, [
+        $previewMailable = new NewsletterMailable($campaign, $previewSubscriber, 'preview');
+        $content = $previewMailable->prepareCampaignContent($rawContent, [
                 'utm_source' => 'newsletter',
                 'utm_medium' => 'email',
                 'utm_campaign' => 'preview',
             ]);
+        $marinaMaitamaSections = $previewMailable->extractDualPerspectiveSections($content);
         $rssFeedUrl = $entry?->get('rss_feed_url');
         $rssItemLimit = (int) ($entry?->get('rss_item_limit') ?: 6);
         $rssItems = app(RssFeedService::class)->items(
@@ -423,10 +424,16 @@ class CampaignController extends Controller
         );
 
         $html = view($template, [
+            'entryTitle'           => $entry?->get('title') ?? $campaign->name,
             'subject'             => $this->normalizeSubjectText($campaign->subject ?? '(No subject)'),
             'preheader'           => $entry?->get('preheader') ?? '',
             'heroImageUrl'        => $heroUrl,
             'content'             => $content,
+            'introContent'        => $marinaMaitamaSections['intro_html'],
+            'marinaContent'       => $marinaMaitamaSections['marina_html'],
+            'maitamaContent'      => $marinaMaitamaSections['maitama_html'],
+            'highlightStat'       => $entry?->get('highlight_stat') ?? '',
+            'highlightStatLabel'  => $entry?->get('highlight_stat_label') ?? '',
             'author'              => $entry?->get('author') ?? $sender['from_name'],
             'fromName'            => $sender['from_name'],
             'sentDate'            => now()->format('F j, Y'),

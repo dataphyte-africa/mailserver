@@ -57,16 +57,16 @@
 
     @if($pocketIntelligenceVisible->isNotEmpty())
     <tr>
-        <td style="padding:0 32px 32px;">
+        <td style="padding:0 32px 28px;">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#3f7db8;border-radius:10px;overflow:hidden;">
                 <tr>
-                    <td style="padding:32px 32px 14px;position:relative;">
-                        <div style="position:absolute;top:20px;right:24px;width:76px;height:76px;border-radius:76px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.34);font-family:Georgia,'Times New Roman',serif;font-size:52px;line-height:76px;text-align:center;">i</div>
-                        <h2 style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:1.12;color:#ffffff;font-weight:700;position:relative;z-index:1;padding-right:88px;">
+                    <td style="padding:24px 24px 10px;position:relative;">
+                        <div style="position:absolute;top:16px;right:18px;width:62px;height:62px;border-radius:62px;background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.28);font-family:Georgia,'Times New Roman',serif;font-size:44px;line-height:62px;text-align:center;">i</div>
+                        <h2 style="margin:0 0 4px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:18px;line-height:1.1;color:#ffffff;font-weight:700;position:relative;z-index:1;padding-right:72px;">
                             {{ $pocketIntelligenceTitle ?: 'Pocket Intelligence' }}
                         </h2>
                         @if(!empty($pocketIntelligenceSubtitle))
-                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#dbe9f6;position:relative;z-index:1;padding-right:88px;">
+                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.45;color:#dbe9f6;position:relative;z-index:1;padding-right:72px;">
                                 {{ $pocketIntelligenceSubtitle }}
                             </p>
                         @endif
@@ -74,32 +74,34 @@
                 </tr>
                 @foreach($pocketIntelligenceVisible as $item)
                 <tr>
-                    <td style="padding:0 20px 14px;">
+                    <td style="padding:0 16px 10px;">
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:rgba(255,255,255,0.12);border-radius:8px;">
                             <tr>
-                                <td valign="top" style="padding:22px 24px 24px;position:relative;">
+                                <td valign="top" style="padding:16px 18px 16px;position:relative;">
                                     @if(!empty($item['number']))
-                                        <p style="margin:0;position:absolute;top:16px;right:20px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:44px;font-weight:700;line-height:1;color:rgba(207,224,240,0.26);">
+                                        <p style="margin:0;position:absolute;top:10px;right:14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:34px;font-weight:700;line-height:1;color:rgba(207,224,240,0.22);">
                                             {{ $item['number'] }}
                                         </p>
                                     @endif
-                                    <h3 style="margin:0 0 12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:18px;line-height:1.22;color:#ffffff;font-weight:700;position:relative;z-index:1;padding-right:64px;">
-                                        {{ $item['title'] ?? '' }}
-                                    </h3>
-                                    @if(!empty($item['description']))
-                                        <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#eaf2f9;position:relative;z-index:1;max-width:100%;">
-                                            {{ $item['description'] }}
-                                        </p>
-                                    @endif
+                                    <div style="position:relative;z-index:1;">
+                                        <h3 style="margin:0 0 10px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.2;color:#ffffff;font-weight:700;padding-right:52px;">
+                                            {{ $item['title'] ?? '' }}
+                                        </h3>
+                                        @if(!empty($item['description']))
+                                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#eaf2f9;max-width:100%;">
+                                                {{ $item['description'] }}
+                                            </p>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         </table>
                     </td>
                 </tr>
                 @endforeach
-                @if($pocketIntelligence->count() > $pocketIntelligenceVisible->count())
+                @if($lead && $pocketIntelligenceVisible->isNotEmpty())
                 <tr>
-                    <td style="padding:6px 20px 28px;">
+                    <td style="padding:4px 16px 20px;">
                         <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#dbe9f6;">
