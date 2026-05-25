@@ -1,88 +1,66 @@
 @php
     $productName = 'SenorRita';
+    $hideCollectionHeader = true;
     $lead = $rssLeadItem ?? null;
-    $secondary = collect($rssSecondaryItems ?? [])->take(4);
     $related = collect($relatedRssItems ?? [])->take(4);
     $recommended = collect($recommendedRssItems ?? [])->take(4);
+    $tocItems = collect($tableOfContentsItems ?? [])->take(6);
+    $insightItems = collect($insightBlockItems ?? [])->take(2);
+    $entryHeadline = $entryTitle ?? $subject ?? '';
+    $primaryCtaUrl = $lead['url'] ?? null;
+    $ctaTitle = $lead['title'] ?? $entryHeadline;
+    $ctaAuthor = $lead['author'] ?? ($author ?? '');
+    $formattedSentDate = $sentDate
+        ? \Illuminate\Support\Carbon::parse($sentDate)->format('l, F j, Y')
+        : '';
 @endphp
 
 @extends('emails.layout')
-
-@section('nameplate')
-    <span style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
-                 font-size:11px;font-weight:700;letter-spacing:2.6px;
-                 text-transform:uppercase;color:rgba(255,255,255,0.72);">
-        {{ $productName }}
-    </span>
-@endsection
 
 @section('content')
 
     @if(!empty($heroImageUrl))
     <tr>
         <td style="padding:0;">
-            <img src="{{ $heroImageUrl }}" alt="" width="600"
-                 style="width:100%;max-width:600px;height:auto;display:block;">
+            <img src="{{ $heroImageUrl }}" alt="" style="width:100%;height:auto;display:block;border:0;">
         </td>
     </tr>
     @endif
 
+
     <tr>
-        <td style="padding:28px 32px 10px;">
-            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b7280;">
-                Dataphyte Insight
+        <td style="padding:20px 32px;">
+            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#7b8794;">
+                {{ $formattedSentDate }}
             </p>
         </td>
     </tr>
 
     <tr>
-        <td style="padding:0 32px 10px;">
-            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:31px;line-height:1.18;color:#0d1b2a;">
-                {{ $subject }}
-            </h1>
-        </td>
-    </tr>
-
-    <tr>
-        <td style="padding:0 32px 24px;">
-            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;color:#6b7280;">
-                {{ $sentDate ?? now()->format('F j, Y') }}
-                @if(!empty($author))
-                    &nbsp;&middot;&nbsp; {{ $author }}
-                @endif
-            </p>
-        </td>
-    </tr>
-
-    <tr>
-        <td style="padding:0 32px 28px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.75;color:#1f2937;">
+        <td style="padding:0 32px 40px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.78;color:#1f2937;">
             {!! $content !!}
         </td>
     </tr>
 
-    @if($lead)
+    @if(!empty($highlightStat) || !empty($highlightStatLabel))
     <tr>
-        <td style="padding:0 32px 28px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-top:1px solid #d4d9e2;border-bottom:1px solid #d4d9e2;">
+        <td style="padding:0 32px 40px;">
+            <p style="margin:0 0 12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7b8794;">
+                What the data says
+            </p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:linear-gradient(135deg,#fff4f9 0%,#f4fbff 100%);border:1px solid #eadfeb;">
                 <tr>
-                    <td style="padding:24px 0;">
-                        <p style="margin:0 0 10px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b7280;">
-                            Lead Story
-                        </p>
-                        @if(!empty($lead['image_url']))
-                            <img src="{{ $lead['image_url'] }}" alt="" width="536" style="width:100%;max-width:536px;height:auto;display:block;margin:0 0 16px;">
-                        @endif
-                        <h2 style="margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.2;color:#0d1b2a;">
-                            <a href="{{ $lead['url'] }}" style="color:#0d1b2a;text-decoration:none;">{{ $lead['title'] }}</a>
-                        </h2>
-                        @if(!empty($lead['excerpt']))
-                            <p style="margin:0 0 16px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.7;color:#374151;">
-                                {{ $lead['excerpt'] }}
+                    <td style="padding:18px 20px;">
+                        @if(!empty($highlightStat))
+                            <p style="margin:0 0 8px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:42px;line-height:0.95;color:#e37da7;font-weight:800;">
+                                {{ $highlightStat }}
                             </p>
                         @endif
-                        <a href="{{ $lead['url'] }}" style="display:inline-block;padding:12px 22px;background:#0d1b2a;color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:2px;">
-                            Read Story
-                        </a>
+                        @if(!empty($highlightStatLabel))
+                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#37628a;">
+                                {{ $highlightStatLabel }}
+                            </p>
+                        @endif
                     </td>
                 </tr>
             </table>
@@ -90,35 +68,31 @@
     </tr>
     @endif
 
-    @if($secondary->isNotEmpty())
+    @if($insightItems->isNotEmpty())
     <tr>
-        <td style="padding:0 32px 28px;">
-            <p style="margin:0 0 14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b7280;">
-                More from {{ $productName }}
+        <td style="padding:0 32px 40px;">
+            <p style="margin:0 0 12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7b8794;">
+                Key insights
             </p>
-            @foreach($secondary as $item)
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-top:1px solid #e5e7eb;">
+            @foreach($insightItems as $index => $item)
+                @php
+                    $isPink = $index % 2 === 0;
+                    $bg = $isPink ? '#fcf6fa' : '#f4faff';
+                    $border = $isPink ? '#e37da7' : '#5eaee8';
+                    $titleColor = $isPink ? '#9d476f' : '#2b6f9f';
+                    $bodyColor = $isPink ? '#5d4a55' : '#4b5d6d';
+                @endphp
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:{{ $bg }};border-left:5px solid {{ $border }};margin:0 0 14px;">
                     <tr>
-                        <td style="padding:18px 0;">
-                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                <tr>
-                                    <td valign="top" style="padding-right:16px;">
-                                        <h3 style="margin:0 0 8px;font-family:Georgia,'Times New Roman',serif;font-size:24px;line-height:1.22;color:#0d1b2a;">
-                                            <a href="{{ $item['url'] }}" style="color:#0d1b2a;text-decoration:none;">{{ $item['title'] }}</a>
-                                        </h3>
-                                        @if(!empty($item['primary_taxonomy_title']))
-                                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6b7280;">
-                                                {{ $item['primary_taxonomy_title'] }}
-                                            </p>
-                                        @endif
-                                    </td>
-                                    @if(!empty($item['image_url']))
-                                        <td valign="top" width="120">
-                                            <img src="{{ $item['image_url'] }}" alt="" width="120" style="width:120px;height:120px;object-fit:cover;display:block;">
-                                        </td>
-                                    @endif
-                                </tr>
-                            </table>
+                        <td style="padding:16px 18px 14px;">
+                            <h3 style="margin:0 0 8px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.2;color:{{ $titleColor }};font-weight:700;">
+                                {{ $item['title'] ?? '' }}
+                            </h3>
+                            @if(!empty($item['description']))
+                                <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.65;color:{{ $bodyColor }};">
+                                    {{ $item['description'] }}
+                                </p>
+                            @endif
                         </td>
                     </tr>
                 </table>
@@ -127,19 +101,60 @@
     </tr>
     @endif
 
+    @if($primaryCtaUrl)
+    <tr>
+        <td style="padding:0 32px 40px;text-align:center;">
+            <a href="{{ $primaryCtaUrl }}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 24px;background:#12202f;color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:4px;">
+                Continue reading
+            </a>
+            @if(!empty($ctaTitle))
+                <p style="margin:10px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;color:#1f2937;">
+                    <span style="font-weight:600;">{{ $ctaTitle }}</span>
+                </p>
+            @endif
+            @if(!empty($ctaAuthor))
+                <p style="margin:3px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;color:#7b8794;">
+                    By {{ $ctaAuthor }}
+                </p>
+            @endif
+        </td>
+    </tr>
+    @endif
+
     @if($related->isNotEmpty())
     <tr>
-        <td style="padding:0 32px 24px;">
-            <p style="margin:0 0 14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b7280;">
-                Related Across Dataphyte Newsletters
+        <td style="padding:0 32px 40px;">
+            <p style="margin:0 0 14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7b8794;">
+               Related Newsletter Issues
             </p>
             @foreach($related as $item)
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-top:1px solid #e5e7eb;">
                     <tr>
-                        <td style="padding:14px 0;">
-                            <a href="{{ $item['url'] }}" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
-                                {{ $item['title'] }}
-                            </a>
+                        <td style="padding:16px 0;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    @if(!empty($item['image_url']))
+                                        <td valign="top" width="84" style="padding-right:14px;">
+                                            <img src="{{ $item['image_url'] }}" alt="" width="84" style="width:84px;height:84px;object-fit:cover;display:block;">
+                                        </td>
+                                    @endif
+                                    <td valign="top">
+                                        @if(!empty($item['primary_taxonomy_title']))
+                                            <p style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#e37da7;">
+                                                {{ $item['primary_taxonomy_title'] }}
+                                            </p>
+                                        @endif
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#12202f;text-decoration:none;font-weight:700;">
+                                            {{ $item['title'] }}
+                                        </a>
+                                        @if(!empty($item['author']))
+                                            <p style="margin:8px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#6b7280;">
+                                                By {{ $item['author'] }}
+                                            </p>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                 </table>
@@ -151,16 +166,37 @@
     @if($recommended->isNotEmpty())
     <tr>
         <td style="padding:0 32px 32px;">
-            <p style="margin:0 0 14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b7280;">
-                Recommended Reads on Socio-Economic Issues
+            <p style="margin:0 0 14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#7b8794;">
+                Read This Also
             </p>
             @foreach($recommended as $item)
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-top:1px solid #e5e7eb;">
                     <tr>
-                        <td style="padding:14px 0;">
-                            <a href="{{ $item['url'] }}" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
-                                {{ $item['title'] }}
-                            </a>
+                        <td style="padding:16px 0;">
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    @if(!empty($item['image_url']))
+                                        <td valign="top" width="84" style="padding-right:14px;">
+                                            <img src="{{ $item['image_url'] }}" alt="" width="84" style="width:84px;height:84px;object-fit:cover;display:block;">
+                                        </td>
+                                    @endif
+                                    <td valign="top">
+                                        @if(!empty($item['primary_taxonomy_title']))
+                                            <p style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#5eaee8;">
+                                                {{ $item['primary_taxonomy_title'] }}
+                                            </p>
+                                        @endif
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#12202f;text-decoration:none;font-weight:700;">
+                                            {{ $item['title'] }}
+                                        </a>
+                                        @if(!empty($item['author']))
+                                            <p style="margin:8px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#6b7280;">
+                                                By {{ $item['author'] }}
+                                            </p>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                 </table>

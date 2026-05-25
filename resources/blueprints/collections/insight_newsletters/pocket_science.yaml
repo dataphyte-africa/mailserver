@@ -71,6 +71,27 @@ tabs:
               save_html: true
             handle: content
       -
+        display: Navigation
+        fields:
+          -
+            field:
+              type: replicator
+              collapse: true
+              previews: true
+              display: 'Table of Contents'
+              instructions: 'Optional repeatable table-of-contents rows for the issue.'
+              sets:
+                item:
+                  display: Item
+                  fields:
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+            handle: table_of_contents_items
+      -
         display: 'Pocket Intelligence'
         fields:
           -

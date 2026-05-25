@@ -2,11 +2,95 @@
 
 ---
 
+## Session 17 - 2026-05-24 (Data Dive documentation and implemented-product spec)
+
+### Documentation updates
+
+- Added [docs/families/insight/products/data-dive.md](/Users/dataphytefoundation/Herd/mailserver/docs/families/insight/products/data-dive.md) to document:
+  - the Data Dive editorial philosophy
+  - the active blueprint structure
+  - the role of `content`
+  - the repeatable `data_points` findings block
+  - the `accountability_question` field
+  - the repeatable `table_of_contents_items` field
+  - the uniqueness of the standalone Data Dive template and render behavior
+
+### Implementation context captured
+
+- Recorded that Data Dive currently has:
+  - a standalone email template
+  - the collection header band suppressed in favor of the uploaded hero image
+  - a stat-first analytical section hierarchy
+  - a structured `Key Findings` block
+  - an explicit `The Accountability Question` hook before the CTA
+  - a CTA followed by article title and author
+  - stored RSS 2 / RSS 3 supporting rails
+  - a body-content flow designed for click-through rather than full in-email report delivery
+
+## Session 16 - 2026-05-23 (SenorRita documentation and implemented-product spec)
+
+### Documentation updates
+
+- Added [docs/families/insight/products/senorrita.md](/Users/dataphytefoundation/Herd/mailserver/docs/families/insight/products/senorrita.md) to document:
+  - the SenorRita editorial philosophy
+  - the active blueprint structure
+  - the role of `content`
+  - the repeatable `table_of_contents_items` field
+  - the evidence-first `highlight_stat` / `highlight_stat_label` block
+  - the current `insight_block_items` repeater behavior
+  - the uniqueness of the standalone SenorRita template and render behavior
+
+### Documentation corrections
+
+- Aligned the SenorRita product record with the current implementation by documenting that:
+  - `insight_block_title` is no longer part of the blueprint
+  - the Insight Block now consists only of repeatable items with:
+    - `title`
+    - `description`
+
+## Session 15 - 2026-05-23 (SenorRita blueprint refinement and sample entry seeding)
+
+### Implementation completed
+
+- Updated `collections.insight_newsletters.senorrita` to add the product-specific editorial structure:
+  - `title`
+  - `highlight_stat`
+  - `highlight_stat_label`
+  - `insight_block_items`
+  - `table_of_contents_items`
+- Kept the existing RSS 1 / RSS 2 / RSS 3 structure intact.
+- Imported the updated SenorRita blueprint into the local DB with the file-specific YAML import command.
+- Seeded two local SenorRita entries for template planning and preview work:
+  - `fertility-in-the-40s-the-trend-and-the-threat`
+  - `nigerian-women-bear-the-climate-change-burden`
+
+## Session 14 - 2026-05-23 (Pocket Science documentation and implemented-product spec)
+
+### Documentation updates
+
+- Added [docs/families/insight/products/pocket-science.md](/Users/dataphytefoundation/Herd/mailserver/docs/families/insight/products/pocket-science.md) to document:
+  - the Pocket Science editorial philosophy
+  - the active blueprint structure
+  - the editorial role of `content`
+  - the repeatable `table_of_contents_items` field
+  - the `Pocket Intelligence` field group and its current implementation
+  - the uniqueness of the standalone Pocket Science template and render behavior
+
+### Implementation context captured
+
+- Recorded that Pocket Science currently has:
+  - a standalone email template
+  - the collection header band suppressed in favor of the uploaded hero image
+  - a lead-story-driven CTA/title/author structure
+  - a dedicated Pocket Intelligence recommendation block
+  - stored RSS 2 / RSS 3 story lists
+  - a body-content flow designed for click-through rather than full in-email article delivery
+
 ## Session 13 - 2026-05-22 (Marina & Maitama template section hierarchy and parser fix)
 
 ### Documentation updates
 
-- Updated [docs/marina-maitama.md](/Users/dataphytefoundation/Herd/mailserver/docs/marina-maitama.md) to reflect the implemented presentation hierarchy:
+- Updated [docs/families/insight/products/marina-maitama.md](/Users/dataphytefoundation/Herd/mailserver/docs/families/insight/products/marina-maitama.md) to reflect the implemented presentation hierarchy:
   - `What the Data Says` for the highlight-stat section
   - `The Dual Business & Policy Sneak Peek` for the combined Marina/Maitama section
   - distinct editorial treatment for the Marina and Maitama sub-sections
@@ -24,7 +108,7 @@
 
 ### Documentation updates
 
-- Added [docs/marina-maitama.md](/Users/dataphytefoundation/Herd/mailserver/docs/marina-maitama.md) to define:
+- Added [docs/families/insight/products/marina-maitama.md](/Users/dataphytefoundation/Herd/mailserver/docs/families/insight/products/marina-maitama.md) to define:
   - the `Marina & Maitama` editorial philosophy
   - the streamlined blueprint field structure
   - the intended use of the `content` field with `h5` markers for `Marina` and `Maitama`

@@ -76,7 +76,7 @@
     {{-- CTA --}}
     <tr>
         <td style="padding:0 40px 40px;text-align:center;">
-            <a href="{{ $foundationUrl ?? 'https://foundation.dataphyte.org' }}"
+            <a href="{{ $foundationUrl ?? 'https://foundation.dataphyte.org' }}" target="_blank" rel="noopener noreferrer"
                style="display:inline-block;background-color:{{ $brandColor }};color:#ffffff;
                       font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;
                       font-weight:600;text-decoration:none;padding:12px 28px;border-radius:3px;">

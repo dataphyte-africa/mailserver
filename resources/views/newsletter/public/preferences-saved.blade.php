@@ -17,7 +17,13 @@
 
         <h1 class="text-xl font-semibold text-gray-900 mb-2">Preferences saved</h1>
         <p class="text-gray-500 text-sm">
-            Your email preferences for <strong>{{ $subscriber->email }}</strong> have been updated.
+            Your
+            @if(!empty($scopedLabel))
+                {{ $scopedLabel }}
+            @else
+                newsletter
+            @endif
+            preferences for <strong>{{ $subscriber->email }}</strong> have been updated.
         </p>
     </div>
 </body>

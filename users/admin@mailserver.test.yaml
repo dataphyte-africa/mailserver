@@ -6,9 +6,16 @@ preferences:
   collections:
     foundation_newsletters:
       view: list
+      after_save: continue_editing
     insight_newsletters:
       view: list
       after_save: continue_editing
+      columns:
+        - title
+        - subject
+        - date
+        - status
+        - content
     policy_point_newsletters:
       view: list
       after_save: continue_editing

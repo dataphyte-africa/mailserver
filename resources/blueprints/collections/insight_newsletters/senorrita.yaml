@@ -7,6 +7,11 @@ tabs:
           -
             field:
               type: text
+              required: true
+            handle: title
+          -
+            field:
+              type: text
               width: 100
               display: 'Belongs To'
               default: SenorRita
@@ -65,6 +70,71 @@ tabs:
               validate: required
               save_html: true
             handle: content
+      -
+        display: Navigation
+        fields:
+          -
+            field:
+              type: replicator
+              collapse: true
+              previews: true
+              display: 'Table of Contents'
+              instructions: 'Optional repeatable table-of-contents rows for the issue.'
+              sets:
+                item:
+                  display: Item
+                  fields:
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+            handle: table_of_contents_items
+      -
+        display: Highlight
+        fields:
+          -
+            field:
+              type: text
+              width: 33
+              display: 'Highlight Stat'
+              instructions: 'Short numeric or headline evidence point, for example `40–49` or `21.1%`.'
+            handle: highlight_stat
+          -
+            field:
+              type: text
+              width: 67
+              display: 'Highlight Stat Label'
+              instructions: 'Short explanatory line that gives the stat context.'
+            handle: highlight_stat_label
+      -
+        display: 'Insight Block'
+        fields:
+          -
+            field:
+              type: replicator
+              collapse: true
+              previews: true
+              display: Items
+              instructions: 'Repeatable evidence/implication rows under the section title. The current SenorRita plan is to show two items before the continue-reading CTA.'
+              sets:
+                item:
+                  display: Item
+                  fields:
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+                    -
+                      field:
+                        type: textarea
+                        width: 100
+                        display: Description
+                      handle: description
+            handle: insight_block_items
       -
         fields:
           -

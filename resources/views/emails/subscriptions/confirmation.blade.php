@@ -21,7 +21,7 @@
                     @if(!empty($privacyUrl))
                     <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#6b7280;">
                         Review our
-                        <a href="{{ $privacyUrl }}" style="color:#374151;text-decoration:underline;">privacy policy</a>.
+                        <a href="{{ $privacyUrl }}" target="_blank" rel="noopener noreferrer" style="color:#374151;text-decoration:underline;">privacy policy</a>.
                     </p>
                     @endif
                 </td>

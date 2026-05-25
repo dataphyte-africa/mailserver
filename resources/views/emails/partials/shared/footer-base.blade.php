@@ -20,7 +20,7 @@
                                 'tiktok' => ['label' => 'TikTok'],
                             ] as $platform => $icon)
                                 <td style="padding:0 5px;">
-                                    <a href="{{ $socialLinks[$platform] ?? '#' }}" aria-label="{{ $icon['label'] }}" style="display:block;width:30px;height:30px;border-radius:15px;background-color:#ffffff;border:1px solid #ddd3c6;text-decoration:none;text-align:center;">
+                                    <a href="{{ $socialLinks[$platform] ?? '#' }}" target="_blank" rel="noopener noreferrer" aria-label="{{ $icon['label'] }}" style="display:block;width:30px;height:30px;border-radius:15px;background-color:#ffffff;border:1px solid #ddd3c6;text-decoration:none;text-align:center;">
                                         <img src="{{ asset('assets/emails/social/' . $platform . '.png') }}" alt="{{ $icon['label'] }}" width="16" height="16" style="display:block;width:16px;height:16px;border:0;margin:6px auto;">
                                     </a>
                                 </td>
@@ -38,9 +38,9 @@
 
             <tr>
                 <td style="padding:0 0 22px;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#6b7280;">
-                    <a href="{{ $preferencesUrl ?? '#' }}" style="color:#3d405b;text-decoration:underline;">Manage preferences</a>
+                    <a href="{{ $preferencesUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" style="color:#3d405b;text-decoration:underline;">Manage preferences</a>
                     &nbsp;&middot;&nbsp;
-                    <a href="{{ $unsubscribeUrl ?? '#' }}" style="color:#3d405b;text-decoration:underline;">Unsubscribe</a>
+                    <a href="{{ $unsubscribeUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" style="color:#3d405b;text-decoration:underline;">Unsubscribe</a>
                 </td>
             </tr>
 

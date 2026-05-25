@@ -129,6 +129,19 @@ class NewsletterMailable extends Mailable
                 'maitamaContent'     => $marinaMaitamaSections['maitama_html'],
                 'highlightStat'      => $entry?->get('highlight_stat') ?? '',
                 'highlightStatLabel' => $entry?->get('highlight_stat_label') ?? '',
+                'dataPoints'         => collect($entry?->get('data_points') ?? [])
+                    ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                    ->values()
+                    ->all(),
+                'accountabilityQuestion' => $entry?->get('accountability_question') ?? '',
+                'insightBlockItems'  => collect($entry?->get('insight_block_items') ?? [])
+                    ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                    ->values()
+                    ->all(),
+                'tableOfContentsItems' => collect($entry?->get('table_of_contents_items') ?? [])
+                    ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                    ->values()
+                    ->all(),
                 'author'             => $entry?->get('author') ?? $sender['from_name'],
                 'fromName'           => $sender['from_name'],
                 'sentDate'           => $this->campaign->sent_at?->format('F j, Y') ?? now()->format('F j, Y'),
@@ -137,6 +150,8 @@ class NewsletterMailable extends Mailable
                 'footerConfig'       => $collectionConfig['footer'] ?? [],
                 'footerPartial'      => $footerPartial,
                 'newsletterSettings' => $settings,
+                'foundationCtaText'  => $entry?->get('cta_text') ?? null,
+                'foundationCtaUrl'   => $entry?->get('cta_url') ?? null,
                 'unsubscribeUrl'     => $this->buildSignedUrl('newsletter.unsubscribe.show'),
                 'preferencesUrl'     => $this->buildSignedUrl('newsletter.preferences.show'),
                 // Subscriber personalisation variables (use in templates directly)
@@ -464,6 +479,7 @@ class NewsletterMailable extends Mailable
             return;
         }
 
+        $this->promoteStandaloneImageUrls($container);
         $this->promoteStandaloneHeadings($container);
 
         $styles = [
@@ -520,8 +536,6 @@ class NewsletterMailable extends Mailable
             }
         }
 
-        $this->styleGreetingParagraph($container);
-
         foreach ($container->getElementsByTagName('blockquote') as $node) {
             $this->styleBlockquoteNode($node);
         }
@@ -537,6 +551,10 @@ class NewsletterMailable extends Mailable
 
         foreach ($paragraphs as $paragraph) {
             if (! $paragraph instanceof \DOMElement) {
+                continue;
+            }
+
+            if ($this->elementHasAncestorTag($paragraph, ['li'])) {
                 continue;
             }
 
@@ -571,6 +589,117 @@ class NewsletterMailable extends Mailable
         }
     }
 
+    private function promoteStandaloneImageUrls(\DOMElement $container): void
+    {
+        $paragraphs = [];
+
+        foreach ($container->getElementsByTagName('p') as $paragraph) {
+            $paragraphs[] = $paragraph;
+        }
+
+        foreach ($paragraphs as $paragraph) {
+            if (! $paragraph instanceof \DOMElement) {
+                continue;
+            }
+
+            $imageUrl = $this->standaloneParagraphImageUrl($paragraph);
+
+            if (! $imageUrl) {
+                continue;
+            }
+
+            $resolved = $this->resolveAssetUrl($imageUrl);
+
+            if (! $resolved) {
+                continue;
+            }
+
+            $figure = $paragraph->ownerDocument->createElement('figure');
+            $img = $paragraph->ownerDocument->createElement('img');
+            $img->setAttribute('src', $resolved);
+            $img->setAttribute('alt', '');
+            $figure->appendChild($img);
+
+            $paragraph->parentNode?->replaceChild($figure, $paragraph);
+        }
+    }
+
+    private function standaloneParagraphImageUrl(\DOMElement $paragraph): ?string
+    {
+        $children = [];
+
+        foreach ($paragraph->childNodes as $child) {
+            if ($child instanceof \DOMText) {
+                if (trim($child->textContent ?? '') === '') {
+                    continue;
+                }
+
+                $children[] = $child;
+                continue;
+            }
+
+            if ($child instanceof \DOMElement) {
+                if (strtolower($child->tagName) === 'a') {
+                    $children[] = $child;
+                    continue;
+                }
+
+                return null;
+            }
+        }
+
+        if (count($children) !== 1) {
+            return null;
+        }
+
+        $child = $children[0];
+
+        if ($child instanceof \DOMText) {
+            $candidate = trim($child->textContent ?? '');
+            return $this->isLikelyRemoteImageUrl($candidate) ? $candidate : null;
+        }
+
+        if ($child instanceof \DOMElement && strtolower($child->tagName) === 'a') {
+            $href = trim((string) $child->getAttribute('href'));
+            if ($href !== '' && $this->isLikelyRemoteImageUrl($href)) {
+                return $href;
+            }
+        }
+
+        return null;
+    }
+
+    private function isLikelyRemoteImageUrl(string $value): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+
+        if (! preg_match('#^https?://#i', $value)) {
+            return false;
+        }
+
+        $candidates = array_values(array_filter([
+            $value,
+            rawurldecode($value),
+            urldecode($value),
+        ], fn ($candidate) => is_string($candidate) && $candidate !== ''));
+
+        foreach ($candidates as $candidate) {
+            $path = parse_url($candidate, PHP_URL_PATH);
+
+            if (is_string($path) && $path !== '' && preg_match('/\.(png|jpe?g|gif|webp|avif|svg)(?:$|[?#])/i', $path) === 1) {
+                return true;
+            }
+
+            if (preg_match('/\.(png|jpe?g|gif|webp|avif|svg)(?:$|[?#])/i', $candidate) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function paragraphHasStructuralChildren(\DOMElement $paragraph): bool
     {
         foreach ($paragraph->childNodes as $child) {
@@ -581,6 +710,22 @@ class NewsletterMailable extends Mailable
             if (! in_array(strtolower($child->tagName), ['strong', 'em', 'a', 'u', 'span', 'br'], true)) {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private function elementHasAncestorTag(\DOMElement $element, array $tags): bool
+    {
+        $tags = array_map(static fn ($tag) => strtolower((string) $tag), $tags);
+        $node = $element->parentNode;
+
+        while ($node instanceof \DOMElement) {
+            if (in_array(strtolower($node->tagName), $tags, true)) {
+                return true;
+            }
+
+            $node = $node->parentNode;
         }
 
         return false;
@@ -629,28 +774,6 @@ class NewsletterMailable extends Mailable
         }
     }
 
-    private function styleGreetingParagraph(\DOMElement $container): void
-    {
-        foreach ($container->childNodes as $child) {
-            if (! $child instanceof \DOMElement || strtolower($child->tagName) !== 'p') {
-                continue;
-            }
-
-            $text = trim(preg_replace('/\s+/', ' ', $child->textContent ?? ''));
-
-            if (preg_match('/^Dear\s+.+,\s*$/u', $text) !== 1) {
-                return;
-            }
-
-            $child->setAttribute(
-                'style',
-                "margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#1f2937;"
-            );
-
-            return;
-        }
-    }
-
     private function mergeInlineStyle(\DOMElement $node, string $style): void
     {
         $existing = trim((string) $node->getAttribute('style'));
@@ -665,9 +788,15 @@ class NewsletterMailable extends Mailable
 
     private function buildSignedUrl(string $routeName): string
     {
-        return \URL::signedRoute($routeName, [
+        $parameters = [
             'token' => $this->subscriber->ensureConfirmationToken(),
-        ]);
+        ];
+
+        if (filled($this->campaign->collection)) {
+            $parameters['collection'] = $this->campaign->collection;
+        }
+
+        return \URL::signedRoute($routeName, $parameters);
     }
 
     private function normalizedSubject(?string $value): string

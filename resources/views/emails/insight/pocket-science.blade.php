@@ -1,5 +1,9 @@
 @php
     $productName = 'Pocket Science';
+    $pocketPrimary = '#136097';
+    $pocketSecondary = '#357088';
+    $pocketPanelBg = '#357088';
+    $pocketLabelTint = '#d7e8f1';
     $hideCollectionHeader = true;
     $lead = $rssLeadItem ?? null;
     $secondary = collect($rssSecondaryItems ?? [])->take(4);
@@ -7,6 +11,9 @@
     $recommended = collect($recommendedRssItems ?? [])->take(4);
     $pocketIntelligence = collect($pocketIntelligenceItems ?? [])->values();
     $pocketIntelligenceVisible = $pocketIntelligence->take(2);
+    $formattedSentDate = $sentDate
+        ? \Illuminate\Support\Carbon::parse($sentDate)->format('l, F j, Y')
+        : '';
 @endphp
 
 @extends('emails.layout')
@@ -22,6 +29,15 @@
     </tr>
     @endif
 
+    @if($formattedSentDate !== '')
+    <tr>
+        <td style="padding:20px 32px 16px;">
+            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#7b8794;">
+                {{ $formattedSentDate }}
+            </p>
+        </td>
+    </tr>
+    @endif
 
     <tr>
         <td style="padding:20px 32px 28px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.75;color:#1f2937;">
@@ -29,36 +45,10 @@
         </td>
     </tr>
 
-    @if($lead)
-    <tr>
-        <td style="padding:0 20px 28px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-top:1px solid #d4d9e2;border-bottom:1px solid #d4d9e2;">
-                <tr>
-                    <td style="padding:24px 0;">
-                        <a href="{{ $lead['url'] }}" style="display:inline-block;padding:12px 22px;background:#880808;color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;text-decoration:none;border-radius:6px;">
-                            Continue Reading
-                        </a>
-
-                        <h2 style="margin:12px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:1.16;color:#0d1b2a;font-weight:900;">
-                            <a href="{{ $lead['url'] }}" style="color:#0d1b2a;text-decoration:none;">{{ $lead['title'] }}</a>
-                        </h2>
-
-                        @if(!empty($lead['author']))
-                            <p style="margin:0 0 16px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#6b7280;">
-                                By {{ $lead['author'] }}
-                            </p>
-                        @endif
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    @endif
-
     @if($pocketIntelligenceVisible->isNotEmpty())
     <tr>
         <td style="padding:0 32px 28px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#3f7db8;border-radius:10px;overflow:hidden;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:{{ $pocketPanelBg }};border-radius:10px;overflow:hidden;">
                 <tr>
                     <td style="padding:24px 24px 10px;position:relative;">
                         <div style="position:absolute;top:16px;right:18px;width:62px;height:62px;border-radius:62px;background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.28);font-family:Georgia,'Times New Roman',serif;font-size:44px;line-height:62px;text-align:center;">i</div>
@@ -120,6 +110,29 @@
     @endif
 
 
+    @if($lead)
+    <tr>
+        <td style="padding:0 32px 40px;text-align:center;">
+            <a href="{{ $lead['url'] }}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 24px;background:{{ $pocketPrimary }};color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:3px;">
+                Continue Reading
+            </a>
+            @if(!empty($lead['title']))
+                <p style="margin:10px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;color:#6b7280;">
+                    <span style="color:#1f2937;font-weight:600;">{{ $lead['title'] }}</span>
+                </p>
+            @endif
+            @if(!empty($lead['author']))
+                <p style="margin:3px 0 0;color:#6b7280;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">
+                    By {{ $lead['author'] }}
+                </p>
+            @endif
+            <div style="height:1px;max-height:1px;line-height:1px;font-size:1px;background:#d9e1ea;width:100%;margin:14px 0 0;">&nbsp;</div>
+        </td>
+    </tr>
+    @endif
+
+
+
 
     @if($secondary->isNotEmpty())
     <tr>
@@ -135,10 +148,10 @@
                                 <tr>
                                     <td valign="top" style="padding-right:16px;">
                                         <h3 style="margin:0 0 8px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:1.18;color:#0d1b2a;font-weight:800;">
-                                            <a href="{{ $item['url'] }}" style="color:#0d1b2a;text-decoration:none;">{{ $item['title'] }}</a>
+                                            <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="color:#0d1b2a;text-decoration:none;">{{ $item['title'] }}</a>
                                         </h3>
                                         @if(!empty($item['primary_taxonomy_title']))
-                                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6b7280;">
+                                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:{{ $pocketSecondary }};">
                                                 {{ $item['primary_taxonomy_title'] }}
                                             </p>
                                         @endif
@@ -160,7 +173,7 @@
 
     @if($related->isNotEmpty())
     <tr>
-        <td style="padding:0 32px 24px;">
+        <td style="padding:18px 32px 24px;">
             <p style="margin:0 0 14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b7280;">
                 Other Issues
             </p>
@@ -177,11 +190,11 @@
                                     @endif
                                     <td valign="top">
                                         @if(!empty($item['primary_taxonomy_title']))
-                                            <p style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#6b7280;">
+                                            <p style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:{{ $pocketSecondary }};">
                                                 {{ $item['primary_taxonomy_title'] }}
                                             </p>
                                         @endif
-                                        <a href="{{ $item['url'] }}" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
                                             {{ $item['title'] }}
                                         </a>
                                         @if(!empty($item['author']))
@@ -219,11 +232,11 @@
                                     @endif
                                     <td valign="top">
                                         @if(!empty($item['primary_taxonomy_title']))
-                                            <p style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#6b7280;">
+                                            <p style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:{{ $pocketSecondary }};">
                                                 {{ $item['primary_taxonomy_title'] }}
                                             </p>
                                         @endif
-                                        <a href="{{ $item['url'] }}" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
                                             {{ $item['title'] }}
                                         </a>
                                         @if(!empty($item['author']))

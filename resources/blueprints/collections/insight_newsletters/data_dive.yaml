@@ -7,6 +7,11 @@ tabs:
           -
             field:
               type: text
+              required: true
+            handle: title
+          -
+            field:
+              type: text
               width: 100
               display: 'Belongs To'
               default: 'Data Dive'
@@ -64,7 +69,80 @@ tabs:
               display: Content
               validate: required
               save_html: true
+              instructions: 'Short issue framing only. Use this to set up the core finding and why it matters, not to reproduce the full article.'
             handle: content
+      -
+        display: Highlight
+        fields:
+          -
+            field:
+              type: text
+              width: 33
+              display: 'Highlight Stat'
+              instructions: 'The one number, range, or evidence point that should stop the scroll.'
+            handle: highlight_stat
+          -
+            field:
+              type: text
+              width: 67
+              display: 'Highlight Stat Label'
+              instructions: 'Short explanatory line that sharpens the meaning of the stat.'
+            handle: highlight_stat_label
+      -
+        display: Findings
+        fields:
+          -
+            field:
+              type: replicator
+              collapse: true
+              previews: true
+              display: 'Data Points'
+              instructions: 'Repeatable key findings. The current Data Dive plan is to show the first two or three points before the continue-reading CTA.'
+              sets:
+                item:
+                  display: Item
+                  fields:
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+                    -
+                      field:
+                        type: textarea
+                        width: 100
+                        display: Description
+                      handle: description
+            handle: data_points
+          -
+            field:
+              type: textarea
+              width: 100
+              display: 'Accountability Question'
+              instructions: 'The unresolved question or challenge that should push the reader to continue on the website.'
+            handle: accountability_question
+      -
+        display: Navigation
+        fields:
+          -
+            field:
+              type: replicator
+              collapse: true
+              previews: true
+              display: 'Table of Contents'
+              instructions: 'Optional repeatable table-of-contents rows for the issue.'
+              sets:
+                item:
+                  display: Item
+                  fields:
+                    -
+                      field:
+                        type: text
+                        width: 100
+                        display: Title
+                      handle: title
+            handle: table_of_contents_items
       -
         fields:
           -

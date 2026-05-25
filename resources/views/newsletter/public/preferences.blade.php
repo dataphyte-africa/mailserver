@@ -13,11 +13,15 @@
         <h1 class="text-xl font-semibold text-gray-900 mb-1">Email Preferences</h1>
         <p class="text-sm text-gray-500 mb-6">
             Managing preferences for <strong>{{ $subscriber->email }}</strong>.
-            Select which newsletters you'd like to receive.
+            @if(!empty($scopedLabel))
+                Select which {{ $scopedLabel }} emails you'd like to receive.
+            @else
+                Select which newsletters you'd like to receive.
+            @endif
         </p>
 
         <form method="POST"
-              action="{{ URL::signedRoute('newsletter.preferences.update', ['token' => $token]) }}"
+              action="{{ URL::signedRoute('newsletter.preferences.update', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}"
               x-data="{ selected: {{ json_encode($activeSubGroupIds) }} }">
             @csrf
 
@@ -55,9 +59,13 @@
                                py-2.5 px-4 rounded-lg transition text-sm">
                     Save Preferences
                 </button>
-                <a href="{{ URL::signedRoute('newsletter.unsubscribe.show', ['token' => $token]) }}"
+                <a href="{{ URL::signedRoute('newsletter.unsubscribe.show', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}"
                    class="block text-center text-xs text-gray-400 hover:text-red-500 hover:underline mt-2">
-                    Unsubscribe from all
+                    @if(!empty($scopedLabel))
+                        Unsubscribe from {{ $scopedLabel }}
+                    @else
+                        Unsubscribe from all
+                    @endif
                 </a>
             </div>
         </form>

@@ -434,6 +434,19 @@ class CampaignController extends Controller
             'maitamaContent'      => $marinaMaitamaSections['maitama_html'],
             'highlightStat'       => $entry?->get('highlight_stat') ?? '',
             'highlightStatLabel'  => $entry?->get('highlight_stat_label') ?? '',
+            'dataPoints'          => collect($entry?->get('data_points') ?? [])
+                ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                ->values()
+                ->all(),
+            'accountabilityQuestion' => $entry?->get('accountability_question') ?? '',
+            'insightBlockItems'   => collect($entry?->get('insight_block_items') ?? [])
+                ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                ->values()
+                ->all(),
+            'tableOfContentsItems' => collect($entry?->get('table_of_contents_items') ?? [])
+                ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
+                ->values()
+                ->all(),
             'author'              => $entry?->get('author') ?? $sender['from_name'],
             'fromName'            => $sender['from_name'],
             'sentDate'            => now()->format('F j, Y'),
@@ -441,6 +454,8 @@ class CampaignController extends Controller
             'headerColor'         => $headerColor,
             'footerConfig'        => $collectionConfig['footer'] ?? [],
             'footerPartial'       => $footerPartial,
+            'foundationCtaText'   => $entry?->get('cta_text') ?? null,
+            'foundationCtaUrl'    => $entry?->get('cta_url') ?? null,
             'unsubscribeUrl'      => '#',
             'preferencesUrl'      => '#',
             'subscriberFirstName' => '[First Name]',

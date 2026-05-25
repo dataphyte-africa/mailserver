@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscriber;
+use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use Illuminate\Http\Request;
 
@@ -16,18 +17,33 @@ class PreferencesController extends Controller
         }
 
         $subscriber = Subscriber::where('confirmation_token', $token)
-            ->with('subGroups')
+            ->with('subGroups.group')
             ->firstOrFail();
 
-        $allSubGroups = SubscriberSubGroup::with('group')
-            ->orderBy('subscriber_group_id')
-            ->get()
-            ->groupBy('group.name');
+        [$scopedGroup, $scopedCollection, $scopedLabel] = $this->resolveScope($request);
 
-        $activeSubGroupIds = $subscriber->subGroups->pluck('id')->toArray();
+        if ($scopedGroup) {
+            $allSubGroups = collect([$scopedGroup->name => $scopedGroup->subGroups()->orderBy('name')->get()]);
+            $activeSubGroupIds = $subscriber->subGroups
+                ->filter(fn ($subGroup) => $subGroup->subscriber_group_id === $scopedGroup->id)
+                ->pluck('id')
+                ->values()
+                ->all();
+        } else {
+            $allSubGroups = SubscriberSubGroup::with('group')
+                ->orderBy('subscriber_group_id')
+                ->get()
+                ->groupBy('group.name');
+            $activeSubGroupIds = $subscriber->subGroups->pluck('id')->values()->all();
+        }
 
         return view('newsletter.public.preferences', compact(
-            'subscriber', 'token', 'allSubGroups', 'activeSubGroupIds'
+            'subscriber',
+            'token',
+            'allSubGroups',
+            'activeSubGroupIds',
+            'scopedCollection',
+            'scopedLabel'
         ));
     }
 
@@ -37,29 +53,104 @@ class PreferencesController extends Controller
             abort(403, 'This preferences link has expired or is invalid.');
         }
 
-        $subscriber = Subscriber::where('confirmation_token', $token)->firstOrFail();
+        $subscriber = Subscriber::where('confirmation_token', $token)
+            ->with('subGroups.group')
+            ->firstOrFail();
+
+        [$scopedGroup, $scopedCollection, $scopedLabel] = $this->resolveScope($request);
 
         $request->validate([
-            'sub_groups'   => 'nullable|array',
+            'sub_groups' => 'nullable|array',
+            'sub_groups.*' => 'integer',
+        ]);
+
+        $incoming = collect($request->input('sub_groups', []))
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values();
+
+        if ($scopedGroup) {
+            $allowedIds = $scopedGroup->subGroups()->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $invalidIds = array_diff($incoming->all(), $allowedIds);
+
+            if ($invalidIds !== []) {
+                abort(422, 'One or more selected preferences are invalid for this collection.');
+            }
+
+            $current = $subscriber->subGroups()
+                ->where('subscriber_group_id', $scopedGroup->id)
+                ->pluck('subscriber_sub_groups.id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $toRemove = array_diff($current, $incoming->all());
+            $toAdd = array_diff($incoming->all(), $current);
+
+            if ($toRemove !== []) {
+                $subscriber->allSubGroups()->updateExistingPivot($toRemove, [
+                    'unsubscribed_at' => now(),
+                ]);
+            }
+
+            if ($toAdd !== []) {
+                $existingIds = $subscriber->allSubGroups()
+                    ->pluck('subscriber_sub_groups.id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                foreach ($toAdd as $subGroupId) {
+                    if (in_array($subGroupId, $existingIds, true)) {
+                        $subscriber->allSubGroups()->updateExistingPivot($subGroupId, [
+                            'subscribed_at' => now(),
+                            'unsubscribed_at' => null,
+                        ]);
+                    } else {
+                        $subscriber->allSubGroups()->attach($subGroupId, [
+                            'subscribed_at' => now(),
+                            'unsubscribed_at' => null,
+                        ]);
+                    }
+                }
+            }
+
+            $this->syncSubscriberStatus($subscriber);
+
+            if ($incoming->isEmpty()) {
+                return view('newsletter.public.unsubscribed', compact(
+                    'subscriber',
+                    'scopedCollection',
+                    'scopedLabel'
+                ));
+            }
+
+            return view('newsletter.public.preferences-saved', compact(
+                'subscriber',
+                'scopedCollection',
+                'scopedLabel'
+            ));
+        }
+
+        $request->validate([
             'sub_groups.*' => 'exists:subscriber_sub_groups,id',
         ]);
 
-        $incoming = $request->input('sub_groups', []);
-
-        // If they unchecked everything — treat as global unsubscribe
-        if (empty($incoming)) {
+        if ($incoming->isEmpty()) {
             $subscriber->update([
-                'status'          => 'unsubscribed',
+                'status' => 'unsubscribed',
                 'unsubscribed_at' => now(),
             ]);
             $subscriber->allSubGroups()->update(['unsubscribed_at' => now()]);
 
-            return view('newsletter.public.unsubscribed', compact('subscriber'));
+            return view('newsletter.public.unsubscribed', compact(
+                'subscriber',
+                'scopedCollection',
+                'scopedLabel'
+            ));
         }
 
-        $current  = $subscriber->subGroups()->pluck('subscriber_sub_groups.id')->toArray();
-        $toRemove = array_diff($current, $incoming);
-        $toAdd    = array_diff($incoming, $current);
+        $current = $subscriber->subGroups()->pluck('subscriber_sub_groups.id')->toArray();
+        $toRemove = array_diff($current, $incoming->all());
+        $toAdd = array_diff($incoming->all(), $current);
 
         if ($toRemove) {
             $subscriber->allSubGroups()->updateExistingPivot($toRemove, [
@@ -68,14 +159,60 @@ class PreferencesController extends Controller
         }
 
         if ($toAdd) {
-            $subscriber->subGroups()->attach($toAdd, ['subscribed_at' => now()]);
+            $existingIds = $subscriber->allSubGroups()->pluck('subscriber_sub_groups.id')->toArray();
+
+            foreach ($toAdd as $subGroupId) {
+                if (in_array($subGroupId, $existingIds, true)) {
+                    $subscriber->allSubGroups()->updateExistingPivot($subGroupId, [
+                        'subscribed_at' => now(),
+                        'unsubscribed_at' => null,
+                    ]);
+                } else {
+                    $subscriber->allSubGroups()->attach($subGroupId, [
+                        'subscribed_at' => now(),
+                        'unsubscribed_at' => null,
+                    ]);
+                }
+            }
         }
 
-        // Reactivate if they were previously unsubscribed but now selecting groups
-        if ($subscriber->status === 'unsubscribed' && ! empty($incoming)) {
-            $subscriber->update(['status' => 'active', 'unsubscribed_at' => null]);
+        $this->syncSubscriberStatus($subscriber);
+
+        return view('newsletter.public.preferences-saved', compact(
+            'subscriber',
+            'scopedCollection',
+            'scopedLabel'
+        ));
+    }
+
+    private function resolveScope(Request $request): array
+    {
+        $collectionHandle = $request->query('collection');
+
+        if (! is_string($collectionHandle) || trim($collectionHandle) === '') {
+            return [null, null, null];
         }
 
-        return view('newsletter.public.preferences-saved', compact('subscriber'));
+        $group = SubscriberGroup::with('subGroups')
+            ->where('collection_handle', $collectionHandle)
+            ->first();
+
+        if (! $group) {
+            return [null, null, null];
+        }
+
+        $label = config("newsletter.collections.{$collectionHandle}.label", $group->name);
+
+        return [$group, $collectionHandle, $label];
+    }
+
+    private function syncSubscriberStatus(Subscriber $subscriber): void
+    {
+        $hasActiveSubscriptions = $subscriber->subGroups()->exists();
+
+        $subscriber->update([
+            'status' => $hasActiveSubscriptions ? 'active' : 'unsubscribed',
+            'unsubscribed_at' => $hasActiveSubscriptions ? null : now(),
+        ]);
     }
 }

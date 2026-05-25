@@ -19,18 +19,26 @@
         <h1 class="text-xl font-semibold text-gray-900 mb-2">Unsubscribe</h1>
         <p class="text-gray-500 text-sm mb-6">
             You are about to unsubscribe <strong>{{ $subscriber->email }}</strong>
-            from all newsletters. You will not receive any further emails from us.
+            @if(!empty($scopedLabel))
+                from {{ $scopedLabel }} emails. You can still remain subscribed to other newsletter families.
+            @else
+                from all newsletters. You will not receive any further emails from us.
+            @endif
         </p>
 
-        <form method="POST" action="{{ URL::signedRoute('newsletter.unsubscribe.process', ['token' => $token]) }}">
+        <form method="POST" action="{{ URL::signedRoute('newsletter.unsubscribe.process', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}">
             @csrf
             <button type="submit"
                     class="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2.5 px-4 rounded-lg transition">
-                Yes, unsubscribe me
+                @if(!empty($scopedLabel))
+                    Yes, unsubscribe me from {{ $scopedLabel }}
+                @else
+                    Yes, unsubscribe me
+                @endif
             </button>
         </form>
 
-        <a href="{{ URL::signedRoute('newsletter.preferences.show', ['token' => $token]) }}"
+        <a href="{{ URL::signedRoute('newsletter.preferences.show', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}"
            class="block mt-3 text-sm text-blue-600 hover:underline">
             Manage my preferences instead
         </a>

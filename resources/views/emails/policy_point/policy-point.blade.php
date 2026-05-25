@@ -80,7 +80,7 @@
                             @endif
 
                             <h2 style="margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-size:18px;line-height:1.18;color:#111827;font-weight:700;">
-                                <a href="{{ $rssLeadItem['url'] }}" style="color:#111827;text-decoration:none;">
+                                <a href="{{ $rssLeadItem['url'] }}" target="_blank" rel="noopener noreferrer" style="color:#111827;text-decoration:none;">
                                     {{ $rssLeadItem['title'] }}
                                 </a>
                             </h2>
@@ -100,7 +100,7 @@
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                                 <tr>
                                     <td style="background-color:{{ $headerColor ?? '#3d405b' }};">
-                                        <a href="{{ $rssLeadItem['url'] }}" style="display:block;padding:10px 22px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">
+                                        <a href="{{ $rssLeadItem['url'] }}" target="_blank" rel="noopener noreferrer" style="display:block;padding:10px 22px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">
                                             Read story
                                         </a>
                                     </td>
@@ -144,7 +144,7 @@
                                             @endif
 
                                             <h2 style="margin:0 0 6px;font-family:Georgia,'Times New Roman',serif;font-size:13px;line-height:1.28;color:#111827;font-weight:700;">
-                                                <a href="{{ $item['url'] }}" style="color:#111827;text-decoration:none;">
+                                                <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="color:#111827;text-decoration:none;">
                                                     {{ $item['title'] }}
                                                 </a>
                                             </h2>
@@ -175,7 +175,7 @@
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                             <tr>
                                 <td style="background-color:{{ $headerColor ?? '#3d405b' }};">
-                                    <a href="https://dataphyte.com/dataphyte-policy-point" style="display:block;padding:12px 18px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">
+                                    <a href="https://dataphyte.com/dataphyte-policy-point" target="_blank" rel="noopener noreferrer" style="display:block;padding:12px 18px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">
                                         Apply here
                                     </a>
                                 </td>

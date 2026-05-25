@@ -11,17 +11,43 @@
 
 ---
 
+## Collection / Product Model
+
+The DB-backed publishing model is:
+
+- `collection` = newsletter family / org-level publishing bucket
+- `blueprint` = product under that collection
+- `entry` = one issue within that product
+
+Current active mapping:
+
+| Collection | Family label | Product blueprints |
+|---|---|---|
+| `foundation_newsletters` | Foundation Newsletters | `weekly`, `activities`, `project_update` |
+| `insight_newsletters` | Insight Newsletters | `pocket_science`, `senorrita`, `marina_maitama`, `data_dive` |
+| `policy_point_newsletters` | Policy Point Newsletters | `policy_point` |
+
+Operational note:
+- `collections.foundation_newsletters.foundation_newsletters` still exists in the DB as an unused legacy/default blueprint handle and is not currently backing live entries.
+
+---
+
 ## Subscriber Groupings
 
 ### 1. Insight Subscribers
 Can send to all Insight Subscribers or individual sub-groups:
-- **Topics** - editorial vertical
+- **Pocket Science** - editorial vertical
 - **Marina & Maitama** - editorial vertical
 - **SenorRita** - editorial vertical (SenorRita brand)
+- **Data Dive** - editorial vertical
 
 ### 2. Foundation
 - **Weekly** - weekly foundation digest
 - **Activities** - foundation activities and events
+- **Project Update** - foundation project and program update
+
+### 3. Policy Point
+- **Regular** - Policy Point recipient bucket
 
 ### Subscriber Source Mapping
 - Subscribers from **Dataphyte Insight website** → Insight Subscribers group
@@ -31,7 +57,7 @@ Can send to all Insight Subscribers or individual sub-groups:
 - Groups and sub-groups are not exhaustive — new ones can be added in the CP without code changes
 
 ### Newsletter Sending Logic
-- Send to a specific sub-group (e.g., only "Topics")
+- Send to a specific sub-group (e.g., only "Pocket Science")
 - Send to all sub-groups within a group (e.g., all Insight Subscribers)
 - Send to all subscribers across all groups
 
@@ -94,7 +120,7 @@ Can send to all Insight Subscribers or individual sub-groups:
 | Table | Purpose |
 |---|---|
 | `subscriber_groups` | Top-level groupings (Insight Subscribers, Foundation) |
-| `subscriber_sub_groups` | Sub-groups within groups (Topics, Weekly, etc.) |
+| `subscriber_sub_groups` | Sub-groups within groups (Pocket Science, Weekly, etc.) |
 | `subscribers` | Email, name, status, confirmation, consent data |
 | `subscriber_sub_group` | Pivot: subscribers <-> sub-groups (many-to-many) |
 | `campaigns` | Newsletter campaigns (draft/scheduled/sending/sent) |
@@ -211,16 +237,17 @@ Can send to all Insight Subscribers or individual sub-groups:
 
 ## Feature Documentation
 Detailed implementation docs for each feature are in `/docs/`:
-- [Statamic Content Architecture](docs/statamic-content-architecture.md)
-- [Analytics & Metrics](docs/analytics.md)
-- [Database Schema](docs/database-schema.md)
-- [Elastic Email Integration](docs/elastic-email-integration.md)
-- [Subscriber Management](docs/subscriber-management.md)
-- [Campaign Engine](docs/campaign-engine.md)
-- [Queue Architecture](docs/queue-architecture.md)
-- [Tracking & Webhooks](docs/tracking-webhooks.md)
-- [Compliance](docs/compliance.md)
-- [Statamic CP Customization](docs/statamic-cp-customization.md)
-- [Cloudways Deployment](docs/cloudways-deployment.md)
-- [DNS Setup](docs/dns-setup.md)
-- [Adding a New Collection](docs/adding-new-collection.md)
+- [Docs Index](docs/README.md)
+- [Statamic Content Architecture](docs/architecture/statamic-content-architecture.md)
+- [Analytics & Metrics](docs/operations/analytics.md)
+- [Database Schema](docs/architecture/database-schema.md)
+- [Elastic Email Integration](docs/integrations/elastic-email-integration.md)
+- [Subscriber Management](docs/operations/subscriber-management.md)
+- [Campaign Engine](docs/architecture/campaign-engine.md)
+- [Queue Architecture](docs/architecture/queue-architecture.md)
+- [Tracking & Webhooks](docs/integrations/tracking-webhooks.md)
+- [Compliance](docs/operations/compliance.md)
+- [Statamic CP Customization](docs/architecture/statamic-cp-customization.md)
+- [Cloudways Deployment](docs/integrations/cloudways-deployment.md)
+- [DNS Setup](docs/integrations/dns-setup.md)
+- [Adding a New Collection](docs/guides/adding-new-collection.md)

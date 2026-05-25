@@ -33,13 +33,13 @@ return [
             'brand_color' => '#0d1b2a',
             'footer'      => [
                 'social_links' => [
-                    'facebook' => '#',
-                    'twitter' => '#',
-                    'linkedin' => '#',
-                    'whatsapp' => '#',
-                    'youtube' => '#',
-                    'instagram' => '#',
-                    'tiktok' => '#',
+                    'facebook' => 'https://web.facebook.com/dataphyte',
+                    'twitter' => 'https://x.com/Dataphyte',
+                    'whatsapp' => 'https://whatsapp.com/channel/0029VaF9xCo6hENiEXLcFS3Q',
+                    'youtube' => 'https://www.youtube.com/@dataphyte',
+                    'instagram' => 'https://www.instagram.com/dataphyteng',
+                    'tiktok' => 'https://www.tiktok.com/@dataphyte',
+                    'linkedin' => 'https://www.linkedin.com/in/dataphyte',
                 ],
                 'offices' => [
                     [
@@ -63,19 +63,19 @@ return [
             'short_label' => 'Foundation',
             'group_name'  => 'Foundation',
             'group_slug'  => 'foundation',
-            'from_email'  => env('NEWSLETTER_FOUNDATION_FROM_EMAIL', 'newsletter@dataphyte.org'),
+            'from_email'  => env('NEWSLETTER_FOUNDATION_FROM_EMAIL', 'partners@dataphyte.org'),
             'from_name'   => env('NEWSLETTER_FOUNDATION_FROM_NAME', 'Dataphyte Foundation'),
             'reply_to'    => env('NEWSLETTER_FOUNDATION_REPLY_TO', ''),
             'brand_color' => '#1b4332',
             'footer'      => [
                 'social_links' => [
-                    'facebook' => '#',
-                    'twitter' => '#',
-                    'linkedin' => '#',
-                    'whatsapp' => '#',
-                    'youtube' => '#',
-                    'instagram' => '#',
-                    'tiktok' => '#',
+                    'facebook' => 'https://web.facebook.com/dataphytefdn',
+                    'twitter' => 'https://x.com/Dataphytefdn',
+                    'whatsapp' => 'https://whatsapp.com/channel/0029VaF9xCo6hENiEXLcFS3Q',
+                    'youtube' => 'https://www.youtube.com/@dataphyte',
+                    'instagram' => 'https://www.instagram.com/dataphytefdn',
+                    'tiktok' => 'https://www.tiktok.com/@dataphyte',
+                    'linkedin' => 'https://www.linkedin.com/company/dataphytefdn',
                 ],
                 'offices' => [
                     [

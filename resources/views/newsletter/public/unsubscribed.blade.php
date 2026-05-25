@@ -17,13 +17,18 @@
 
         <h1 class="text-xl font-semibold text-gray-900 mb-2">You've been unsubscribed</h1>
         <p class="text-gray-500 text-sm">
-            <strong>{{ $subscriber->email }}</strong> has been removed from all mailing lists.
-            You will not receive any further emails from us.
+            @if(!empty($scopedLabel))
+                <strong>{{ $subscriber->email }}</strong> has been removed from {{ $scopedLabel }} emails.
+                You can still remain subscribed to other newsletter families.
+            @else
+                <strong>{{ $subscriber->email }}</strong> has been removed from all mailing lists.
+                You will not receive any further emails from us.
+            @endif
         </p>
 
         <p class="text-xs text-gray-400 mt-6">
             Unsubscribed by mistake?
-            <a href="{{ URL::signedRoute('newsletter.preferences.show', ['token' => $subscriber->confirmation_token]) }}"
+            <a href="{{ URL::signedRoute('newsletter.preferences.show', array_filter(['token' => $subscriber->confirmation_token, 'collection' => $scopedCollection ?? null])) }}"
                class="text-blue-500 hover:underline">Manage your preferences</a>
         </p>
     </div>

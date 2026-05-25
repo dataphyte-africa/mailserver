@@ -50,12 +50,14 @@ class SubscriptionConfirmationMail extends Mailable
                 'headline' => $this->headline(),
                 'bodyCopy' => $this->interpolate((string) ($this->mailConfig['body'] ?? '')),
                 'privacyUrl' => $this->mailConfig['privacy_url'] ?? null,
-                'unsubscribeUrl' => \URL::signedRoute('newsletter.unsubscribe.show', [
+                'unsubscribeUrl' => \URL::signedRoute('newsletter.unsubscribe.show', array_filter([
                     'token' => $this->subscriber->ensureConfirmationToken(),
-                ]),
-                'preferencesUrl' => \URL::signedRoute('newsletter.preferences.show', [
+                    'collection' => $this->mailConfig['collection_handle'] ?? null,
+                ], fn ($value) => filled($value))),
+                'preferencesUrl' => \URL::signedRoute('newsletter.preferences.show', array_filter([
                     'token' => $this->subscriber->ensureConfirmationToken(),
-                ]),
+                    'collection' => $this->mailConfig['collection_handle'] ?? null,
+                ], fn ($value) => filled($value))),
                 'subscriberFirstName' => $this->subscriber->first_name ?? '',
                 'subscriberLastName' => $this->subscriber->last_name ?? '',
                 'subscriberFullName' => $this->subscriber->full_name ?? $this->subscriber->email,

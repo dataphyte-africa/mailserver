@@ -46,7 +46,7 @@
 
     {{-- Preheader (hidden in inbox preview) --}}
     @if(!empty($preheader))
-    <div style="display:none;font-size:1px;color:#f4f4f4;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
+    <div aria-hidden="true" style="display:none !important;visibility:hidden;mso-hide:all;opacity:0;color:transparent;height:0;width:0;max-height:0;max-width:0;overflow:hidden;font-size:1px;line-height:1px;">
         {{ $preheader }}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
     </div>
     @endif

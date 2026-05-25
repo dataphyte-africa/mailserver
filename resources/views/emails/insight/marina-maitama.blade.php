@@ -1,5 +1,11 @@
 @php
     $productName = 'Marina & Maitama';
+    $marinaAccent = '#44fbf0';
+    $maitamaAccent = '#224d54';
+    $marinaBg = '#eefefd';
+    $maitamaBg = '#edf2f2';
+    $statBg = '#eff9f9';
+    $statBorder = '#c7e5e4';
     $hideCollectionHeader = true;
     $lead = $rssLeadItem ?? null;
     $related = collect($relatedRssItems ?? [])->take(4);
@@ -9,6 +15,9 @@
     $maitamaHtml = trim((string) ($maitamaContent ?? ''));
     $entryHeadline = $entryTitle ?? $subject ?? '';
     $primaryCtaUrl = $lead['url'] ?? null;
+    $formattedSentDate = $sentDate
+        ? \Illuminate\Support\Carbon::parse($sentDate)->format('l, F j, Y')
+        : '';
     $stylePerspectiveHtml = function (string $html, string $headingColor, string $bodyColor) {
         if ($html === '') {
             return '';
@@ -27,8 +36,8 @@
             $html
         );
     };
-    $marinaStyledHtml = $stylePerspectiveHtml($marinaHtml, '#155f9f', '#36527b');
-    $maitamaStyledHtml = $stylePerspectiveHtml($maitamaHtml, '#0a7a82', '#335d63');
+    $marinaStyledHtml = $stylePerspectiveHtml($marinaHtml, $maitamaAccent, '#2d5b61');
+    $maitamaStyledHtml = $stylePerspectiveHtml($maitamaHtml, $maitamaAccent, '#365c60');
 @endphp
 
 @extends('emails.layout')
@@ -46,7 +55,7 @@
     <tr>
         <td style="padding:22px 32px 24px;">
             <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#6b7280;">
-                {{ $sentDate }}
+                {{ $formattedSentDate }}
             </p>
         </td>
     </tr>
@@ -65,16 +74,16 @@
             <p style="margin:0 0 14px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;color:#6b7280;">
                 What the Data Says
             </p>
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#eef4fb;border:1px solid #d6e2f1;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:{{ $statBg }};border:1px solid {{ $statBorder }};">
                 <tr>
                     <td style="padding:18px 20px 16px;">
                         @if(!empty($highlightStat))
-                            <p style="margin:0 0 10px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:42px;line-height:0.92;color:#0f4c81;font-weight:800;">
+                            <p style="margin:0 0 10px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:42px;line-height:0.92;color:{{ $maitamaAccent }};font-weight:800;">
                                 {{ $highlightStat }}
                             </p>
                         @endif
                         @if(!empty($highlightStatLabel))
-                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#35528a;">
+                            <p style="margin:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#355c60;">
                                 {{ $highlightStatLabel }}
                             </p>
                         @endif
@@ -99,9 +108,9 @@
                 @if($marinaHtml !== '')
                 <tr>
                     <td style="padding:0 0 18px;">
-                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f3f8fe;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:{{ $marinaBg }};">
                             <tr>
-                                <td style="padding:22px 24px 20px;border-left:7px solid #155f9f;">
+                                <td style="padding:22px 24px 20px;border-left:7px solid {{ $marinaAccent }};">
                                     <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#1f2937;">
                                         {!! $marinaStyledHtml !!}
                                     </div>
@@ -115,9 +124,9 @@
                 @if($maitamaHtml !== '')
                 <tr>
                     <td style="padding:0;">
-                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f1f9f8;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:{{ $maitamaBg }};">
                             <tr>
-                                <td style="padding:22px 24px 20px;border-left:7px solid #0a7a82;">
+                                <td style="padding:22px 24px 20px;border-left:7px solid {{ $maitamaAccent }};">
                                     <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.7;color:#1f2937;">
                                         {!! $maitamaStyledHtml !!}
                                     </div>
@@ -134,13 +143,23 @@
 
     @if($primaryCtaUrl)
     <tr>
-        <td style="padding:0 32px 30px;text-align:center;">
-            <a href="{{ $primaryCtaUrl }}" style="display:inline-block;padding:13px 24px;background:#0d1b2a;color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:3px;">
+        <td style="padding:0 32px 40px;text-align:center;">
+            <a href="{{ $primaryCtaUrl }}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 24px;background:#0d1b2a;color:#ffffff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;text-decoration:none;border-radius:3px;">
                 Read the full analysis
             </a>
-            <p style="margin:12px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.55;color:#6b7280;">
-                See how policy choices and market flows shape everyday outcomes.
-            </p>
+            @if(!empty($lead['title']) || !empty($lead['author']))
+                <p style="margin:10px 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;color:#6b7280;">
+                    @if(!empty($lead['title']))
+                        <span style="color:#1f2937;font-weight:600;">{{ $lead['title'] }}</span>
+                    @endif
+                </p>
+                <p style="margin:3px 0 0;color:#6b7280;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;">
+                    @if(!empty($lead['author']))
+                        By {{ $lead['author'] }}
+                    @endif
+                </p>
+                <div style="height:1px;max-height:1px;line-height:1px;font-size:1px;background:#d9e1ea;width:100%;margin:14px 0 0;">&nbsp;</div>
+            @endif
         </td>
     </tr>
     @endif
@@ -168,7 +187,7 @@
                                                 {{ $item['primary_taxonomy_title'] }}
                                             </p>
                                         @endif
-                                        <a href="{{ $item['url'] }}" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
                                             {{ $item['title'] }}
                                         </a>
                                         @if(!empty($item['author']))
@@ -210,7 +229,7 @@
                                                 {{ $item['primary_taxonomy_title'] }}
                                             </p>
                                         @endif
-                                        <a href="{{ $item['url'] }}" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
+                                        <a href="{{ $item['url'] }}" target="_blank" rel="noopener noreferrer" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#0d1b2a;text-decoration:none;font-weight:700;">
                                             {{ $item['title'] }}
                                         </a>
                                         @if(!empty($item['author']))
