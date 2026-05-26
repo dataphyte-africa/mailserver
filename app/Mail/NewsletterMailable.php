@@ -421,13 +421,16 @@ class NewsletterMailable extends Mailable
         $lastName = $this->subscriber->last_name ?? '';
         $fullName = $this->subscriber->full_name ?? $this->subscriber->email;
         $email = $this->subscriber->email ?? '';
+        $firstNameFallback = $this->campaign->collection === 'foundation_newsletters'
+            ? 'Partners'
+            : 'Reader';
 
         $map = [
             '{{first_name}}' => $firstName,
             '{{last_name}}'  => $lastName,
             '{{full_name}}'  => $fullName,
             '{{email}}'      => $email,
-            '{{firstname}}'  => $firstName !== '' ? $firstName : 'Reader',
+            '{{firstname}}'  => $firstName !== '' ? $firstName : $firstNameFallback,
             '{{lastname}}'   => $lastName,
             '{{fullname}}'   => $fullName,
         ];

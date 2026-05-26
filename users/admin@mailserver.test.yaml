@@ -27,3 +27,9 @@ preferences:
         - datestamp
         - email
         - preference
+    insight_subscribe:
+      columns:
+        - datestamp
+        - email
+        - lastname
+        - preference
