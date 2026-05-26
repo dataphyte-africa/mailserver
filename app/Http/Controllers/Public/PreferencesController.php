@@ -23,9 +23,12 @@ class PreferencesController extends Controller
         [$scopedGroup, $scopedCollection, $scopedLabel] = $this->resolveScope($request);
 
         if ($scopedGroup) {
-            $allSubGroups = collect([$scopedGroup->name => $scopedGroup->subGroups()->orderBy('name')->get()]);
+            $visibleSubGroups = $this->visibleSubGroupsForCollection($scopedGroup, $scopedCollection);
+            $visibleSubGroupIds = $visibleSubGroups->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+            $allSubGroups = collect([$scopedGroup->name => $visibleSubGroups]);
             $activeSubGroupIds = $subscriber->subGroups
-                ->filter(fn ($subGroup) => $subGroup->subscriber_group_id === $scopedGroup->id)
+                ->filter(fn ($subGroup) => in_array((int) $subGroup->id, $visibleSubGroupIds, true))
                 ->pluck('id')
                 ->values()
                 ->all();
@@ -70,7 +73,8 @@ class PreferencesController extends Controller
             ->values();
 
         if ($scopedGroup) {
-            $allowedIds = $scopedGroup->subGroups()->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $visibleSubGroups = $this->visibleSubGroupsForCollection($scopedGroup, $scopedCollection);
+            $allowedIds = $visibleSubGroups->pluck('id')->map(fn ($id) => (int) $id)->all();
             $invalidIds = array_diff($incoming->all(), $allowedIds);
 
             if ($invalidIds !== []) {
@@ -78,7 +82,7 @@ class PreferencesController extends Controller
             }
 
             $current = $subscriber->subGroups()
-                ->where('subscriber_group_id', $scopedGroup->id)
+                ->whereIn('subscriber_sub_groups.id', $allowedIds)
                 ->pluck('subscriber_sub_groups.id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
@@ -115,7 +119,7 @@ class PreferencesController extends Controller
 
             $this->syncSubscriberStatus($subscriber);
 
-            if ($incoming->isEmpty()) {
+            if ($incoming->isEmpty() && ! $subscriber->subGroups()->exists()) {
                 return view('newsletter.public.unsubscribed', compact(
                     'subscriber',
                     'scopedCollection',
@@ -214,5 +218,22 @@ class PreferencesController extends Controller
             'status' => $hasActiveSubscriptions ? 'active' : 'unsubscribed',
             'unsubscribed_at' => $hasActiveSubscriptions ? null : now(),
         ]);
+    }
+
+    private function visibleSubGroupsForCollection(SubscriberGroup $group, ?string $collectionHandle)
+    {
+        $query = $group->subGroups()->orderBy('name');
+
+        if ($collectionHandle !== 'foundation_newsletters') {
+            return $query->get();
+        }
+
+        return $query->whereIn('slug', [
+            'activities',
+            'update',
+            'updates',
+            'project-update',
+            'project_update',
+        ])->get();
     }
 }
