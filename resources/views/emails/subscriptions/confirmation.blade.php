@@ -6,10 +6,6 @@
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
             <tr>
                 <td style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#1f2937;">
-                    <h1 style="margin:0 0 16px;font-size:28px;line-height:1.2;font-weight:700;color:#111827;">
-                        {{ $headline }}
-                    </h1>
-
                     <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#374151;">
                         {{ filled($subscriberFirstName ?? null) ? 'Hello ' . $subscriberFirstName . ',' : 'Hello,' }}
                     </p>

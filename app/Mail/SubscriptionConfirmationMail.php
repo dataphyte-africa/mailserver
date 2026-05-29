@@ -38,6 +38,16 @@ class SubscriptionConfirmationMail extends Mailable
     public function content(): Content
     {
         $sender = $this->mailConfig['sender'] ?? [];
+        $collectionHandle = $this->mailConfig['collection_handle'] ?? null;
+        $collectionKey = is_string($collectionHandle)
+            ? str_replace('_newsletters', '', $collectionHandle)
+            : '';
+        $collectionConfig = is_string($collectionHandle)
+            ? config("newsletter.collections.{$collectionHandle}", [])
+            : [];
+        $footerPartial = $collectionKey !== ''
+            ? 'emails.partials.' . str_replace('_', '-', $collectionKey) . '.footer'
+            : 'emails.partials.shared.footer-base';
 
         return new Content(
             view: 'emails.subscriptions.confirmation',
@@ -52,17 +62,19 @@ class SubscriptionConfirmationMail extends Mailable
                 'privacyUrl' => $this->mailConfig['privacy_url'] ?? null,
                 'unsubscribeUrl' => \URL::signedRoute('newsletter.unsubscribe.show', array_filter([
                     'token' => $this->subscriber->ensureConfirmationToken(),
-                    'collection' => $this->mailConfig['collection_handle'] ?? null,
+                    'collection' => $collectionHandle,
                 ], fn ($value) => filled($value))),
                 'preferencesUrl' => \URL::signedRoute('newsletter.preferences.show', array_filter([
                     'token' => $this->subscriber->ensureConfirmationToken(),
-                    'collection' => $this->mailConfig['collection_handle'] ?? null,
+                    'collection' => $collectionHandle,
                 ], fn ($value) => filled($value))),
                 'subscriberFirstName' => $this->subscriber->first_name ?? '',
                 'subscriberLastName' => $this->subscriber->last_name ?? '',
                 'subscriberFullName' => $this->subscriber->full_name ?? $this->subscriber->email,
                 'subscriberEmail' => $this->subscriber->email,
                 'collectionLabel' => $this->mailConfig['collection_label'] ?? ($sender['from_name'] ?? config('app.name')),
+                'footerConfig' => $collectionConfig['footer'] ?? [],
+                'footerPartial' => $footerPartial,
             ],
         );
     }
