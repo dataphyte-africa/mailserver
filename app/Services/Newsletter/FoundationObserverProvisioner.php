@@ -99,7 +99,7 @@ class FoundationObserverProvisioner
                 'newsletter_send_update_email' => false,
                 'newsletter_confirmation_subject' => 'Call for Election Observers for Osun State Governorship Election',
                 'newsletter_logo_url' => '/storage/foundation-banner.png',
-                'newsletter_confirmation_body' => "Your application as Election Observers for Osun State Governorship Election has been received.\n\nThis application does not automatically guarantee your selection. Applicants will receive an email on the status of their application a week or less after the deadline, with specific information on the next steps.",
+                'newsletter_confirmation_body' => "Your application to serve as an Election Observer for the Osun State Governorship Election has been received.\n\nPlease note that submitting an application does not automatically guarantee your selection. Applicants will be notified of the outcome of their application by email within one week of the application deadline, or earlier. The email will also provide information on the next steps.",
                 'newsletter_confirmation_summary_heading' => null,
                 'newsletter_resubscribe_subject' => null,
                 'newsletter_resubscribe_body' => null,
