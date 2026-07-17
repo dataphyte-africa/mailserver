@@ -73,6 +73,8 @@ class SubscriptionConfirmationMail extends Mailable
                 'subscriberFullName' => $this->subscriber->full_name ?? $this->subscriber->email,
                 'subscriberEmail' => $this->subscriber->email,
                 'collectionLabel' => $this->mailConfig['collection_label'] ?? ($sender['from_name'] ?? config('app.name')),
+                'submissionSummary' => $this->mailConfig['submission_summary'] ?? [],
+                'summaryHeading' => $this->mailConfig['summary_heading'] ?? 'Key information submitted',
                 'footerConfig' => $collectionConfig['footer'] ?? [],
                 'footerPartial' => $footerPartial,
             ],

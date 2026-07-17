@@ -602,6 +602,7 @@ class SubscriptionFormService
                     'subject' => $this->confirmationSubject($form, $status),
                     'body' => $this->confirmationBody($form, $status),
                     'submission_summary' => $this->confirmationSummary($form, $submissionPayload),
+                    'summary_heading' => $form->get('newsletter_confirmation_summary_heading'),
                 ],
             )
         );
@@ -670,6 +671,14 @@ class SubscriptionFormService
             return [];
         }
 
+        $labelMap = [
+            'full_name' => 'Full Name',
+            'lga_name' => 'LGA',
+            'ward_name' => 'Ward',
+            'age' => 'Age',
+            'confirm_above_18' => 'I confirm that I am 18 years or older.',
+        ];
+
         return collect($this->confirmationSummaryFields($form))
             ->map(function (string $handle) use ($form, $payload) {
                 $field = $form->fields()->get($handle);
@@ -679,8 +688,24 @@ class SubscriptionFormService
                     return null;
                 }
 
+                if ($handle === 'confirm_above_18') {
+                    $confirmed = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+
+                    if ($confirmed !== true) {
+                        return null;
+                    }
+
+                    return [
+                        'handle' => $handle,
+                        'label' => 'I confirm that I am 18 years or older.',
+                        'value' => '',
+                        'standalone' => true,
+                    ];
+                }
+
                 return [
-                    'label' => $field->display(),
+                    'handle' => $handle,
+                    'label' => $labelMap[$handle] ?? $field->display(),
                     'value' => is_bool($value) ? ($value ? 'Yes' : 'No') : (string) $value,
                 ];
             })
