@@ -16,7 +16,7 @@ class SubscriptionFormController extends Controller
 
     public function schema(string $form)
     {
-        $resolved = $this->resolveForm($form);
+        $resolved = $this->resolvePublicForm($form);
         $this->forms->syncManagedSubGroups($resolved);
 
         return response()->json($this->forms->schema($resolved));
@@ -24,7 +24,7 @@ class SubscriptionFormController extends Controller
 
     public function submit(Request $request, string $form)
     {
-        $resolved = $this->resolveForm($form);
+        $resolved = $this->resolvePublicForm($form);
 
         if ($request->filled($resolved->honeypot())) {
             return response()->json([
@@ -33,7 +33,9 @@ class SubscriptionFormController extends Controller
             ]);
         }
 
-        $fields = $resolved->blueprint()->fields()->addValues($request->all());
+        $input = $this->forms->prepareSubmissionPayload($resolved, $request->all(), $request);
+
+        $fields = $resolved->blueprint()->fields()->addValues($input);
         $fields->validate();
 
         $payload = $fields->process()->values()->all();
@@ -69,7 +71,7 @@ class SubscriptionFormController extends Controller
         ]);
     }
 
-    private function resolveForm(string $identifier): StatamicForm
+    public function resolvePublicForm(string $identifier): StatamicForm
     {
         $form = $this->forms->resolveForm($identifier);
 

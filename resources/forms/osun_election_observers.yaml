@@ -1,0 +1,21 @@
+title: 'Call for Election Observers for Osun State Governorship Election'
+honeypot: honeypot
+store: true
+newsletter_group: 2
+newsletter_endpoint: osun-election-observers
+newsletter_submission_mode: application
+newsletter_target_sub_group_slug: osun-election-observers-2026
+newsletter_target_sub_group_name: 'Osun Election Observers 2026'
+newsletter_turnstile_field: turnstile_token
+newsletter_confirmation_summary_fields: full_name,phone_number,email,lga_name,ward_name,available_for_election_day,available_for_training
+newsletter_closed_at: '2026-07-21 23:59:00'
+newsletter_closed_message: 'This form no longer takes submissions.'
+newsletter_ineligible_message: 'Thank you for your interest. This application is only open to applicants who are currently resident in Osun State. Because election observers will be deployed within their local government areas of residence, we are unable to continue your application.'
+newsletter_success_message: 'Your application has been received.'
+newsletter_send_confirmation_email: true
+newsletter_send_update_email: false
+newsletter_confirmation_subject: 'Your application has been received'
+newsletter_confirmation_body: |-
+  Your application has been received.
+
+  This application does not automatically guarantee your selection. Applicants will receive an email on the status of their application a week or less after the deadline, with specific information on the next steps.

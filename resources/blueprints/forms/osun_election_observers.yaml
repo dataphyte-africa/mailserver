@@ -1,0 +1,160 @@
+tabs:
+  main:
+    display: Main
+    sections:
+      -
+        fields:
+          -
+            handle: full_name
+            field:
+              type: text
+              display: Full Name
+              validate: required
+          -
+            handle: phone_number
+            field:
+              type: text
+              display: 'Phone Number (WhatsApp preferably)'
+              validate: required
+          -
+            handle: email
+            field:
+              type: text
+              display: 'Email Address'
+              input_type: email
+              validate: required|email
+          -
+            handle: gender
+            field:
+              type: select
+              display: Gender
+              validate: required
+              options:
+                -
+                  key: male
+                  value: Male
+                -
+                  key: female
+                  value: Female
+                -
+                  key: other
+                  value: Other
+          -
+            handle: confirm_above_18
+            field:
+              type: toggle
+              display: 'I confirm that I am 18 years or older.'
+              validate: required
+          -
+            handle: age
+            field:
+              type: integer
+              display: Age
+              validate: required|integer|min:18
+          -
+            handle: resident_in_osun
+            field:
+              type: select
+              display: 'Are you currently resident in Osun State?'
+              validate: required
+              options:
+                -
+                  key: yes
+                  value: Yes
+                -
+                  key: no
+                  value: No
+          -
+            handle: lga_id
+            field:
+              type: text
+              display: 'Local Government Area ID'
+              validate: required
+          -
+            handle: lga_name
+            field:
+              type: text
+              display: 'Local Government Area of Residence'
+              validate: required
+          -
+            handle: ward_id
+            field:
+              type: text
+              display: 'Electoral Ward ID'
+              validate: required
+          -
+            handle: ward_name
+            field:
+              type: text
+              display: 'Electoral Ward of Residence'
+              validate: required
+          -
+            handle: has_election_observation_experience
+            field:
+              type: select
+              display: 'Do you have experience in election observation?'
+              validate: required
+              options:
+                -
+                  key: yes
+                  value: Yes
+                -
+                  key: no
+                  value: No
+          -
+            handle: available_for_election_day
+            field:
+              type: select
+              display: 'Will you be available on Saturday, August 15, 2026 to observe the Osun Governorship election?'
+              validate: required
+              options:
+                -
+                  key: yes
+                  value: Yes
+                -
+                  key: no
+                  value: No
+          -
+            handle: available_for_training
+            field:
+              type: select
+              display: 'Selected applicants will be required to participate in a mandatory training session. Will you be available for the training?'
+              validate: required
+              options:
+                -
+                  key: yes
+                  value: Yes
+                -
+                  key: no
+                  value: No
+          -
+            handle: emergency_phone_number
+            field:
+              type: text
+              display: 'Emergency Phone Number (for security reasons)'
+              validate: required
+          -
+            handle: future_foundation_updates
+            field:
+              type: toggle
+              display: 'I would like to receive future communication from Dataphyte Foundation on data collections and other Dataphyte Foundation related content.'
+              validate: required
+          -
+            handle: turnstile_token
+            field:
+              type: text
+              display: 'Turnstile Token'
+              validate: required
+          -
+            handle: ip_address
+            field:
+              type: text
+              display: 'IP Address'
+              validate: required
+          -
+            handle: device
+            field:
+              type: text
+              display: Device
+              validate: required
+title: 'Osun Election Observers'

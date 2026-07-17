@@ -6,11 +6,14 @@ use App\Mail\SubscriptionConfirmationMail;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Statamic\Contracts\Forms\Form as StatamicForm;
 use Statamic\Contracts\Forms\Submission as StatamicSubmission;
 use Statamic\Facades\Form;
@@ -87,6 +90,89 @@ class SubscriptionFormService
         $handle = $form->get('newsletter_preference_field');
 
         return is_string($handle) && $handle !== '' ? $handle : null;
+    }
+
+    public function submissionMode(StatamicForm $form): string
+    {
+        $mode = (string) ($form->get('newsletter_submission_mode') ?: 'subscription');
+
+        return in_array($mode, ['subscription', 'application'], true)
+            ? $mode
+            : 'subscription';
+    }
+
+    public function targetSubGroupSlug(StatamicForm $form): ?string
+    {
+        $slug = $form->get('newsletter_target_sub_group_slug');
+
+        return is_string($slug) && trim($slug) !== '' ? Str::slug($slug) : null;
+    }
+
+    public function targetSubGroupName(StatamicForm $form): ?string
+    {
+        $name = $form->get('newsletter_target_sub_group_name');
+
+        return is_string($name) && trim($name) !== '' ? trim($name) : null;
+    }
+
+    public function turnstileFieldHandle(StatamicForm $form): ?string
+    {
+        $handle = $form->get('newsletter_turnstile_field');
+
+        return is_string($handle) && trim($handle) !== '' ? trim($handle) : null;
+    }
+
+    public function confirmationSummaryFields(StatamicForm $form): array
+    {
+        return collect(explode(',', (string) ($form->get('newsletter_confirmation_summary_fields') ?? '')))
+            ->map(fn (string $handle) => trim($handle))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    public function closedAt(StatamicForm $form): ?CarbonImmutable
+    {
+        $value = $form->get('newsletter_closed_at');
+
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($value, config('app.timezone'));
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function closedMessage(StatamicForm $form): string
+    {
+        return (string) ($form->get('newsletter_closed_message') ?: 'This form no longer takes submissions.');
+    }
+
+    public function ineligibleMessage(StatamicForm $form): string
+    {
+        return (string) ($form->get('newsletter_ineligible_message')
+            ?: 'Thank you for your interest. This application is only open to applicants who are currently resident in Osun State. Because election observers will be deployed within their local government areas of residence, we are unable to continue your application.');
+    }
+
+    public function prepareSubmissionPayload(StatamicForm $form, array $payload, Request $request): array
+    {
+        $payload['ip_address'] = (string) ($payload['ip_address'] ?? $request->ip() ?? '');
+        $payload['device'] = (string) ($payload['device'] ?? Str::limit((string) $request->userAgent(), 255, ''));
+
+        if (isset($payload['email']) && is_string($payload['email'])) {
+            $payload['email'] = strtolower(trim($payload['email']));
+        }
+
+        foreach (['phone_number', 'emergency_phone_number'] as $handle) {
+            if (isset($payload[$handle]) && is_string($payload[$handle])) {
+                $payload[$handle] = $this->normalizePhone($payload[$handle]);
+            }
+        }
+
+        return $payload;
     }
 
     public function resolveForm(string $identifier): ?StatamicForm
@@ -169,6 +255,10 @@ class SubscriptionFormService
 
     public function subscribe(StatamicForm $form, array $payload, Request $request): array
     {
+        if ($this->submissionMode($form) === 'application') {
+            return $this->submitApplication($form, $payload, $request);
+        }
+
         $collectionHandle = $this->collectionHandle($form);
         $group = $this->group($form);
         abort_if(! $group || ! $collectionHandle, 422, 'Newsletter form is not linked to a valid subscriber group.');
@@ -283,6 +373,111 @@ class SubscriptionFormService
         ];
     }
 
+    private function submitApplication(StatamicForm $form, array $payload, Request $request): array
+    {
+        $collectionHandle = $this->collectionHandle($form);
+        $group = $this->group($form);
+        abort_if(! $group || ! $collectionHandle, 422, 'Application form is not linked to a valid subscriber group.');
+
+        $this->assertFormIsOpen($form);
+        $this->assertEligibleResidency($form, $payload);
+        $this->assertAdultApplicant($payload);
+        $this->assertValidTurnstile($form, $payload, $request);
+
+        $targetSubGroup = $this->ensureTargetSubGroup($form, $group);
+        $normalizedEmail = strtolower(trim((string) Arr::get($payload, 'email')));
+        $normalizedPhone = $this->normalizePhone((string) Arr::get($payload, 'phone_number'));
+
+        $duplicateByEmail = Subscriber::query()
+            ->where('email', $normalizedEmail)
+            ->whereHas('allSubGroups', fn ($query) => $query->where('subscriber_sub_groups.id', $targetSubGroup->id))
+            ->first();
+
+        $duplicateByPhone = Subscriber::query()
+            ->whereHas('allSubGroups', fn ($query) => $query->where('subscriber_sub_groups.id', $targetSubGroup->id))
+            ->where($this->applicationPhoneJsonPath($form), $normalizedPhone)
+            ->first();
+
+        if ($duplicateByEmail && $duplicateByPhone) {
+            throw ValidationException::withMessages([
+                'email' => 'We already have your record.',
+            ]);
+        }
+
+        if ($duplicateByEmail) {
+            throw ValidationException::withMessages([
+                'email' => 'Application already received for this email address.',
+            ]);
+        }
+
+        if ($duplicateByPhone) {
+            throw ValidationException::withMessages([
+                'phone_number' => 'Application already received for this phone number.',
+            ]);
+        }
+
+        $subscriber = Subscriber::firstOrNew([
+            'email' => $normalizedEmail,
+        ]);
+
+        [$firstName, $lastName] = $this->splitFullName((string) Arr::get($payload, 'full_name'));
+        $applicationPayload = $this->applicationPayloadForStorage($payload, $request);
+        $metadata = array_merge($subscriber->metadata ?? [], [
+            'application_forms' => array_merge(
+                Arr::get($subscriber->metadata ?? [], 'application_forms', []),
+                [
+                    $form->handle() => [
+                        'submitted_at' => now()->toIso8601String(),
+                        'group_slug' => $targetSubGroup->slug,
+                        'phone_number' => $normalizedPhone,
+                        'payload' => $applicationPayload,
+                    ],
+                ]
+            ),
+        ]);
+
+        $subscriber->fill([
+            'first_name' => $firstName ?: $subscriber->first_name,
+            'last_name' => $lastName ?: $subscriber->last_name,
+            'status' => 'active',
+            'confirmed_at' => $subscriber->confirmed_at ?? now(),
+            'unsubscribed_at' => null,
+            'ip_address' => (string) Arr::get($applicationPayload, 'ip_address', $request->ip()),
+            'user_agent' => Str::limit((string) $request->userAgent(), 65535, ''),
+            'metadata' => $metadata,
+        ]);
+
+        $subscriber->ensureConfirmationToken();
+        $subscriber->save();
+
+        $existingSubGroupIds = $subscriber->allSubGroups()
+            ->pluck('subscriber_sub_groups.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (in_array((int) $targetSubGroup->id, $existingSubGroupIds, true)) {
+            $subscriber->allSubGroups()->updateExistingPivot($targetSubGroup->id, [
+                'subscribed_at' => now(),
+                'unsubscribed_at' => null,
+            ]);
+        } else {
+            $subscriber->allSubGroups()->attach($targetSubGroup->id, [
+                'subscribed_at' => now(),
+                'unsubscribed_at' => null,
+            ]);
+        }
+
+        $subscriber = $subscriber->fresh(['subGroups.group']);
+
+        return [
+            'subscriber' => $subscriber,
+            'subscriber_group_id' => $group->id,
+            'status' => 'submitted',
+            'message' => $this->successMessage($form),
+            'email_sent' => $this->dispatchLifecycleEmail($form, $subscriber, 'submitted', $applicationPayload),
+        ];
+    }
+
     public function preferenceOptions(StatamicForm $form): array
     {
         $fieldHandle = $this->preferenceFieldHandle($form);
@@ -368,11 +563,12 @@ class SubscriptionFormService
             'already_subscribed' => 'You are already subscribed.',
             'subscription_updated' => 'You are already subscribed. Your details or preferences were updated.',
             'resubscribed' => 'Your subscription has been restored.',
+            'submitted' => $this->successMessage($form),
             default => $this->successMessage($form),
         };
     }
 
-    private function dispatchLifecycleEmail(StatamicForm $form, Subscriber $subscriber, string $status): bool
+    private function dispatchLifecycleEmail(StatamicForm $form, Subscriber $subscriber, string $status, array $submissionPayload = []): bool
     {
         if (! $this->shouldSendLifecycleEmail($form, $status)) {
             return false;
@@ -393,6 +589,7 @@ class SubscriptionFormService
                     'brand_color' => $this->brandColor($form),
                     'subject' => $this->confirmationSubject($form, $status),
                     'body' => $this->confirmationBody($form, $status),
+                    'submission_summary' => $this->confirmationSummary($form, $submissionPayload),
                 ],
             )
         );
@@ -408,6 +605,7 @@ class SubscriptionFormService
 
         return match ($status) {
             'subscribed', 'resubscribed' => true,
+            'submitted' => true,
             'subscription_updated' => $this->sendUpdateEmail($form),
             default => false,
         };
@@ -428,6 +626,7 @@ class SubscriptionFormService
         return match ($status) {
             'resubscribed' => "Welcome back to {$collectionLabel}",
             'subscription_updated' => "Your {$collectionLabel} preferences were updated",
+            'submitted' => (string) ($form->get('newsletter_confirmation_subject') ?: 'Your application has been received'),
             default => "Welcome to {$collectionLabel}",
         };
     }
@@ -447,8 +646,172 @@ class SubscriptionFormService
         return match ($status) {
             'resubscribed' => "You are subscribed to {$collectionLabel} again. We will continue sending updates to this email address.",
             'subscription_updated' => "Your {$collectionLabel} subscriber details have been updated.",
+            'submitted' => (string) ($form->get('newsletter_confirmation_body')
+                ?: "Your application has been received.\n\nThis application does not automatically guarantee your selection. Applicants will receive an email on the status of their application a week or less after the deadline, with specific information on the next steps."),
             default => "Thank you for subscribing to {$collectionLabel}. We will send future updates to this email address.",
         };
+    }
+
+    private function confirmationSummary(StatamicForm $form, array $payload): array
+    {
+        if ($payload === []) {
+            return [];
+        }
+
+        return collect($this->confirmationSummaryFields($form))
+            ->map(function (string $handle) use ($form, $payload) {
+                $field = $form->fields()->get($handle);
+                $value = Arr::get($payload, $handle);
+
+                if ($field === null || $value === null || $value === '') {
+                    return null;
+                }
+
+                return [
+                    'label' => $field->display(),
+                    'value' => is_bool($value) ? ($value ? 'Yes' : 'No') : (string) $value,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function assertFormIsOpen(StatamicForm $form): void
+    {
+        $closedAt = $this->closedAt($form);
+
+        if ($closedAt && now()->greaterThan($closedAt)) {
+            throw ValidationException::withMessages([
+                'form' => $this->closedMessage($form),
+            ]);
+        }
+    }
+
+    private function assertEligibleResidency(StatamicForm $form, array $payload): void
+    {
+        $value = strtolower(trim((string) Arr::get($payload, 'resident_in_osun', '')));
+
+        if (! in_array($value, ['yes', '1', 'true'], true)) {
+            throw ValidationException::withMessages([
+                'resident_in_osun' => $this->ineligibleMessage($form),
+            ]);
+        }
+    }
+
+    private function assertAdultApplicant(array $payload): void
+    {
+        $confirmed = filter_var(Arr::get($payload, 'confirm_above_18'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+        $age = (int) Arr::get($payload, 'age', 0);
+
+        if ($confirmed !== true) {
+            throw ValidationException::withMessages([
+                'confirm_above_18' => 'You must confirm that you are 18 years or older.',
+            ]);
+        }
+
+        if ($age < 18) {
+            throw ValidationException::withMessages([
+                'age' => 'Applicants must be 18 years or older.',
+            ]);
+        }
+    }
+
+    private function assertValidTurnstile(StatamicForm $form, array $payload, Request $request): void
+    {
+        $field = $this->turnstileFieldHandle($form);
+
+        if (! $field) {
+            return;
+        }
+
+        $token = trim((string) Arr::get($payload, $field, ''));
+        $secret = (string) config('services.turnstile.secret');
+
+        if ($token === '') {
+            throw ValidationException::withMessages([
+                $field => 'Security verification is required.',
+            ]);
+        }
+
+        if ($secret === '') {
+            throw ValidationException::withMessages([
+                $field => 'Security verification is not configured.',
+            ]);
+        }
+
+        $response = Http::asForm()
+            ->timeout(10)
+            ->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                'secret' => $secret,
+                'response' => $token,
+                'remoteip' => $request->ip(),
+            ]);
+
+        if (! $response->ok() || ! (bool) $response->json('success')) {
+            throw ValidationException::withMessages([
+                $field => 'Security verification failed. Please try again.',
+            ]);
+        }
+    }
+
+    private function ensureTargetSubGroup(StatamicForm $form, SubscriberGroup $group): SubscriberSubGroup
+    {
+        $slug = $this->targetSubGroupSlug($form);
+
+        if (! $slug) {
+            throw ValidationException::withMessages([
+                'form' => 'Application target subgroup is not configured.',
+            ]);
+        }
+
+        return SubscriberSubGroup::query()->firstOrCreate(
+            [
+                'subscriber_group_id' => $group->id,
+                'slug' => $slug,
+            ],
+            [
+                'name' => $this->targetSubGroupName($form) ?: Str::of($slug)->replace('-', ' ')->title()->toString(),
+                'description' => 'Auto-managed from public application intake.',
+            ]
+        );
+    }
+
+    private function applicationPhoneJsonPath(StatamicForm $form): string
+    {
+        return 'metadata->application_forms->' . $form->handle() . '->phone_number';
+    }
+
+    private function applicationPayloadForStorage(array $payload, Request $request): array
+    {
+        $payload = $payload;
+        unset($payload['turnstile_token'], $payload['honeypot']);
+
+        $payload['ip_address'] = (string) ($payload['ip_address'] ?? $request->ip() ?? '');
+        $payload['device'] = (string) ($payload['device'] ?? Str::limit((string) $request->userAgent(), 255, ''));
+
+        return $payload;
+    }
+
+    private function normalizePhone(string $value): string
+    {
+        return preg_replace('/\D+/', '', trim($value)) ?: '';
+    }
+
+    private function splitFullName(string $value): array
+    {
+        $value = trim(preg_replace('/\s+/', ' ', $value));
+
+        if ($value === '') {
+            return [null, null];
+        }
+
+        $parts = explode(' ', $value, 2);
+
+        return [
+            $parts[0] ?? null,
+            $parts[1] ?? null,
+        ];
     }
 
     private function normalize(?string $value): ?string

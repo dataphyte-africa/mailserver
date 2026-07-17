@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Public\ElectionLocationController;
+use App\Http\Controllers\Public\ObserverApplicationPageController;
 use App\Http\Controllers\Public\PreferencesController;
 use App\Http\Controllers\Public\SubscriptionFormController;
 use App\Http\Controllers\Public\UnsubscribeController;
@@ -60,8 +62,23 @@ Route::post('/preferences/{token}', [PreferencesController::class, 'update'])
     ->name('newsletter.preferences.update');
 
 // Public newsletter form schema + submit endpoints.
+Route::get('/subscribe/{form}', [ObserverApplicationPageController::class, 'show'])
+    ->name('newsletter.forms.show');
+
 Route::get('/subscribe/{form}/schema', [SubscriptionFormController::class, 'schema'])
     ->name('newsletter.forms.schema');
+
+Route::get('/subscribe/{form}/locations/states', [ElectionLocationController::class, 'states'])
+    ->middleware('throttle:60,1')
+    ->name('newsletter.forms.locations.states');
+
+Route::get('/subscribe/{form}/locations/states/{state}/lgas', [ElectionLocationController::class, 'lgas'])
+    ->middleware('throttle:60,1')
+    ->name('newsletter.forms.locations.lgas');
+
+Route::get('/subscribe/{form}/locations/lgas/{lga}/wards', [ElectionLocationController::class, 'wards'])
+    ->middleware('throttle:60,1')
+    ->name('newsletter.forms.locations.wards');
 
 Route::post('/subscribe/{form}', [SubscriptionFormController::class, 'submit'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])

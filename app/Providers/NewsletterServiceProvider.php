@@ -90,6 +90,51 @@ class NewsletterServiceProvider extends ServiceProvider
                 'display' => 'Preference Field Handle',
                 'instructions' => 'The form field handle whose options should become subscriber sub-groups.',
             ],
+            'newsletter_submission_mode' => [
+                'type' => 'select',
+                'display' => 'Submission Mode',
+                'instructions' => 'Use "subscription" for newsletter signup forms and "application" for campaign/application intake forms.',
+                'default' => 'subscription',
+                'options' => [
+                    'subscription' => 'Subscription',
+                    'application' => 'Application',
+                ],
+            ],
+            'newsletter_target_sub_group_slug' => [
+                'type' => 'text',
+                'display' => 'Target Sub-group Slug',
+                'instructions' => 'For application forms, the applicant subgroup slug that submissions should be attached to.',
+            ],
+            'newsletter_target_sub_group_name' => [
+                'type' => 'text',
+                'display' => 'Target Sub-group Name',
+                'instructions' => 'Optional human-readable subgroup name used when creating the target subgroup.',
+            ],
+            'newsletter_turnstile_field' => [
+                'type' => 'text',
+                'display' => 'Turnstile Field Handle',
+                'instructions' => 'Optional field handle used to receive the Cloudflare Turnstile token.',
+            ],
+            'newsletter_confirmation_summary_fields' => [
+                'type' => 'textarea',
+                'display' => 'Confirmation Summary Fields',
+                'instructions' => 'Comma-separated field handles to show back to the applicant in the confirmation email.',
+            ],
+            'newsletter_closed_at' => [
+                'type' => 'text',
+                'display' => 'Submission Deadline',
+                'instructions' => 'Optional close-off datetime, for example 2026-07-21 23:59:00.',
+            ],
+            'newsletter_closed_message' => [
+                'type' => 'textarea',
+                'display' => 'Closed Message',
+                'instructions' => 'Message returned when submissions are closed.',
+            ],
+            'newsletter_ineligible_message' => [
+                'type' => 'textarea',
+                'display' => 'Ineligible Message',
+                'instructions' => 'Message returned when the applicant fails the residency gate.',
+            ],
             'newsletter_privacy_url' => [
                 'type' => 'text',
                 'display' => 'Privacy Policy URL',

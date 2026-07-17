@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'turnstile' => [
+        'secret' => env('CLOUDFLARE_TURNSTILE_SECRET'),
+        'site_key' => env('CLOUDFLARE_TURNSTILE_SITE_KEY'),
+    ],
+
+    'dataphyte_election' => [
+        'base_url' => env('DATAPHYTE_ELECTION_API_BASE_URL', 'https://election.dataphyte.com'),
+        'token' => env('DATAPHYTE_ELECTION_API_TOKEN'),
+        'timeout' => env('DATAPHYTE_ELECTION_API_TIMEOUT', 10),
+    ],
+
 ];
