@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Services\Foundation\ElectionLocationService;
 use App\Services\Newsletter\SubscriptionFormService;
-use Illuminate\View\View;
+use Illuminate\Http\Response;
 
 class ObserverApplicationPageController extends Controller
 {
@@ -14,7 +14,7 @@ class ObserverApplicationPageController extends Controller
         private readonly ElectionLocationService $locations,
     ) {}
 
-    public function show(string $form): View
+    public function show(string $form): Response
     {
         $resolved = $this->forms->resolveForm($form);
 
@@ -25,7 +25,7 @@ class ObserverApplicationPageController extends Controller
         $foundationLogoUrl = $this->logoUrl(config('statamic.cp.custom_logo_url'));
         $closedAt = $this->forms->closedAt($resolved);
 
-        return view('newsletter.public.observer-application', [
+        return response()->view('newsletter.public.observer-application', [
             'form' => $resolved,
             'schemaEndpoint' => route('newsletter.forms.schema', ['form' => $form]),
             'submitEndpoint' => route('newsletter.forms.submit', ['form' => $form]),
@@ -41,7 +41,8 @@ class ObserverApplicationPageController extends Controller
             'successMessage' => $this->forms->successMessage($resolved),
             'osunState' => $osun,
             'foundationLogoUrl' => $foundationLogoUrl,
-        ]);
+        ])->header('Cache-Control', 'public, max-age=300, s-maxage=600, stale-while-revalidate=60, no-transform')
+            ->header('Vary', 'Accept-Encoding');
     }
 
     private function logoUrl(?string $path): string
