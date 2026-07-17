@@ -67,7 +67,9 @@
 
             <tr>
                 <td style="padding:18px 0 0;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#8a8f98;">
-                    &copy; {{ date('Y') }} {{ $fromName ?? config('app.name') }}. All rights reserved.
+                    &copy; {{ date('Y') }}
+                    <a href="https://dataphyte.org" target="_blank" rel="noopener noreferrer" style="color:#8a8f98;text-decoration:underline;">{{ $fromName ?? config('app.name') }}</a>.
+                    All rights reserved.
                 </td>
             </tr>
         </table>
