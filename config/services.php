@@ -38,6 +38,7 @@ return [
     'turnstile' => [
         'secret' => env('CLOUDFLARE_TURNSTILE_SECRET'),
         'site_key' => env('CLOUDFLARE_TURNSTILE_SITE_KEY'),
+        'bypass' => env('CLOUDFLARE_TURNSTILE_BYPASS', false),
     ],
 
     'dataphyte_election' => [

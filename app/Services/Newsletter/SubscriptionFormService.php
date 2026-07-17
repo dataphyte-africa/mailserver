@@ -159,6 +159,12 @@ class SubscriptionFormService
 
     public function prepareSubmissionPayload(StatamicForm $form, array $payload, Request $request): array
     {
+        $turnstileField = $this->turnstileFieldHandle($form);
+
+        if ($turnstileField && ! filled($payload[$turnstileField] ?? null) && filled($payload['cf-turnstile-response'] ?? null)) {
+            $payload[$turnstileField] = $payload['cf-turnstile-response'];
+        }
+
         $payload['ip_address'] = (string) ($payload['ip_address'] ?? $request->ip() ?? '');
         $payload['device'] = (string) ($payload['device'] ?? Str::limit((string) $request->userAgent(), 255, ''));
 
@@ -169,6 +175,12 @@ class SubscriptionFormService
         foreach (['phone_number', 'emergency_phone_number'] as $handle) {
             if (isset($payload[$handle]) && is_string($payload[$handle])) {
                 $payload[$handle] = $this->normalizePhone($payload[$handle]);
+            }
+        }
+
+        if ($this->shouldBypassTurnstile()) {
+            if ($turnstileField && ! filled($payload[$turnstileField] ?? null)) {
+                $payload[$turnstileField] = 'dev-turnstile-bypass';
             }
         }
 
@@ -725,6 +737,10 @@ class SubscriptionFormService
             return;
         }
 
+        if ($this->shouldBypassTurnstile()) {
+            return;
+        }
+
         $token = trim((string) Arr::get($payload, $field, ''));
         $secret = (string) config('services.turnstile.secret');
 
@@ -753,6 +769,12 @@ class SubscriptionFormService
                 $field => 'Security verification failed. Please try again.',
             ]);
         }
+    }
+
+    public function shouldBypassTurnstile(): bool
+    {
+        return ! app()->environment('production')
+            && (bool) config('services.turnstile.bypass');
     }
 
     private function ensureTargetSubGroup(StatamicForm $form, SubscriberGroup $group): SubscriberSubGroup

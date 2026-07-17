@@ -23,6 +23,7 @@ class ObserverApplicationPageController extends Controller
 
         $osun = $this->locations->findStateByName('Osun') ?: ['id' => 31, 'name' => 'Osun'];
         $foundationLogoUrl = $this->logoUrl(config('statamic.cp.custom_logo_url'));
+        $closedAt = $this->forms->closedAt($resolved);
 
         return view('newsletter.public.observer-application', [
             'form' => $resolved,
@@ -32,7 +33,9 @@ class ObserverApplicationPageController extends Controller
             'lgasEndpointTemplate' => route('newsletter.forms.locations.lgas', ['form' => $form, 'state' => '__STATE__']),
             'wardsEndpointTemplate' => route('newsletter.forms.locations.wards', ['form' => $form, 'lga' => '__LGA__']),
             'turnstileSiteKey' => (string) config('services.turnstile.site_key', ''),
-            'closedAt' => $this->forms->closedAt($resolved),
+            'turnstileBypass' => $this->forms->shouldBypassTurnstile(),
+            'closedAt' => $closedAt,
+            'closedAtIso' => $closedAt?->toIso8601String(),
             'closedMessage' => $this->forms->closedMessage($resolved),
             'ineligibleMessage' => $this->forms->ineligibleMessage($resolved),
             'successMessage' => $this->forms->successMessage($resolved),

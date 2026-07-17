@@ -98,10 +98,10 @@ class FoundationObserverProvisioner
                 'newsletter_send_confirmation_email' => true,
                 'newsletter_send_update_email' => false,
                 'newsletter_confirmation_subject' => 'Your application has been received',
+                'newsletter_logo_url' => config('statamic.cp.custom_logo_url') ?: '/storage/dataphyte-foundation-logo.png',
                 'newsletter_confirmation_body' => "Your application has been received.\n\nThis application does not automatically guarantee your selection. Applicants will receive an email on the status of their application a week or less after the deadline, with specific information on the next steps.",
                 'newsletter_resubscribe_subject' => null,
                 'newsletter_resubscribe_body' => null,
-                'newsletter_logo_url' => null,
                 'newsletter_brand_color' => null,
                 'newsletter_privacy_url' => null,
             ])

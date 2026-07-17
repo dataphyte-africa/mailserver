@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html class="light" lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
@@ -34,7 +35,7 @@
 
         body {
             margin: 0;
-            background: #f7f3e9;
+            background: #ffffff;
             color: var(--ink);
             font-family: "Work Sans", sans-serif;
         }
@@ -46,35 +47,29 @@
 
         .nav-shell {
             width: 100%;
-            padding: 14px 16px 0;
+            padding: 0;
         }
 
         .nav-inner {
-            max-width: 1040px;
-            margin: 0 auto;
-            min-height: 76px;
+            width: 100%;
+            min-height: 64px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 26px;
+            justify-content: center;
+            padding: 12px 28px;
             background: #ffffff;
-            border: 1px solid var(--line-soft);
-            box-shadow: 0 8px 24px rgba(29, 27, 22, 0.04);
-        }
-
-        .nav-spacer {
-            flex: 1 1 auto;
+            border-bottom: 1px solid var(--line-soft);
         }
 
         .page {
-            max-width: 880px;
-            margin: 0 auto;
-            padding: 28px 16px 64px;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            padding: 0 0 64px;
         }
 
         .topbar-logo {
-            width: 160px;
+            width: 118px;
             max-width: 100%;
         }
 
@@ -83,8 +78,7 @@
             overflow: hidden;
             background: linear-gradient(135deg, #004867 0%, #1e668a 52%, #2a759b 100%);
             color: #ffffff;
-            box-shadow: var(--shadow);
-            margin-bottom: 36px;
+            margin: 0 0 26px;
         }
 
         .hero::after {
@@ -102,60 +96,63 @@
             position: absolute;
             inset: 0;
             background:
-                linear-gradient(90deg, rgba(255,255,255,0.06) 0, rgba(255,255,255,0) 28%),
-                linear-gradient(0deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0) 42%);
+                linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0, rgba(255, 255, 255, 0) 28%),
+                linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0) 42%);
             pointer-events: none;
         }
 
         .hero-inner {
             position: relative;
             z-index: 1;
-            padding: 42px 38px 36px;
-        }
-
-        .hero-kicker {
-            margin: 0 0 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.16em;
-            font-size: 12px;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.74);
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 34px 28px 30px;
         }
 
         .hero-title {
             margin: 0 0 14px;
             font-family: "Hanken Grotesk", sans-serif;
-            font-size: clamp(34px, 5vw, 56px);
-            line-height: 0.98;
+            font-size: clamp(20px, 2.2vw, 32px);
+            line-height: 1.02;
             letter-spacing: -0.03em;
             font-weight: 800;
-            max-width: 760px;
+            max-width: 820px;
         }
 
         .hero-copy {
             margin: 0;
             max-width: 760px;
-            font-size: 20px;
-            line-height: 1.58;
+            font-size: clamp(16px, 2vw, 18px);
+            line-height: 1.62;
             color: rgba(255, 255, 255, 0.9);
         }
 
         .hero-info {
-            margin-top: 32px;
+            max-width: 1040px;
+            margin: 0 auto 25px;
+            padding: 0 28px 5px 28px;
             display: grid;
+            gap: 0;
+            border-bottom: solid 1px #e5e5e5;
+        }
+
+        .hero-info-inner {
+            display: grid;
+            grid-template-columns: 1fr;
             gap: 18px;
-            max-width: 820px;
+            padding: 8px 0 0;
         }
 
         .hero-info-row {
             display: flex;
             align-items: flex-start;
             gap: 12px;
+            padding-right: 0;
         }
 
         .hero-info-row .material-symbols-outlined {
             font-size: 20px;
-            color: var(--primary-soft);
+            color: var(--primary);
             flex: 0 0 auto;
             margin-top: 3px;
         }
@@ -167,21 +164,23 @@
             letter-spacing: 0.08em;
             font-size: 12px;
             font-weight: 700;
-            color: rgba(255, 255, 255, 0.82);
+            color: var(--primary);
         }
 
         .hero-info-row p {
             margin: 0;
-            font-size: 16px;
-            line-height: 1.62;
-            color: rgba(255, 255, 255, 0.86);
+            font-size: 12px;
+            line-height: 1.58;
+            color: #54606c;
         }
 
         .shell {
-            background: var(--surface-card);
-            border: 1px solid var(--line-soft);
-            padding: 28px 28px 32px;
-            box-shadow: 0 8px 30px rgba(29, 27, 22, 0.04);
+            max-width: 1040px;
+            margin: 0 auto;
+            background: transparent;
+            border: 0;
+            padding: 0 28px 32px;
+            box-shadow: none;
         }
 
         .notice {
@@ -209,57 +208,46 @@
             border: 1px solid #abefc6;
         }
 
-        .shell-header {
-            margin-bottom: 34px;
-        }
-
-        .shell-title {
-            margin: 0 0 6px;
-            color: var(--primary);
-            font-family: "Hanken Grotesk", sans-serif;
-            font-size: 26px;
-            line-height: 1.15;
-            font-weight: 700;
-        }
-
-        .shell-copy {
-            margin: 0;
-            max-width: 760px;
-            color: #5c6570;
-            font-size: 15px;
-            line-height: 1.7;
-        }
-
         .form-stack {
             display: grid;
-            gap: 28px;
+            gap: 18px;
         }
 
         fieldset {
             margin: 0;
-            padding: 0;
             border: 0;
             min-width: 0;
         }
 
+        .form-section {
+            padding: 18px;
+            border: 1px solid #f1ede5;
+            border-radius: 14px;
+            background: #ffffff;
+        }
+
         .section-legend {
-            margin: 0 0 14px;
-            color: var(--primary);
-            font-size: 18px;
-            line-height: 1.3;
-            font-weight: 700;
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         .section-box {
             padding: 18px;
             border-radius: 14px;
-            background: var(--surface-low);
-            border: 1px solid var(--line-soft);
+            background: #fcfaf5;
+            border: 1px solid #f1ede5;
         }
 
         .grid {
             display: grid;
-            gap: 16px;
+            gap: 14px;
         }
 
         .grid.two {
@@ -457,17 +445,16 @@
             width: 100%;
             margin-top: 0;
             border-top: 1px solid var(--line-soft);
-            background: rgba(199, 231, 255, 0.4);
+            background: #ffffff;
         }
 
         .site-footer-inner {
-            max-width: 1040px;
-            margin: 0 auto;
+            width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 16px;
-            padding: 14px 16px;
+            padding: 12px 28px;
             color: #6c737c;
             font-size: 12px;
             line-height: 1.5;
@@ -479,22 +466,27 @@
 
         @media (max-width: 820px) {
             .nav-shell {
-                padding-top: 10px;
+                padding-top: 0;
             }
 
             .nav-inner {
-                min-height: 64px;
-                padding: 14px 18px;
+                min-height: 56px;
+                padding: 10px 16px;
             }
 
             .page {
-                padding-top: 18px;
                 padding-bottom: 44px;
             }
 
             .hero-inner,
             .shell {
-                padding: 22px 18px;
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .hero-inner {
+                padding-top: 24px;
+                padding-bottom: 24px;
             }
 
             .site-footer-inner,
@@ -503,9 +495,46 @@
                 align-items: flex-start;
             }
 
-            .grid.two,
-            .choice-grid {
+            .hero {
+                margin-bottom: 20px;
+            }
+
+            .hero-title {
+                font-size: 22px;
+                line-height: 1.04;
+            }
+
+            .hero-copy {
+                font-size: 16px;
+                line-height: 1.6;
+            }
+
+            .hero-info {
+                margin-bottom: 16px;
+                padding: 0 16px;
+            }
+
+            .hero-info-inner {
                 grid-template-columns: 1fr;
+                gap: 16px;
+                padding-top: 2px;
+            }
+
+            .hero-info-row {
+                padding-right: 0;
+            }
+
+            .grid.two {
+                grid-template-columns: 1fr;
+            }
+
+            .choice-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .choice-tile {
+                padding: 12px 14px;
             }
 
             .button {
@@ -514,66 +543,62 @@
         }
     </style>
 </head>
+
 <body>
     <header class="nav-shell">
         <div class="nav-inner">
             <img class="topbar-logo" src="{{ $foundationLogoUrl }}" alt="Dataphyte Foundation logo">
-            <div class="nav-spacer"></div>
         </div>
     </header>
 
     <main class="page">
         <section class="hero">
             <div class="hero-inner">
-                <p class="hero-kicker">Election Observer Recruitment</p>
                 <h1 class="hero-title">Call for Election Observers for Osun State Governorship Election</h1>
                 <p class="hero-copy">
+                    Are you a citizen or resident of Osun State? Are you interested in strengthening electoral participation and democratic governance?
+                </p>
+                <p class="hero-copy" style="margin-top:14px;">
                     Fill this form carefully to register your interest as an observer for the Osun State Governorship Election scheduled for
                     <strong>Saturday, August 15, 2026</strong>.
                 </p>
+            </div>
+        </section>
 
-                <div class="hero-info">
-                    <div class="hero-info-row">
-                        <span class="material-symbols-outlined">task_alt</span>
-                        <div>
-                            <span class="hero-info-label">What You Will Do</span>
-                            <p>Observe electoral processes in your local government area, document incidents, voting, and result collation.</p>
-                        </div>
+        <div class="hero-info">
+            <div class="hero-info-inner">
+                <div class="hero-info-row">
+                    <span class="material-symbols-outlined">task_alt</span>
+                    <div>
+                        <span class="hero-info-label">What You Will Do</span>
+                        <p>As an observer, you will observe electoral processes in your respective local governments on the day of the election, document the entire election process, incidents, voting, and result collation.</p>
                     </div>
+                </div>
 
-                    <div class="hero-info-row">
-                        <span class="material-symbols-outlined">event_busy</span>
-                        <div>
-                            <span class="hero-info-label">Deadline</span>
-                            <p>11:59 PM on Tuesday, July 21, 2026.</p>
-                        </div>
+                <div class="hero-info-row">
+                    <span class="material-symbols-outlined">event_busy</span>
+                    <div>
+                        <span class="hero-info-label">Deadline</span>
+                        <p>11:59 PM. on Friday, July 24, 2026.</p>
                     </div>
+                </div>
 
-                    <div class="hero-info-row">
-                        <span class="material-symbols-outlined">info</span>
-                        <div>
-                            <span class="hero-info-label">Important Note</span>
-                            <p>This application does not automatically guarantee selection. Status updates will be sent within a week after the deadline.</p>
-                        </div>
+                <div class="hero-info-row">
+                    <span class="material-symbols-outlined">info</span>
+                    <div>
+                        <span class="hero-info-label">Important Note</span>
+                        <p>This application does not automatically guarantee selection. Status updates will be sent within a week after the deadline.</p>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
 
         <div class="shell">
             <div id="formNotice" class="notice"></div>
 
-            <header class="shell-header">
-                <h2 class="shell-title">Application Form</h2>
-                <p class="shell-copy">
-                    Applicants must currently reside in Osun State and be available for both election day and the mandatory training session.
-                    This page caches Osun locations in the browser after the first load to keep registration usable on weak connections.
-                </p>
-            </header>
-
             <form id="observerForm" novalidate>
                 <div class="form-stack">
-                    <fieldset>
+                    <fieldset class="form-section">
                         <legend class="section-legend">Personal Information</legend>
                         <div class="grid">
                             <div class="field full">
@@ -610,7 +635,7 @@
                         </div>
                     </fieldset>
 
-                    <fieldset class="section-box">
+                    <fieldset class="form-section section-box">
                         <legend class="section-legend">Eligibility Confirmation</legend>
                         <label class="toggle-card">
                             <input id="confirm_above_18" name="confirm_above_18" type="checkbox" value="1" required>
@@ -621,7 +646,7 @@
                         </label>
                     </fieldset>
 
-                    <fieldset>
+                    <fieldset class="form-section">
                         <legend class="section-legend">Residency &amp; Location</legend>
                         <div class="grid">
                             <div class="field full">
@@ -658,7 +683,7 @@
                         </div>
                     </fieldset>
 
-                    <fieldset>
+                    <fieldset class="form-section">
                         <legend class="section-legend">Experience &amp; Availability</legend>
                         <div class="grid">
                             <div class="field full">
@@ -705,7 +730,7 @@
                         </div>
                     </fieldset>
 
-                    <fieldset>
+                    <fieldset class="form-section">
                         <legend class="section-legend">Security &amp; Contact</legend>
                         <div class="grid">
                             <div class="field full">
@@ -724,15 +749,20 @@
                         </div>
                     </fieldset>
 
-                    <fieldset>
+                    <fieldset class="form-section">
                         <legend class="section-legend">Verification</legend>
-                        @if($turnstileSiteKey !== '')
-                            <div class="cf-turnstile" data-sitekey="{{ $turnstileSiteKey }}" data-callback="window.onTurnstileSuccess"></div>
+                        @if($turnstileBypass)
+                        <div class="verify-box">
+                            <span class="material-symbols-outlined">verified_user</span>
+                            <span>Turnstile bypass is active on this non-production environment. Test submissions can proceed without verification.</span>
+                        </div>
+                        @elseif($turnstileSiteKey !== '')
+                        <div class="cf-turnstile" data-sitekey="{{ $turnstileSiteKey }}" data-callback="onTurnstileSuccess"></div>
                         @else
-                            <div class="verify-box">
-                                <span class="material-symbols-outlined">verified_user</span>
-                                <span>Cloudflare Turnstile is not configured yet on this environment. Add the site key before public testing.</span>
-                            </div>
+                        <div class="verify-box">
+                            <span class="material-symbols-outlined">verified_user</span>
+                            <span>Cloudflare Turnstile is not configured yet on this environment. Add the site key before public testing.</span>
+                        </div>
                         @endif
                         <input id="turnstile_token" name="turnstile_token" type="hidden" required>
                     </fieldset>
@@ -753,12 +783,12 @@
         </div>
     </footer>
 
-    @if($turnstileSiteKey !== '')
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    @if($turnstileSiteKey !== '' && ! $turnstileBypass)
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     @endif
 
     <script>
-        window.onTurnstileSuccess = function (token) {
+        window.onTurnstileSuccess = function(token) {
             document.getElementById('turnstile_token').value = token;
         };
 
@@ -768,10 +798,11 @@
         const lgasEndpointTemplate = @json($lgasEndpointTemplate);
         const wardsEndpointTemplate = @json($wardsEndpointTemplate);
         let osunState = @json($osunState);
-        const closedAt = @json(optional($closedAt)->toIso8601String());
+        const closedAt = @json($closedAtIso);
         const closedMessage = @json($closedMessage);
         const successMessage = @json($successMessage);
         const ineligibleMessage = @json($ineligibleMessage);
+        const turnstileBypass = @json($turnstileBypass);
 
         const form = document.getElementById('observerForm');
         const notice = document.getElementById('formNotice');
@@ -787,7 +818,10 @@
         const setNotice = (message, type = 'error') => {
             notice.textContent = message;
             notice.className = `notice ${type} show`;
-            notice.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            notice.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
         };
 
         const clearNotice = () => {
@@ -836,7 +870,9 @@
 
         const getJson = async (url) => {
             const response = await fetch(url, {
-                headers: { Accept: 'application/json' },
+                headers: {
+                    Accept: 'application/json'
+                },
             });
 
             if (!response.ok) {
@@ -942,7 +978,7 @@
                 return 'Select both your local government area and ward of residence.';
             }
 
-            if (!payload.turnstile_token) {
+            if (!turnstileBypass && !payload.turnstile_token) {
                 return 'Complete the security verification before submitting.';
             }
 
@@ -1049,4 +1085,5 @@
         });
     </script>
 </body>
+
 </html>

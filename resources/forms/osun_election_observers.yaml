@@ -15,6 +15,7 @@ newsletter_success_message: 'Your application has been received.'
 newsletter_send_confirmation_email: true
 newsletter_send_update_email: false
 newsletter_confirmation_subject: 'Your application has been received'
+newsletter_logo_url: /storage/dataphyte-foundation-logo.png
 newsletter_confirmation_body: |-
   Your application has been received.
 
