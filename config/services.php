@@ -47,4 +47,8 @@ return [
         'timeout' => env('DATAPHYTE_ELECTION_API_TIMEOUT', 10),
     ],
 
+    'google_analytics' => [
+        'measurement_id' => env('GOOGLE_ANALYTICS_MEASUREMENT_ID'),
+    ],
+
 ];
