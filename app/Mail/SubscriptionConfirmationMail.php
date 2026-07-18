@@ -8,6 +8,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 class SubscriptionConfirmationMail extends Mailable
@@ -32,6 +33,17 @@ class SubscriptionConfirmationMail extends Mailable
             replyTo: $replyTo,
             subject: $this->interpolate((string) ($this->mailConfig['subject'] ?? 'Subscription confirmation')),
             tags: ['newsletter-subscription', $this->mailConfig['collection_handle'] ?? 'general', $this->status],
+        );
+    }
+
+    public function headers(): Headers
+    {
+        return new Headers(
+            text: array_filter([
+                'X-Form-Submission-Id' => $this->mailConfig['submission_id'] ?? null,
+                'X-Form-Handle' => $this->mailConfig['form_handle'] ?? null,
+                'X-Submission-Mode' => $this->mailConfig['submission_mode'] ?? null,
+            ], fn ($value) => filled($value)),
         );
     }
 

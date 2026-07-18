@@ -379,6 +379,12 @@
             display: block;
         }
 
+        .inline-note.soft-error {
+            background: #fef3f2;
+            border-color: #fecdca;
+            color: var(--error);
+        }
+
         .verify-box {
             display: flex;
             align-items: center;
@@ -615,6 +621,7 @@
                                 <div class="field">
                                     <label for="email">Email Address</label>
                                     <input class="input" id="email" name="email" placeholder="email@example.com" type="email" autocomplete="email" required>
+                                    <div id="emailNote" class="inline-note soft-error">Enter a valid email address before submitting.</div>
                                 </div>
                             </div>
 
@@ -809,6 +816,8 @@
         const notice = document.getElementById('formNotice');
         const residentNote = document.getElementById('residentNote');
         const submitButton = document.getElementById('submitButton');
+        const emailInput = document.getElementById('email');
+        const emailNote = document.getElementById('emailNote');
         const lgaSelect = document.getElementById('lga_id');
         const wardSelect = document.getElementById('ward_id');
         const lgaNameInput = document.getElementById('lga_name');
@@ -828,6 +837,22 @@
         const clearNotice = () => {
             notice.textContent = '';
             notice.className = 'notice';
+        };
+
+        const validateEmailField = ({ showEmptyError = false } = {}) => {
+            const value = String(emailInput.value || '').trim();
+
+            if (!value) {
+                emailInput.setCustomValidity(showEmptyError ? 'Email address is required.' : '');
+                emailNote.classList.toggle('show', showEmptyError);
+                return !showEmptyError;
+            }
+
+            const valid = emailInput.checkValidity();
+            emailInput.setCustomValidity(valid ? '' : 'Enter a valid email address.');
+            emailNote.classList.toggle('show', !valid);
+
+            return valid;
         };
 
         const readCache = (key) => {
@@ -1019,10 +1044,29 @@
             }
         });
 
+        emailInput.addEventListener('blur', () => {
+            validateEmailField({
+                showEmptyError: true
+            });
+        });
+
+        emailInput.addEventListener('input', () => {
+            validateEmailField({
+                showEmptyError: false
+            });
+        });
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             clearNotice();
             refreshSelectedNames();
+
+            if (!validateEmailField({
+                    showEmptyError: true
+                })) {
+                setNotice(emailInput.validationMessage || 'Enter a valid email address before submitting.', 'error');
+                return;
+            }
 
             const payload = formDataToObject(new FormData(form));
             const validationError = validateClientSide(payload);
@@ -1060,6 +1104,7 @@
                 wardNameInput.value = '';
                 turnstileTokenInput.value = '';
                 residentNote.classList.remove('show');
+                emailNote.classList.remove('show');
 
                 if (window.turnstile) {
                     window.turnstile.reset();

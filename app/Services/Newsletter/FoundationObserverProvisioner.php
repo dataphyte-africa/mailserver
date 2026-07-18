@@ -14,6 +14,10 @@ class FoundationObserverProvisioner
     public const TARGET_SUB_GROUP_SLUG = 'osun-election-observers-2026';
     public const TARGET_SUB_GROUP_NAME = 'Osun Election Observers 2026';
 
+    public function __construct(
+        private readonly ApplicationSubmissionTrackingService $applicationTracking,
+    ) {}
+
     public function provision(): array
     {
         return [
@@ -157,6 +161,10 @@ class FoundationObserverProvisioner
                                 $this->textField('ip_address', 'IP Address'),
                                 $this->textField('device', 'Device'),
                             ],
+                        ],
+                        [
+                            'display' => 'Internal Delivery Tracking',
+                            'fields' => $this->applicationTracking->trackingFieldDefinitions(),
                         ],
                     ],
                 ],

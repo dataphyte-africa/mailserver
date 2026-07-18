@@ -23,6 +23,7 @@ class SubscriptionFormService
 {
     public function __construct(
         private readonly CollectionRegistry $collections,
+        private readonly ApplicationSubmissionTrackingService $applicationTracking,
     ) {}
 
     public function isNewsletterForm(StatamicForm $form): bool
@@ -265,10 +266,10 @@ class SubscriptionFormService
             ->save();
     }
 
-    public function subscribe(StatamicForm $form, array $payload, Request $request): array
+    public function subscribe(StatamicForm $form, array $payload, Request $request, ?StatamicSubmission $submission = null): array
     {
         if ($this->submissionMode($form) === 'application') {
-            return $this->submitApplication($form, $payload, $request);
+            return $this->submitApplication($form, $payload, $request, $submission);
         }
 
         $collectionHandle = $this->collectionHandle($form);
@@ -385,7 +386,7 @@ class SubscriptionFormService
         ];
     }
 
-    private function submitApplication(StatamicForm $form, array $payload, Request $request): array
+    private function submitApplication(StatamicForm $form, array $payload, Request $request, ?StatamicSubmission $submission = null): array
     {
         $collectionHandle = $this->collectionHandle($form);
         $group = $this->group($form);
@@ -481,12 +482,18 @@ class SubscriptionFormService
 
         $subscriber = $subscriber->fresh(['subGroups.group']);
 
+        $emailSent = $this->dispatchLifecycleEmail($form, $subscriber, 'submitted', $applicationPayload, $submission);
+
+        if ($submission && $emailSent) {
+            $this->annotateSubmission($submission, $this->applicationTracking->queuedAttributes());
+        }
+
         return [
             'subscriber' => $subscriber,
             'subscriber_group_id' => $group->id,
             'status' => 'submitted',
             'message' => $this->successMessage($form),
-            'email_sent' => $this->dispatchLifecycleEmail($form, $subscriber, 'submitted', $applicationPayload),
+            'email_sent' => $emailSent,
         ];
     }
 
@@ -580,7 +587,7 @@ class SubscriptionFormService
         };
     }
 
-    private function dispatchLifecycleEmail(StatamicForm $form, Subscriber $subscriber, string $status, array $submissionPayload = []): bool
+    private function dispatchLifecycleEmail(StatamicForm $form, Subscriber $subscriber, string $status, array $submissionPayload = [], ?StatamicSubmission $submission = null): bool
     {
         if (! $this->shouldSendLifecycleEmail($form, $status)) {
             return false;
@@ -603,6 +610,9 @@ class SubscriptionFormService
                     'body' => $this->confirmationBody($form, $status),
                     'submission_summary' => $this->confirmationSummary($form, $submissionPayload),
                     'summary_heading' => $form->get('newsletter_confirmation_summary_heading'),
+                    'submission_id' => $submission?->id(),
+                    'form_handle' => $submission ? $form->handle() : null,
+                    'submission_mode' => $submission ? $this->submissionMode($form) : null,
                 ],
             )
         );

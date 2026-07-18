@@ -39,14 +39,33 @@ class ElasticEmailTransport extends AbstractTransport
         // lookup without relying on Elastic Email's own TransactionID.
         $campaignSendId = $email->getHeaders()->get('X-Campaign-Send-Id')
             ?->getBodyAsString();
+        $formSubmissionId = $email->getHeaders()->get('X-Form-Submission-Id')
+            ?->getBodyAsString();
+        $formHandle = $email->getHeaders()->get('X-Form-Handle')
+            ?->getBodyAsString();
+        $submissionMode = $email->getHeaders()->get('X-Submission-Mode')
+            ?->getBodyAsString();
 
         // Build recipients
         $recipients = [];
         foreach ($email->getTo() as $address) {
             $recipient = new EmailRecipient();
             $recipient->setEmail($address->getAddress());
+            $fields = [];
             if ($campaignSendId) {
-                $recipient->setFields(['send_id' => $campaignSendId]);
+                $fields['send_id'] = $campaignSendId;
+            }
+            if ($formSubmissionId) {
+                $fields['submission_id'] = $formSubmissionId;
+            }
+            if ($formHandle) {
+                $fields['form_handle'] = $formHandle;
+            }
+            if ($submissionMode) {
+                $fields['submission_mode'] = $submissionMode;
+            }
+            if ($fields !== []) {
+                $recipient->setFields($fields);
             }
             $recipients[] = $recipient;
         }

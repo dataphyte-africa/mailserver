@@ -6,6 +6,7 @@ use App\Models\CampaignLinkClick;
 use App\Models\CampaignSend;
 use App\Models\Subscriber;
 use App\Models\WebhookLog;
+use App\Services\Newsletter\ApplicationSubmissionTrackingService;
 use App\Services\Newsletter\SubscriberEngagementService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -100,7 +101,7 @@ class ProcessWebhookJob implements ShouldQueue
 
     private function process(WebhookLog $log): void
     {
-        $event = $this->normalise($log->event_type);
+        $event = self::normaliseEventType($log->event_type);
 
         if (! $event) {
             Log::debug("ProcessWebhookJob: unknown event '{$log->event_type}' — skipping");
@@ -111,8 +112,15 @@ class ProcessWebhookJob implements ShouldQueue
         $send = $this->resolveSend($log);
 
         if (! $send) {
-            // We may receive events for emails sent outside this system — ignore
-            Log::debug("ProcessWebhookJob: no CampaignSend for tx={$log->transaction_id} email={$log->to_email}");
+            $submission = app(ApplicationSubmissionTrackingService::class)->resolveSubmission($log);
+
+            if (! $submission) {
+                // We may receive events for emails sent outside this system — ignore
+                Log::debug("ProcessWebhookJob: no CampaignSend or application submission for tx={$log->transaction_id} email={$log->to_email}");
+                return;
+            }
+
+            app(ApplicationSubmissionTrackingService::class)->applyWebhookEvent($submission, $log, $event);
             return;
         }
 
@@ -326,7 +334,7 @@ class ProcessWebhookJob implements ShouldQueue
         return null;
     }
 
-    private function normalise(?string $rawEvent): ?string
+    public static function normaliseEventType(?string $rawEvent): ?string
     {
         if (! $rawEvent) return null;
         $key = strtolower(preg_replace('/[\s_\-]/', '', $rawEvent));

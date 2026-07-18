@@ -157,4 +157,119 @@ tabs:
               type: text
               display: Device
               validate: required
+      -
+        display: 'Internal Delivery Tracking'
+        fields:
+          -
+            handle: confirmation_email_status
+            field:
+              type: text
+              display: 'Confirmation Email Status'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_transaction_id
+            field:
+              type: text
+              display: 'Confirmation Email Transaction ID'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_queued_at
+            field:
+              type: text
+              display: 'Confirmation Email Queued At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_delivered_at
+            field:
+              type: text
+              display: 'Confirmation Email Delivered At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_opened_at
+            field:
+              type: text
+              display: 'Confirmation Email Opened At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_clicked_at
+            field:
+              type: text
+              display: 'Confirmation Email Clicked At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_bounced_at
+            field:
+              type: text
+              display: 'Confirmation Email Bounced At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_failed_at
+            field:
+              type: text
+              display: 'Confirmation Email Failed At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_complained_at
+            field:
+              type: text
+              display: 'Confirmation Email Complained At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_unsubscribed_at
+            field:
+              type: text
+              display: 'Confirmation Email Unsubscribed At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_last_event
+            field:
+              type: text
+              display: 'Confirmation Email Last Event'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_last_event_at
+            field:
+              type: text
+              display: 'Confirmation Email Last Event At'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_bounce_reason
+            field:
+              type: textarea
+              display: 'Confirmation Email Bounce Reason'
+              read_only: true
+              listable: false
+              visibility: read_only
+          -
+            handle: confirmation_email_backfilled_at
+            field:
+              type: text
+              display: 'Confirmation Email Backfilled At'
+              read_only: true
+              listable: false
+              visibility: read_only
 title: 'Osun Election Observers'

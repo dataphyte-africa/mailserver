@@ -45,7 +45,7 @@ class SubscriptionFormController extends Controller
         }
 
         $submission = $this->forms->storeSubmission($resolved, $payload);
-        $result = $this->forms->subscribe($resolved, $payload, $request);
+        $result = $this->forms->subscribe($resolved, $payload, $request, $submission);
         $subscriber = $result['subscriber'];
 
         if ($submission) {
