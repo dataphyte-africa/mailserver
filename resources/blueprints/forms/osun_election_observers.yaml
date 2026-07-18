@@ -166,7 +166,7 @@ tabs:
               type: text
               display: 'Confirmation Email Status'
               read_only: true
-              listable: false
+              listable: true
               visibility: read_only
           -
             handle: confirmation_email_transaction_id
@@ -190,7 +190,7 @@ tabs:
               type: text
               display: 'Confirmation Email Delivered At'
               read_only: true
-              listable: false
+              listable: true
               visibility: read_only
           -
             handle: confirmation_email_opened_at
@@ -214,7 +214,7 @@ tabs:
               type: text
               display: 'Confirmation Email Bounced At'
               read_only: true
-              listable: false
+              listable: true
               visibility: read_only
           -
             handle: confirmation_email_failed_at
@@ -222,7 +222,7 @@ tabs:
               type: text
               display: 'Confirmation Email Failed At'
               read_only: true
-              listable: false
+              listable: true
               visibility: read_only
           -
             handle: confirmation_email_complained_at
@@ -246,7 +246,7 @@ tabs:
               type: text
               display: 'Confirmation Email Last Event'
               read_only: true
-              listable: false
+              listable: true
               visibility: read_only
           -
             handle: confirmation_email_last_event_at
@@ -262,7 +262,7 @@ tabs:
               type: textarea
               display: 'Confirmation Email Bounce Reason'
               read_only: true
-              listable: false
+              listable: true
               visibility: read_only
           -
             handle: confirmation_email_backfilled_at

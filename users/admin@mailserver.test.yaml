@@ -33,3 +33,18 @@ preferences:
         - email
         - lastname
         - preference
+    osun_election_observers:
+      columns:
+        - datestamp
+        - age
+        - resident_in_osun
+        - has_election_observation_experience
+        - ward_name
+        - email
+        - emergency_phone_number
+        - full_name
+        - gender
+        - lga_name
+        - phone_number
+        - available_for_training
+        - available_for_election_day

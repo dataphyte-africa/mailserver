@@ -31,19 +31,19 @@ class ApplicationSubmissionTrackingService
     public function trackingFieldDefinitions(): array
     {
         return [
-            $this->readOnlyTextField(self::STATUS_FIELD, 'Confirmation Email Status'),
+            $this->readOnlyTextField(self::STATUS_FIELD, 'Confirmation Email Status', listable: true),
             $this->readOnlyTextField(self::TRANSACTION_ID_FIELD, 'Confirmation Email Transaction ID'),
             $this->readOnlyTextField(self::QUEUED_AT_FIELD, 'Confirmation Email Queued At'),
-            $this->readOnlyTextField(self::DELIVERED_AT_FIELD, 'Confirmation Email Delivered At'),
+            $this->readOnlyTextField(self::DELIVERED_AT_FIELD, 'Confirmation Email Delivered At', listable: true),
             $this->readOnlyTextField(self::OPENED_AT_FIELD, 'Confirmation Email Opened At'),
             $this->readOnlyTextField(self::CLICKED_AT_FIELD, 'Confirmation Email Clicked At'),
-            $this->readOnlyTextField(self::BOUNCED_AT_FIELD, 'Confirmation Email Bounced At'),
-            $this->readOnlyTextField(self::FAILED_AT_FIELD, 'Confirmation Email Failed At'),
+            $this->readOnlyTextField(self::BOUNCED_AT_FIELD, 'Confirmation Email Bounced At', listable: true),
+            $this->readOnlyTextField(self::FAILED_AT_FIELD, 'Confirmation Email Failed At', listable: true),
             $this->readOnlyTextField(self::COMPLAINED_AT_FIELD, 'Confirmation Email Complained At'),
             $this->readOnlyTextField(self::UNSUBSCRIBED_AT_FIELD, 'Confirmation Email Unsubscribed At'),
-            $this->readOnlyTextField(self::LAST_EVENT_FIELD, 'Confirmation Email Last Event'),
+            $this->readOnlyTextField(self::LAST_EVENT_FIELD, 'Confirmation Email Last Event', listable: true),
             $this->readOnlyTextField(self::LAST_EVENT_AT_FIELD, 'Confirmation Email Last Event At'),
-            $this->readOnlyTextareaField(self::BOUNCE_REASON_FIELD, 'Confirmation Email Bounce Reason'),
+            $this->readOnlyTextareaField(self::BOUNCE_REASON_FIELD, 'Confirmation Email Bounce Reason', listable: true),
             $this->readOnlyTextField(self::BACKFILLED_AT_FIELD, 'Confirmation Email Backfilled At'),
         ];
     }
@@ -246,7 +246,7 @@ class ApplicationSubmissionTrackingService
         return null;
     }
 
-    private function readOnlyTextField(string $handle, string $display): array
+    private function readOnlyTextField(string $handle, string $display, bool $listable = false): array
     {
         return [
             'handle' => $handle,
@@ -254,13 +254,13 @@ class ApplicationSubmissionTrackingService
                 'type' => 'text',
                 'display' => $display,
                 'read_only' => true,
-                'listable' => false,
+                'listable' => $listable,
                 'visibility' => 'read_only',
             ],
         ];
     }
 
-    private function readOnlyTextareaField(string $handle, string $display): array
+    private function readOnlyTextareaField(string $handle, string $display, bool $listable = false): array
     {
         return [
             'handle' => $handle,
@@ -268,7 +268,7 @@ class ApplicationSubmissionTrackingService
                 'type' => 'textarea',
                 'display' => $display,
                 'read_only' => true,
-                'listable' => false,
+                'listable' => $listable,
                 'visibility' => 'read_only',
             ],
         ];
