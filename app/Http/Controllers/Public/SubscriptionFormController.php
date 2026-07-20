@@ -44,6 +44,54 @@ class SubscriptionFormController extends Controller
             throw ValidationException::withMessages(['email' => 'Email is required.']);
         }
 
+        if ($this->forms->submissionMode($resolved) === 'application') {
+            $result = $this->forms->processApplication($resolved, $payload, $request);
+            $subscriber = $result['subscriber'];
+            $submission = $this->forms->storeSubmission($resolved, $payload);
+
+            if ($submission) {
+                $emailSent = $this->forms->dispatchStoredApplicationEmail(
+                    $resolved,
+                    $subscriber,
+                    $result['application_payload'],
+                    $submission,
+                );
+
+                $attributes = [
+                    'subscription_status' => $result['status'],
+                    'email_sent' => $emailSent,
+                    'subscriber_id' => $subscriber->id,
+                    'subscriber_group_id' => $result['subscriber_group_id'],
+                ];
+
+                if ($emailSent) {
+                    $attributes = array_merge($attributes, $this->forms->queuedApplicationTrackingAttributes());
+                }
+
+                $this->forms->annotateSubmission($submission, $attributes);
+                $result['email_sent'] = $emailSent;
+            } else {
+                $result['email_sent'] = $this->forms->dispatchApplicationEmailWithoutSubmission(
+                    $resolved,
+                    $subscriber,
+                    $result['application_payload'],
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => $result['status'],
+                'message' => $result['message'],
+                'email_sent' => $result['email_sent'],
+                'subscriber' => [
+                    'email' => $subscriber->email,
+                    'first_name' => $subscriber->first_name,
+                    'last_name' => $subscriber->last_name,
+                    'status' => $subscriber->status,
+                ],
+            ]);
+        }
+
         $submission = $this->forms->storeSubmission($resolved, $payload);
         $result = $this->forms->subscribe($resolved, $payload, $request, $submission);
         $subscriber = $result['subscriber'];

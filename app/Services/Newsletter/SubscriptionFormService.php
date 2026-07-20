@@ -266,6 +266,33 @@ class SubscriptionFormService
             ->save();
     }
 
+    public function queuedApplicationTrackingAttributes(): array
+    {
+        return $this->applicationTracking->queuedAttributes();
+    }
+
+    public function processApplication(StatamicForm $form, array $payload, Request $request): array
+    {
+        return $this->submitApplication($form, $payload, $request, submission: null, dispatchEmail: false);
+    }
+
+    public function dispatchStoredApplicationEmail(
+        StatamicForm $form,
+        Subscriber $subscriber,
+        array $applicationPayload,
+        StatamicSubmission $submission,
+    ): bool {
+        return $this->dispatchLifecycleEmail($form, $subscriber, 'submitted', $applicationPayload, $submission);
+    }
+
+    public function dispatchApplicationEmailWithoutSubmission(
+        StatamicForm $form,
+        Subscriber $subscriber,
+        array $applicationPayload,
+    ): bool {
+        return $this->dispatchLifecycleEmail($form, $subscriber, 'submitted', $applicationPayload);
+    }
+
     public function subscribe(StatamicForm $form, array $payload, Request $request, ?StatamicSubmission $submission = null): array
     {
         if ($this->submissionMode($form) === 'application') {
@@ -386,7 +413,13 @@ class SubscriptionFormService
         ];
     }
 
-    private function submitApplication(StatamicForm $form, array $payload, Request $request, ?StatamicSubmission $submission = null): array
+    private function submitApplication(
+        StatamicForm $form,
+        array $payload,
+        Request $request,
+        ?StatamicSubmission $submission = null,
+        bool $dispatchEmail = true,
+    ): array
     {
         $collectionHandle = $this->collectionHandle($form);
         $group = $this->group($form);
@@ -482,7 +515,9 @@ class SubscriptionFormService
 
         $subscriber = $subscriber->fresh(['subGroups.group']);
 
-        $emailSent = $this->dispatchLifecycleEmail($form, $subscriber, 'submitted', $applicationPayload, $submission);
+        $emailSent = $dispatchEmail
+            ? $this->dispatchLifecycleEmail($form, $subscriber, 'submitted', $applicationPayload, $submission)
+            : false;
 
         if ($submission && $emailSent) {
             $this->annotateSubmission($submission, $this->applicationTracking->queuedAttributes());
@@ -494,6 +529,7 @@ class SubscriptionFormService
             'status' => 'submitted',
             'message' => $this->successMessage($form),
             'email_sent' => $emailSent,
+            'application_payload' => $applicationPayload,
         ];
     }
 
