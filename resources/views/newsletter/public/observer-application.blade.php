@@ -620,7 +620,7 @@
                                 </div>
                                 <div class="field">
                                     <label for="email">Email Address</label>
-                                    <input class="input" id="email" name="email" placeholder="email@example.com" type="email" autocomplete="email" required>
+                                    <input class="input" id="email" name="email" placeholder="email@example.com" type="email" autocomplete="email" pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" title="Enter a valid email address." required>
                                     <div id="emailNote" class="inline-note soft-error">Enter a valid email address before submitting.</div>
                                 </div>
                             </div>
@@ -848,8 +848,15 @@
                 return !showEmptyError;
             }
 
+            // Clear any previous custom error before relying on the browser email validator.
+            emailInput.setCustomValidity('');
+
             const valid = emailInput.checkValidity();
-            emailInput.setCustomValidity(valid ? '' : 'Enter a valid email address.');
+
+            if (!valid && emailInput.validity.typeMismatch) {
+                emailInput.setCustomValidity('Enter a valid email address.');
+            }
+
             emailNote.classList.toggle('show', !valid);
 
             return valid;

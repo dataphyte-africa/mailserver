@@ -138,7 +138,6 @@ tabs:
             field:
               type: toggle
               display: 'I would like to receive future communication from Dataphyte Foundation on data collections and other Dataphyte Foundation related content.'
-              validate: required
           -
             handle: turnstile_token
             field:

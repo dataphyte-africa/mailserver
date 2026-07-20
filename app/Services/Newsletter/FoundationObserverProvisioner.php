@@ -156,7 +156,7 @@ class FoundationObserverProvisioner
                                     ['key' => 'no', 'value' => 'No'],
                                 ]),
                                 $this->textField('emergency_phone_number', 'Emergency Phone Number (for security reasons)'),
-                                $this->toggleField('future_foundation_updates', 'I would like to receive future communication from Dataphyte Foundation on data collections and other Dataphyte Foundation related content.'),
+                                $this->toggleField('future_foundation_updates', 'I would like to receive future communication from Dataphyte Foundation on data collections and other Dataphyte Foundation related content.', false),
                                 $this->textField('turnstile_token', 'Turnstile Token'),
                                 $this->textField('ip_address', 'IP Address'),
                                 $this->textField('device', 'Device'),
@@ -209,14 +209,14 @@ class FoundationObserverProvisioner
         ];
     }
 
-    private function toggleField(string $handle, string $display): array
+    private function toggleField(string $handle, string $display, bool $required = true): array
     {
         return [
             'handle' => $handle,
             'field' => [
                 'type' => 'toggle',
                 'display' => $display,
-                'validate' => 'required',
+                'validate' => $required ? 'required' : null,
             ],
         ];
     }
