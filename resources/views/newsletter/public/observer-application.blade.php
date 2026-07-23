@@ -823,7 +823,7 @@
         const lgaNameInput = document.getElementById('lga_name');
         const wardNameInput = document.getElementById('ward_name');
         const turnstileTokenInput = document.getElementById('turnstile_token');
-        const storagePrefix = 'foundation.osun-election-observers';
+        const storagePrefix = 'foundation.osun-election-observers.v2';
 
         const setNotice = (message, type = 'error') => {
             notice.textContent = message;
@@ -901,11 +901,12 @@
             select.disabled = false;
         };
 
-        const getJson = async (url) => {
+        const getJson = async (url, options = {}) => {
             const response = await fetch(url, {
                 headers: {
                     Accept: 'application/json'
                 },
+                ...options,
             });
 
             if (!response.ok) {
@@ -956,19 +957,44 @@
         const loadWards = async (lgaId) => {
             const cacheKey = `wards.${lgaId}`;
             const cached = readCache(cacheKey);
+            const cachedWards = Array.isArray(cached?.data) ? cached.data : [];
 
-            if (cached?.data?.length) {
-                populateSelect(wardSelect, cached.data, 'Select ward');
+            if (cachedWards.length) {
+                populateSelect(wardSelect, cachedWards, 'Select ward');
             } else {
                 wardSelect.innerHTML = '<option value="">Loading wards...</option>';
                 wardSelect.disabled = true;
             }
 
             const url = wardsEndpointTemplate.replace('__LGA__', String(lgaId));
-            const payload = await getJson(url);
+            try {
+                const payload = await getJson(url, {
+                    cache: 'no-store'
+                });
+                const wards = Array.isArray(payload?.data) ? payload.data : [];
 
-            writeCache(cacheKey, payload.data);
-            populateSelect(wardSelect, payload.data, 'Select ward');
+                if (wards.length) {
+                    writeCache(cacheKey, wards);
+                    populateSelect(wardSelect, wards, 'Select ward');
+                    return;
+                }
+
+                if (cachedWards.length) {
+                    populateSelect(wardSelect, cachedWards, 'Select ward');
+                    return;
+                }
+
+                wardSelect.innerHTML = '<option value="">No wards available for the selected LGA</option>';
+                wardSelect.disabled = true;
+                throw new Error('No wards were returned for the selected local government area.');
+            } catch (error) {
+                if (cachedWards.length) {
+                    populateSelect(wardSelect, cachedWards, 'Select ward');
+                    return;
+                }
+
+                throw error;
+            }
         };
 
         const refreshSelectedNames = () => {
