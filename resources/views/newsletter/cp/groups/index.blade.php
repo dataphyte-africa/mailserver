@@ -25,10 +25,20 @@
                         @if($group->description)
                             <p class="text-sm text-gray-500 mt-0.5">{{ $group->description }}</p>
                         @endif
+                        @if($group->isArchived())
+                            <p class="text-xs text-gray-500 mt-1">Archived</p>
+                        @endif
                     </div>
                     <div class="flex gap-2">
                         <a href="{{ cp_route('newsletter.groups.edit', $group) }}"
                            class="btn-default text-sm">Manage</a>
+                        @unless($group->isArchived())
+                            <form method="POST" action="{{ cp_route('newsletter.groups.archive', $group) }}"
+                                  onsubmit="return confirm('Archive this group? It will be hidden from new targeting and form assignment.')">
+                                @csrf
+                                <button type="submit" class="btn-default text-sm">Archive</button>
+                            </form>
+                        @endunless
                         <form method="POST" action="{{ cp_route('newsletter.groups.destroy', $group) }}"
                               onsubmit="return confirm('Delete this group and all its sub-groups?')">
                             @csrf @method('DELETE')
@@ -41,6 +51,9 @@
                     @foreach($group->subGroups as $subGroup)
                         <div class="bg-gray-100 rounded-full px-3 py-1 text-sm flex items-center gap-2">
                             <span>{{ $subGroup->name }}</span>
+                            @if($subGroup->isArchived())
+                                <span class="text-gray-400 text-xs">archived</span>
+                            @endif
                             <span class="text-gray-400 text-xs">{{ $subGroup->subscribers_count }} subscribers</span>
                         </div>
                     @endforeach

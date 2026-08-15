@@ -39,6 +39,14 @@
                 </div>
 
                 <div class="mb-4">
+                    <label class="block text-sm font-medium text-grey-80 mb-1">Product</label>
+                    <div class="input-text w-full bg-grey-10 text-grey-80">
+                        {{ $product->organisation->name }} / {{ $product->name }}
+                    </div>
+                    <p class="text-xs text-grey-60 mt-1">Campaign ownership cannot be changed during editing.</p>
+                </div>
+
+                <div class="mb-4">
                     <label class="block text-sm font-medium text-grey-80 mb-1">Collection <span class="text-red">*</span></label>
                     <select id="collection-select" name="collection" x-model="collection"
                             class="input-text w-full"
@@ -107,7 +115,7 @@
 
                 <div x-show="!sendToAll">
                     @foreach($subGroups as $group)
-                    <div class="mb-3" x-show="groupMatchesCollection('{{ $group->slug }}', @js($group->collection_handle))">
+                    <div class="mb-3" x-show="groupMatchesProduct(@js($group->product_id), @js($group->slug), @js($group->collection_handle))">
                         <p class="text-xs font-semibold uppercase tracking-wide text-grey-60 mb-1">
                             {{ $group->name }}
                         </p>
@@ -233,6 +241,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function campaignForm() {
     return {
+        productId: @js((string) $product->getKey()),
         collection: OLD_COLLECTION,
         subject: '{{ old('subject', addslashes($campaign->subject ?? '')) }}',
         sendToAll: {{ $sendToAll ? 'true' : 'false' }},
@@ -245,6 +254,12 @@ function campaignForm() {
             }
 
             return COLLECTION_META[this.collection]?.group_slug === groupSlug;
+        },
+
+        groupMatchesProduct(groupProductId, groupSlug, groupCollectionHandle = null) {
+            if (String(groupProductId) !== String(this.productId)) return false;
+
+            return this.groupMatchesCollection(groupSlug, groupCollectionHandle);
         },
     }
 }

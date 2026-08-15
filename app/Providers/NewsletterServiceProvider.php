@@ -296,11 +296,13 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::post('/',          [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'store'])->name('store');
                     \Route::get('/{group}/edit',[\App\Http\Controllers\CP\Newsletter\GroupController::class, 'edit'])->name('edit');
                     \Route::put('/{group}',    [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'update'])->name('update');
+                    \Route::post('/{group}/archive', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'archive'])->name('archive');
                     \Route::delete('/{group}', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'destroy'])->name('destroy');
 
                     // Sub-groups (nested under a group)
                     \Route::post('/{group}/sub-groups',              [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'store'])->name('sub-groups.store');
                     \Route::put('/{group}/sub-groups/{subGroup}',    [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'update'])->name('sub-groups.update');
+                    \Route::post('/{group}/sub-groups/{subGroup}/archive', [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'archive'])->name('sub-groups.archive');
                     \Route::delete('/{group}/sub-groups/{subGroup}', [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'destroy'])->name('sub-groups.destroy');
                 });
             });

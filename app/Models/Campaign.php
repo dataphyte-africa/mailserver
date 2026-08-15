@@ -3,15 +3,19 @@
 namespace App\Models;
 
 use App\Services\Newsletter\CollectionRegistry;
+use App\Support\Platform\Ownership\HasOwnershipReadScopes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
 {
-    use HasFactory;
+    use HasFactory, HasOwnershipReadScopes;
+
     protected $fillable = [
+        'organisation_id', 'product_id',
         'entry_id', 'collection', 'name', 'subject',
         'from_name', 'from_email', 'reply_to',
         'status', 'scheduled_at', 'sent_at',
@@ -31,6 +35,16 @@ class Campaign extends Model
     public function audiences(): HasMany
     {
         return $this->hasMany(CampaignAudience::class);
+    }
+
+    public function organisation(): BelongsTo
+    {
+        return $this->belongsTo(Organisation::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 
     public function sends(): HasMany

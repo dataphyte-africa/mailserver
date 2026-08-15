@@ -6,9 +6,13 @@ use App\Models\Campaign;
 use App\Models\CampaignAudience;
 use App\Models\CampaignLinkClick;
 use App\Models\CampaignSend;
+use App\Models\Product;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Support\Platform\Ownership\CampaignOwnershipWriter;
+use App\Support\Platform\Ownership\ProductOwnershipResolver;
+use App\Support\Platform\Ownership\SubscriberGroupOwnershipWriter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -24,19 +28,25 @@ class SeedDemoCampaign extends Command
 
     private const DEMO_NAME = 'Local Analytics Demo — Policy Point';
 
-    public function handle(): int
+    public function handle(
+        CampaignOwnershipWriter $campaigns,
+        ProductOwnershipResolver $ownership,
+        SubscriberGroupOwnershipWriter $subscriberGroups,
+    ): int
     {
         $collection = (string) $this->option('collection');
+        $product = $ownership->productForPrimaryCollection($collection);
 
-        DB::transaction(function () use ($collection) {
+        DB::transaction(function () use ($campaigns, $collection, $product, $subscriberGroups) {
             if ($this->option('fresh')) {
                 Campaign::where('name', self::DEMO_NAME)->delete();
             }
 
-            $group = $this->resolveGroup($collection);
+            $group = $this->resolveGroup($subscriberGroups, $product, $collection);
             $subGroup = $this->resolveSubGroup($group);
 
-            $campaign = Campaign::updateOrCreate(
+            $campaign = $campaigns->updateOrCreateForProduct(
+                $product,
                 ['name' => self::DEMO_NAME],
                 [
                     'collection' => $collection,
@@ -209,8 +219,11 @@ class SeedDemoCampaign extends Command
         return self::SUCCESS;
     }
 
-    private function resolveGroup(string $collection): SubscriberGroup
-    {
+    private function resolveGroup(
+        SubscriberGroupOwnershipWriter $subscriberGroups,
+        Product $product,
+        string $collection,
+    ): SubscriberGroup {
         $defaults = match ($collection) {
             'policy_point_newsletters' => ['name' => 'Policy Point Subscribers', 'slug' => 'policy-point-subscribers'],
             'insight_newsletters' => ['name' => 'Insight Subscribers', 'slug' => 'insight-subscribers'],
@@ -218,7 +231,8 @@ class SeedDemoCampaign extends Command
             default => ['name' => 'Demo Subscribers', 'slug' => 'demo-subscribers'],
         };
 
-        return SubscriberGroup::firstOrCreate(
+        return $subscriberGroups->updateOrCreateForProduct(
+            $product,
             ['slug' => $defaults['slug']],
             [
                 'name' => $defaults['name'],

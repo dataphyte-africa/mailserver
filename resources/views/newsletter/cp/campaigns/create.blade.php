@@ -42,6 +42,22 @@
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-grey-80 mb-1">
+                        Product <span class="text-red">*</span>
+                    </label>
+                    <select name="product_id" x-model="productId" class="input-text w-full">
+                        <option value="">— Select a product —</option>
+                        @foreach($products as $product)
+                            <option value="{{ $product->id }}" {{ (string) old('product_id') === (string) $product->id ? 'selected' : '' }}>
+                                {{ $product->organisation->name }} / {{ $product->name }}
+                                ({{ $collections[$product->primary_collection_handle] ?? $product->primary_collection_handle }})
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-grey-60 mt-1">Only products in your active scope are available.</p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-grey-80 mb-1">
                         Collection <span class="text-red">*</span>
                     </label>
                     <select id="collection-select" name="collection" x-model="collection"
@@ -134,7 +150,7 @@
                 {{-- Sub-group checkboxes --}}
                 <div x-show="!sendToAll">
                     @foreach($subGroups as $group)
-                    <div class="mb-3" x-show="groupMatchesCollection('{{ $group->slug }}', @js($group->collection_handle))">
+                    <div class="mb-3" x-show="groupMatchesProduct(@js($group->product_id), @js($group->slug), @js($group->collection_handle))">
                         <p class="text-xs font-semibold uppercase tracking-wide text-grey-60 mb-1">
                             {{ $group->name }}
                         </p>
@@ -257,6 +273,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // Alpine still handles audience group visibility + schedule radio
 function campaignForm() {
     return {
+        productId: @js((string) old('product_id', '')),
         collection: OLD_COLLECTION,
         sendToAll: {{ old('send_to_all', 0) ? 'true' : 'false' }},
         action: '{{ old('action', 'draft') }}',
@@ -272,6 +289,12 @@ function campaignForm() {
             }
 
             return COLLECTION_META[this.collection]?.group_slug === groupSlug;
+        },
+
+        groupMatchesProduct(groupProductId, groupSlug, groupCollectionHandle = null) {
+            if (!this.productId || String(groupProductId) !== String(this.productId)) return false;
+
+            return this.groupMatchesCollection(groupSlug, groupCollectionHandle);
         },
     }
 }

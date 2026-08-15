@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\CP\Newsletter;
 
+use App\Exceptions\Newsletter\CampaignAudienceOwnershipException;
 use App\Http\Controllers\Controller;
 use App\Jobs\Newsletter\DispatchCampaignJob;
 use App\Jobs\Newsletter\ResumeFailedCampaignSendsJob;
@@ -10,14 +11,19 @@ use App\Models\Campaign;
 use App\Models\CampaignAudience;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\CampaignAudienceOwnershipService;
 use App\Services\Newsletter\CampaignSendRetryService;
 use App\Services\Newsletter\CollectionRegistry;
 use App\Services\Newsletter\CuratedRssStoriesService;
 use App\Services\Newsletter\RssFeedService;
+use App\Services\Newsletter\ScopedCampaignProductSelector;
 use App\Services\Newsletter\TemplateResolver;
+use App\Support\Platform\Ownership\CampaignOwnershipWriter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Statamic\Facades\Entry;
 use Statamic\Facades\GlobalSet;
 
@@ -52,19 +58,37 @@ class CampaignController extends Controller
     /* Create / Store                                                        */
     /* ------------------------------------------------------------------ */
 
-    public function create()
+    public function create(Request $request, ScopedCampaignProductSelector $products)
     {
+        $collectionOptions = $this->collectionOptions();
+        $scopedProducts = $products->productsFor($request->user())
+            ->filter(fn ($product) => array_key_exists($product->primary_collection_handle, $collectionOptions))
+            ->values();
+
+        abort_if($scopedProducts->isEmpty(), 403, 'No active campaign product scope is available for this operator.');
+
+        $scopedCollectionHandles = $scopedProducts
+            ->pluck('primary_collection_handle')
+            ->filter()
+            ->all();
+
         return view('newsletter.cp.campaigns.create', [
-            'collections' => $this->collectionOptions(),
+            'products' => $scopedProducts,
+            'collections' => array_intersect_key($collectionOptions, array_flip($scopedCollectionHandles)),
             'collectionMeta' => $this->collectionMeta(),
-            'subGroups'   => $this->subGroupTree(),
+            'subGroups'   => $this->subGroupTree($scopedProducts->modelKeys()),
             'entries'     => $this->allEntries(),
         ]);
     }
 
-    public function store(Request $request)
-    {
+    public function store(
+        Request $request,
+        ScopedCampaignProductSelector $products,
+        CampaignOwnershipWriter $campaigns,
+        CampaignAudienceOwnershipService $audiences,
+    ) {
         $data = $request->validate([
+            'product_id'   => 'required|integer',
             'name'         => 'required|string|max:255',
             'collection'   => 'required|' . $this->collectionValidationRule(),
             'entry_id'     => 'nullable|string',
@@ -79,9 +103,33 @@ class CampaignController extends Controller
             'scheduled_at' => 'required_if:action,schedule|nullable|date|after:now',
         ]);
 
+        $product = $products->resolve(
+            $request->user(),
+            (int) $data['product_id'],
+            $data['collection'],
+        );
+
+        if ($product === null) {
+            throw ValidationException::withMessages([
+                'product_id' => 'Select an active product in your scope that owns the chosen collection.',
+            ]);
+        }
+
+        try {
+            $audience = $audiences->validateForProduct(
+                $product,
+                ! empty($data['send_to_all']),
+                $data['sub_groups'] ?? [],
+            );
+        } catch (CampaignAudienceOwnershipException $exception) {
+            throw ValidationException::withMessages([
+                $exception->input() => $exception->getMessage(),
+            ]);
+        }
+
         $status = $data['action'] === 'schedule' ? 'scheduled' : 'draft';
 
-        $campaign = Campaign::create([
+        $campaign = $campaigns->createForProduct($product, [
             'name'         => $data['name'],
             'collection'   => $data['collection'],
             'entry_id'     => $data['entry_id'] ?? null,
@@ -92,10 +140,10 @@ class CampaignController extends Controller
             'status'       => $status,
             'scheduled_at' => $data['action'] === 'schedule' ? $data['scheduled_at'] : null,
             'sent_at'      => null,
-            'created_by'   => auth()->id(),
+            'created_by'   => (string) $request->user()->getAuthIdentifier(),
         ]);
 
-        $this->syncAudiences($campaign, $data);
+        $audiences->replace($campaign, $audience);
 
         if ($data['action'] === 'send') {
             DispatchCampaignJob::dispatch($campaign->id)->onQueue('campaigns');
@@ -194,34 +242,55 @@ class CampaignController extends Controller
     /* Edit / Update                                                         */
     /* ------------------------------------------------------------------ */
 
-    public function edit(Campaign $campaign)
+    public function edit(
+        Request $request,
+        Campaign $campaign,
+        ScopedCampaignProductSelector $products,
+        CampaignAudienceOwnershipService $audiences,
+    )
     {
+        $product = $products->resolveCampaign($request->user(), $campaign);
+
+        abort_if($product === null, 403, 'Campaign is outside your active product scope.');
         abort_if(! in_array($campaign->status, ['draft', 'scheduled']), 403, 'Only draft or scheduled campaigns can be edited.');
 
-        $campaign->load('audiences');
+        $collectionOptions = $this->collectionOptions();
+        $collectionHandle = $product->primary_collection_handle;
 
-        $selectedSubGroupIds = $campaign->audiences
-            ->where('targetable_type', 'subscriber_sub_group')
-            ->pluck('targetable_id')
-            ->toArray();
+        abort_if(
+            ! array_key_exists($collectionHandle, $collectionOptions),
+            403,
+            'Campaign product collection is unavailable.'
+        );
 
-        $sendToAll = $campaign->audiences
-            ->where('targetable_type', 'subscriber_group')
-            ->isNotEmpty();
+        try {
+            $audience = $audiences->validatePersistedForProduct($campaign, $product);
+        } catch (CampaignAudienceOwnershipException) {
+            abort(403, 'Campaign audience ownership is invalid.');
+        }
 
         return view('newsletter.cp.campaigns.edit', [
             'campaign'            => $campaign,
-            'collections'         => $this->collectionOptions(),
+            'product'             => $product,
+            'collections'         => [$collectionHandle => $collectionOptions[$collectionHandle]],
             'collectionMeta'      => $this->collectionMeta(),
-            'subGroups'           => $this->subGroupTree(),
-            'entries'             => $this->allEntries(),
-            'selectedSubGroupIds' => $selectedSubGroupIds,
-            'sendToAll'           => $sendToAll,
+            'subGroups'           => $this->subGroupTree([$product->getKey()]),
+            'entries'             => $this->allEntries([$collectionHandle]),
+            'selectedSubGroupIds' => $audience->subGroups->modelKeys(),
+            'sendToAll'           => $audience->sendsToAll(),
         ]);
     }
 
-    public function update(Request $request, Campaign $campaign)
-    {
+    public function update(
+        Request $request,
+        Campaign $campaign,
+        ScopedCampaignProductSelector $products,
+        CampaignOwnershipWriter $campaigns,
+        CampaignAudienceOwnershipService $audiences,
+    ) {
+        $product = $products->resolveCampaign($request->user(), $campaign);
+
+        abort_if($product === null, 403, 'Campaign is outside your active product scope.');
         abort_if(! in_array($campaign->status, ['draft', 'scheduled']), 403, 'Only draft or scheduled campaigns can be edited.');
 
         $data = $request->validate([
@@ -239,22 +308,50 @@ class CampaignController extends Controller
             'scheduled_at' => 'required_if:action,schedule|nullable|date|after:now',
         ]);
 
+        $product = $products->resolveCampaign(
+            $request->user(),
+            $campaign,
+            $data['collection'],
+        );
+
+        if ($product === null) {
+            throw ValidationException::withMessages([
+                'collection' => 'The campaign collection must remain inside its active product scope.',
+            ]);
+        }
+
+        try {
+            $audience = $audiences->validateForProduct(
+                $product,
+                ! empty($data['send_to_all']),
+                $data['sub_groups'] ?? [],
+            );
+        } catch (CampaignAudienceOwnershipException $exception) {
+            throw ValidationException::withMessages([
+                $exception->input() => $exception->getMessage(),
+            ]);
+        }
+
         $status = $data['action'] === 'schedule' ? 'scheduled' : 'draft';
 
-        $campaign->update([
-            'name'         => $data['name'],
-            'collection'   => $data['collection'],
-            'entry_id'     => $data['entry_id'] ?? null,
-            'subject'      => $this->normalizeSubjectText($data['subject']),
-            'from_name'    => $this->blankToNull($data['from_name']  ?? null),
-            'from_email'   => $this->blankToNull($data['from_email'] ?? null),
-            'reply_to'     => $this->blankToNull($data['reply_to']   ?? null),
-            'status'       => $status,
-            'scheduled_at' => $data['action'] === 'schedule' ? $data['scheduled_at'] : null,
-            'sent_at'      => null,
-        ]);
+        $campaign = DB::transaction(function () use ($campaign, $campaigns, $product, $data, $status, $audiences, $audience) {
+            $campaign = $campaigns->updateForProduct($product, $campaign, [
+                'name'         => $data['name'],
+                'collection'   => $data['collection'],
+                'entry_id'     => $data['entry_id'] ?? null,
+                'subject'      => $this->normalizeSubjectText($data['subject']),
+                'from_name'    => $this->blankToNull($data['from_name']  ?? null),
+                'from_email'   => $this->blankToNull($data['from_email'] ?? null),
+                'reply_to'     => $this->blankToNull($data['reply_to']   ?? null),
+                'status'       => $status,
+                'scheduled_at' => $data['action'] === 'schedule' ? $data['scheduled_at'] : null,
+                'sent_at'      => null,
+            ]);
 
-        $this->syncAudiences($campaign, $data);
+            $audiences->replace($campaign, $audience);
+
+            return $campaign;
+        });
 
         if ($data['action'] === 'send') {
             DispatchCampaignJob::dispatch($campaign->id)->onQueue('campaigns');
@@ -601,18 +698,30 @@ class CampaignController extends Controller
         ];
     }
 
-    private function subGroupTree(): \Illuminate\Support\Collection
+    /**
+     * @param  array<int, int>|null  $productIds
+     */
+    private function subGroupTree(?array $productIds = null): \Illuminate\Support\Collection
     {
-        return SubscriberGroup::with('subGroups')
-            ->orderBy('name')
-            ->get();
+        $query = SubscriberGroup::query()
+            ->whereNull('archived_at')
+            ->with(['subGroups' => fn ($query) => $query->whereNull('archived_at')]);
+
+        if ($productIds !== null) {
+            $query->ownedByProducts($productIds);
+        }
+
+        return $query->orderBy('name')->get();
     }
 
-    private function allEntries(): array
+    /**
+     * @param  array<int, string>|null  $collectionHandles
+     */
+    private function allEntries(?array $collectionHandles = null): array
     {
         $entries = [];
 
-        foreach (array_keys($this->collectionOptions()) as $collection) {
+        foreach ($collectionHandles ?? array_keys($this->collectionOptions()) as $collection) {
             $collectionEntries = Entry::query()
                 ->where('collection', $collection)
                 ->orderBy('date', 'desc')

@@ -19,14 +19,18 @@
                 @error('name') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="publish-field-label">Newsletter Collection <span class="text-red-500">*</span></label>
-                <select name="collection_handle" class="input-text w-full @error('collection_handle') border-red-400 @enderror" required>
-                    <option value="">Select a collection</option>
-                    @foreach($collectionOptions as $handle => $label)
-                        <option value="{{ $handle }}" @selected(old('collection_handle') === $handle)>{{ $label }}</option>
+                <label class="publish-field-label">Product <span class="text-red-500">*</span></label>
+                <select name="product_id" class="input-text w-full @error('product_id') border-red-400 @enderror" required>
+                    <option value="">Select a product</option>
+                    @foreach($products as $product)
+                        <option value="{{ $product->getKey() }}" @selected((string) old('product_id') === (string) $product->getKey())>
+                            {{ $product->organisation->name }} / {{ $product->name }}
+                            ({{ $collectionOptions[$product->primary_collection_handle] }})
+                        </option>
                     @endforeach
                 </select>
-                @error('collection_handle') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+                <p class="text-xs text-gray-500 mt-1">The product determines the group's newsletter collection.</p>
+                @error('product_id') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="publish-field-label">Description</label>

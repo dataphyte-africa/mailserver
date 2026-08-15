@@ -101,9 +101,15 @@ class CollectionRegistry
             return [];
         }
 
-        return SubscriberGroup::query()
+        $query = SubscriberGroup::query()
             ->whereNotNull('collection_handle')
-            ->orderBy('name')
+            ->orderBy('name');
+
+        if (Schema::hasColumn('subscriber_groups', 'archived_at')) {
+            $query->whereNull('archived_at');
+        }
+
+        return $query
             ->get()
             ->mapWithKeys(fn (SubscriberGroup $group) => [
                 (string) $group->id => $group->name . ' (' . $this->shortLabel($group->collection_handle) . ')',

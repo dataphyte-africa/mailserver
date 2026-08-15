@@ -2,8 +2,10 @@
 
 namespace App\Services\Newsletter;
 
+use App\Models\Product;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Support\Platform\Ownership\SubscriberGroupOwnershipWriter;
 use Statamic\Facades\Blueprint;
 use Statamic\Facades\Collection;
 use Statamic\Facades\Form;
@@ -29,12 +31,18 @@ class InsightProvisioner
         ['key' => 'data-dive', 'value' => 'Data Dive'],
     ];
 
+    public function __construct(
+        private readonly SubscriberGroupOwnershipWriter $subscriberGroups,
+    ) {}
+
     public function provision(): array
     {
+        $product = $this->subscriberGroups->productForPrimaryCollection(self::COLLECTION);
+
         return [
             'collection' => $this->ensureCollection(),
             'blueprints' => $this->ensureCollectionBlueprints(),
-            'group' => $this->ensureSubscriberGroup(),
+            'group' => $this->ensureSubscriberGroup($product),
             'form_blueprint' => $this->ensureFormBlueprint(),
             'form' => $this->ensureForm(),
         ];
@@ -83,9 +91,10 @@ class InsightProvisioner
         return $keys;
     }
 
-    private function ensureSubscriberGroup(): int
+    private function ensureSubscriberGroup(Product $product): int
     {
-        $group = SubscriberGroup::query()->updateOrCreate(
+        $group = $this->subscriberGroups->updateOrCreateForProduct(
+            $product,
             ['slug' => self::GROUP_SLUG],
             [
                 'name' => 'Insight Subscribers',

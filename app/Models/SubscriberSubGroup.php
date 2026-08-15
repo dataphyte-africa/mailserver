@@ -10,7 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class SubscriberSubGroup extends Model
 {
     use HasFactory;
-    protected $fillable = ['subscriber_group_id', 'name', 'slug', 'description'];
+
+    protected $fillable = ['subscriber_group_id', 'name', 'slug', 'description', 'archived_at', 'archived_by'];
+
+    protected $casts = [
+        'archived_at' => 'datetime',
+    ];
 
     public function group(): BelongsTo
     {
@@ -28,5 +33,10 @@ class SubscriberSubGroup extends Model
     {
         return $this->belongsToMany(Subscriber::class, 'subscriber_sub_group')
             ->withPivot(['subscribed_at', 'unsubscribed_at']);
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 }

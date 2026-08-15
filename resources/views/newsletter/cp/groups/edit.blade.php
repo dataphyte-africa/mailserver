@@ -6,6 +6,9 @@
         <a href="{{ cp_route('newsletter.groups.index') }}"
            class="text-sm text-gray-500 hover:underline mb-1 block">← Groups</a>
         <h1 class="text-3xl font-bold">{{ $group->name }}</h1>
+        @if($group->isArchived())
+            <p class="text-sm text-gray-500 mt-1">Archived</p>
+        @endif
     </div>
 
     @if(session('success'))
@@ -21,6 +24,7 @@
             <h2 class="font-semibold mb-3">Group Details</h2>
             <form method="POST" action="{{ cp_route('newsletter.groups.update', $group) }}" class="card p-5 space-y-4">
                 @csrf @method('PUT')
+                <input type="hidden" name="product_id" value="{{ $product->getKey() }}">
                 <div>
                     <label class="publish-field-label">Group Name</label>
                     <input type="text" name="name" value="{{ old('name', $group->name) }}"
@@ -28,13 +32,16 @@
                     @error('name') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
+                    <label class="publish-field-label">Product</label>
+                    <div class="input-text w-full bg-gray-50 text-gray-700">
+                        {{ $product->organisation->name }} / {{ $product->name }}
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Group ownership cannot be changed during editing.</p>
+                    @error('product_id') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+                </div>
+                <div>
                     <label class="publish-field-label">Newsletter Collection</label>
-                    <select name="collection_handle" class="input-text w-full" required>
-                        @foreach($collectionOptions as $handle => $label)
-                            <option value="{{ $handle }}" @selected(old('collection_handle', $group->collection_handle) === $handle)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                    @error('collection_handle') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+                    <div class="input-text w-full bg-gray-50 text-gray-700">{{ $collectionLabel }}</div>
                 </div>
                 <div>
                     <label class="publish-field-label">Description</label>
@@ -53,6 +60,9 @@
                     <div class="flex items-center justify-between py-1" x-data="{ editing: false }">
                         <div x-show="!editing">
                             <span class="font-medium text-sm">{{ $subGroup->name }}</span>
+                            @if($subGroup->isArchived())
+                                <span class="text-xs text-gray-400 ml-2">archived</span>
+                            @endif
                             <span class="text-xs text-gray-400 ml-2">{{ $subGroup->subscribers_count }} subscribers</span>
                         </div>
 
@@ -70,6 +80,14 @@
                             <button @click="editing = !editing" class="text-blue hover:underline">
                                 <span x-text="editing ? 'Cancel' : 'Rename'"></span>
                             </button>
+                            @unless($subGroup->isArchived())
+                                <form method="POST"
+                                      action="{{ cp_route('newsletter.groups.sub-groups.archive', [$group, $subGroup]) }}"
+                                      onsubmit="return confirm('Archive sub-group {{ $subGroup->name }}?')">
+                                    @csrf
+                                    <button type="submit" class="text-gray-500 hover:underline">Archive</button>
+                                </form>
+                            @endunless
                             <form method="POST"
                                   action="{{ cp_route('newsletter.groups.sub-groups.destroy', [$group, $subGroup]) }}"
                                   onsubmit="return confirm('Delete sub-group {{ $subGroup->name }}?')">
