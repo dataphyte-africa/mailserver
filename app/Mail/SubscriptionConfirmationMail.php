@@ -43,6 +43,9 @@ class SubscriptionConfirmationMail extends Mailable
                 'X-Form-Submission-Id' => $this->mailConfig['submission_id'] ?? null,
                 'X-Form-Handle' => $this->mailConfig['form_handle'] ?? null,
                 'X-Submission-Mode' => $this->mailConfig['submission_mode'] ?? null,
+                'X-Subscriber-Id' => $this->subscriber->getKey(),
+                'X-Lifecycle-Email' => 'subscription_confirmation',
+                'X-Subscription-Status' => $this->status,
             ], fn ($value) => filled($value)),
         );
     }

@@ -77,6 +77,7 @@ class UnsubscribeController extends Controller
 
         $group = SubscriberGroup::with('subGroups')
             ->where('collection_handle', $collectionHandle)
+            ->whereNull('archived_at')
             ->first();
 
         if (! $group) {
@@ -93,7 +94,9 @@ class UnsubscribeController extends Controller
         $hasActiveSubscriptions = $subscriber->subGroups()->exists();
 
         $subscriber->update([
-            'status' => $hasActiveSubscriptions ? 'active' : 'unsubscribed',
+            'status' => $hasActiveSubscriptions
+                ? ($subscriber->status === 'active' ? 'active' : 'pending')
+                : 'unsubscribed',
             'unsubscribed_at' => $hasActiveSubscriptions ? null : now(),
         ]);
     }

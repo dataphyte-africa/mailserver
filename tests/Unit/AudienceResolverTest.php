@@ -17,16 +17,17 @@ class AudienceResolverTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->resolver = new AudienceResolver();
+        $this->resolver = new AudienceResolver;
     }
 
     public function test_resolves_subscribers_from_sub_group(): void
     {
-        $group    = SubscriberGroup::factory()->create();
+        $group = SubscriberGroup::factory()->create();
         $subGroup = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
 
-        $active   = Subscriber::factory()->count(3)->create();
+        $active = Subscriber::factory()->count(3)->create();
         $inactive = Subscriber::factory()->unsubscribed()->create();
+        $pending = Subscriber::factory()->pending()->create();
 
         // Attach active subscribers to the sub-group
         foreach ($active as $sub) {
@@ -34,13 +35,14 @@ class AudienceResolverTest extends TestCase
         }
         // Attach inactive subscriber too
         $inactive->subGroups()->attach($subGroup->id, ['subscribed_at' => now()]);
+        $pending->subGroups()->attach($subGroup->id, ['subscribed_at' => now()]);
 
         $campaign = Campaign::factory()->create();
         CampaignAudience::create([
-            'campaign_id'     => $campaign->id,
+            'campaign_id' => $campaign->id,
             'targetable_type' => 'subscriber_sub_group',
-            'targetable_id'   => $subGroup->id,
-            'send_to_all'     => false,
+            'targetable_id' => $subGroup->id,
+            'send_to_all' => false,
         ]);
 
         $campaign->load('audiences');
@@ -49,11 +51,12 @@ class AudienceResolverTest extends TestCase
         // Only active subscribers should be resolved
         $this->assertCount(3, $resolved);
         $this->assertNotContains($inactive->id, $resolved->pluck('id'));
+        $this->assertNotContains($pending->id, $resolved->pluck('id'));
     }
 
     public function test_resolves_all_subscribers_from_group(): void
     {
-        $group     = SubscriberGroup::factory()->create();
+        $group = SubscriberGroup::factory()->create();
         $subGroup1 = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
         $subGroup2 = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
 
@@ -69,10 +72,10 @@ class AudienceResolverTest extends TestCase
 
         $campaign = Campaign::factory()->create();
         CampaignAudience::create([
-            'campaign_id'     => $campaign->id,
+            'campaign_id' => $campaign->id,
             'targetable_type' => 'subscriber_group',
-            'targetable_id'   => $group->id,
-            'send_to_all'     => true,
+            'targetable_id' => $group->id,
+            'send_to_all' => true,
         ]);
 
         $campaign->load('audiences');
@@ -83,7 +86,7 @@ class AudienceResolverTest extends TestCase
 
     public function test_deduplicates_subscribers_across_audiences(): void
     {
-        $group    = SubscriberGroup::factory()->create();
+        $group = SubscriberGroup::factory()->create();
         $subGroup1 = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
         $subGroup2 = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
 
@@ -97,10 +100,10 @@ class AudienceResolverTest extends TestCase
 
         foreach ([$subGroup1->id, $subGroup2->id] as $sgId) {
             CampaignAudience::create([
-                'campaign_id'     => $campaign->id,
+                'campaign_id' => $campaign->id,
                 'targetable_type' => 'subscriber_sub_group',
-                'targetable_id'   => $sgId,
-                'send_to_all'     => false,
+                'targetable_id' => $sgId,
+                'send_to_all' => false,
             ]);
         }
 

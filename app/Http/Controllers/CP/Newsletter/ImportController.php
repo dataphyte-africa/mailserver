@@ -7,14 +7,16 @@ use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\SubscriberEngagementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ImportController extends Controller
 {
     public function form()
     {
-        $subGroups = SubscriberSubGroup::with('group')->orderBy('subscriber_group_id')->get();
+        $subGroups = $this->assignableSubGroups();
 
         return view('newsletter.cp.subscribers.import', compact('subGroups'));
     }
@@ -26,6 +28,7 @@ class ImportController extends Controller
             'default_sub_groups' => 'nullable|array',
             'default_sub_groups.*' => 'exists:subscriber_sub_groups,id',
         ]);
+        $this->validateAssignableSubGroupIds((array) $request->input('default_sub_groups', []), 'default_sub_groups');
 
         $file   = $request->file('csv_file');
         $handle = fopen($file->getRealPath(), 'r');
@@ -40,7 +43,7 @@ class ImportController extends Controller
         $row      = 1;
 
         // Resolve available sub-group slugs for mapping
-        $subGroupMap = SubscriberSubGroup::pluck('id', 'slug')->toArray();
+        $subGroupMap = $this->assignableSubGroups()->pluck('id', 'slug')->toArray();
 
         while (($data = fgetcsv($handle)) !== false) {
             $row++;
@@ -71,7 +74,7 @@ class ImportController extends Controller
                     if (isset($subGroupMap[$slug])) {
                         $subGroupIds[] = $subGroupMap[$slug];
                     } else {
-                        $errors[] = "Row {$row}: Unknown sub-group slug '{$slug}' — skipped for {$email}";
+                        $errors[] = "Row {$row}: Unknown or archived sub-group slug '{$slug}' — skipped for {$email}";
                     }
                 }
             }
@@ -288,5 +291,46 @@ class ImportController extends Controller
         $normalised = preg_replace('/\s+/', ' ', $normalised); // collapse spaces
 
         return $aliases[$normalised] ?? str_replace(' ', '_', $normalised);
+    }
+
+    /**
+     * @return Collection<int, SubscriberSubGroup>
+     */
+    private function assignableSubGroups(): Collection
+    {
+        return SubscriberSubGroup::query()
+            ->with('group')
+            ->whereNull('archived_at')
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->orderBy('subscriber_group_id')
+            ->get();
+    }
+
+    /**
+     * @param  array<int, mixed>  $ids
+     */
+    private function validateAssignableSubGroupIds(array $ids, string $input): void
+    {
+        $ids = collect($ids)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $assignableCount = SubscriberSubGroup::query()
+            ->whereIn('id', $ids->all())
+            ->whereNull('archived_at')
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->count();
+
+        if ($assignableCount !== $ids->count()) {
+            throw ValidationException::withMessages([
+                $input => 'Archived audience sub-groups cannot be assigned during subscriber import.',
+            ]);
+        }
     }
 }

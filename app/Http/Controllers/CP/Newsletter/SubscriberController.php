@@ -8,9 +8,19 @@ use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\SubscriberEngagementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 class SubscriberController extends Controller
 {
+    private const STATUSES = [
+        'pending' => 'Pending',
+        'active' => 'Active',
+        'unsubscribed' => 'Unsubscribed',
+        'bounced' => 'Bounced',
+        'complained' => 'Complained',
+    ];
+
     public function index(Request $request)
     {
         $query = Subscriber::with('subGroups.group')
@@ -78,16 +88,18 @@ class SubscriberController extends Controller
         }
 
         $subscribers = $query->paginate(50)->withQueryString();
-        $subGroups   = SubscriberSubGroup::with('group')->orderBy('subscriber_group_id')->get();
+        $subGroups   = $this->assignableSubGroups();
+        $statuses = self::STATUSES;
 
-        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction'));
+        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction', 'statuses'));
     }
 
     public function create()
     {
-        $subGroups = SubscriberSubGroup::with('group')->orderBy('subscriber_group_id')->get();
+        $subGroups = $this->assignableSubGroups();
+        $statuses = self::STATUSES;
 
-        return view('newsletter.cp.subscribers.create', compact('subGroups'));
+        return view('newsletter.cp.subscribers.create', compact('subGroups', 'statuses'));
     }
 
     public function store(Request $request)
@@ -96,10 +108,11 @@ class SubscriberController extends Controller
             'email'      => 'required|email|unique:subscribers,email',
             'first_name' => 'nullable|string|max:255',
             'last_name'  => 'nullable|string|max:255',
-            'status'     => 'required|in:active,unsubscribed,bounced,complained',
+            'status'     => 'required|in:' . implode(',', array_keys(self::STATUSES)),
             'sub_groups' => 'required|array|min:1',
             'sub_groups.*' => 'exists:subscriber_sub_groups,id',
         ]);
+        $this->validateAssignableSubGroupIds($validated['sub_groups']);
 
         $subscriber = Subscriber::create([
             'email'      => $validated['email'],
@@ -165,9 +178,10 @@ class SubscriberController extends Controller
     public function edit(Subscriber $subscriber)
     {
         $subscriber->load('subGroups');
-        $subGroups = SubscriberSubGroup::with('group')->orderBy('subscriber_group_id')->get();
+        $subGroups = $this->assignableSubGroups();
+        $statuses = self::STATUSES;
 
-        return view('newsletter.cp.subscribers.edit', compact('subscriber', 'subGroups'));
+        return view('newsletter.cp.subscribers.edit', compact('subscriber', 'subGroups', 'statuses'));
     }
 
     public function update(Request $request, Subscriber $subscriber)
@@ -176,10 +190,11 @@ class SubscriberController extends Controller
             'email'      => 'required|email|unique:subscribers,email,' . $subscriber->id,
             'first_name' => 'nullable|string|max:255',
             'last_name'  => 'nullable|string|max:255',
-            'status'     => 'required|in:active,unsubscribed,bounced,complained',
+            'status'     => 'required|in:' . implode(',', array_keys(self::STATUSES)),
             'sub_groups' => 'required|array|min:1',
             'sub_groups.*' => 'exists:subscriber_sub_groups,id',
         ]);
+        $this->validateAssignableSubGroupIds($validated['sub_groups']);
 
         $subscriber->update([
             'email'      => $validated['email'],
@@ -216,5 +231,41 @@ class SubscriberController extends Controller
         return redirect()
             ->route('statamic.cp.newsletter.subscribers.index')
             ->with('success', 'Subscriber deleted.');
+    }
+
+    /**
+     * @return Collection<int, SubscriberSubGroup>
+     */
+    private function assignableSubGroups(): Collection
+    {
+        return SubscriberSubGroup::query()
+            ->with('group')
+            ->whereNull('archived_at')
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->orderBy('subscriber_group_id')
+            ->get();
+    }
+
+    /**
+     * @param  array<int, mixed>  $ids
+     */
+    private function validateAssignableSubGroupIds(array $ids): void
+    {
+        $ids = collect($ids)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $assignableCount = SubscriberSubGroup::query()
+            ->whereIn('id', $ids->all())
+            ->whereNull('archived_at')
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->count();
+
+        if ($assignableCount !== $ids->count()) {
+            throw ValidationException::withMessages([
+                'sub_groups' => 'Archived audience sub-groups cannot be assigned to subscribers.',
+            ]);
+        }
     }
 }

@@ -30,6 +30,14 @@ class SubscriberFactory extends Factory
         return $this->state(['status' => 'active']);
     }
 
+    public function pending(): static
+    {
+        return $this->state([
+            'status' => 'pending',
+            'confirmed_at' => null,
+        ]);
+    }
+
     public function unsubscribed(): static
     {
         return $this->state([

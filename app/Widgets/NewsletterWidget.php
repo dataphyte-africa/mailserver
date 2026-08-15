@@ -57,9 +57,11 @@ class NewsletterWidget extends Widget
 
         // Subscriber counts
         $subscriberStats = [
+            'pending'      => Subscriber::where('status', 'pending')->count(),
             'active'       => Subscriber::where('status', 'active')->count(),
             'unsubscribed' => Subscriber::where('status', 'unsubscribed')->count(),
             'bounced'      => Subscriber::where('status', 'bounced')->count(),
+            'complained'   => Subscriber::where('status', 'complained')->count(),
         ];
 
         // Webhook health (last 24h)

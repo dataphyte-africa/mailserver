@@ -45,6 +45,12 @@ class ElasticEmailTransport extends AbstractTransport
             ?->getBodyAsString();
         $submissionMode = $email->getHeaders()->get('X-Submission-Mode')
             ?->getBodyAsString();
+        $subscriberId = $email->getHeaders()->get('X-Subscriber-Id')
+            ?->getBodyAsString();
+        $lifecycleEmail = $email->getHeaders()->get('X-Lifecycle-Email')
+            ?->getBodyAsString();
+        $subscriptionStatus = $email->getHeaders()->get('X-Subscription-Status')
+            ?->getBodyAsString();
 
         // Build recipients
         $recipients = [];
@@ -63,6 +69,15 @@ class ElasticEmailTransport extends AbstractTransport
             }
             if ($submissionMode) {
                 $fields['submission_mode'] = $submissionMode;
+            }
+            if ($subscriberId) {
+                $fields['subscriber_id'] = $subscriberId;
+            }
+            if ($lifecycleEmail) {
+                $fields['lifecycle_email'] = $lifecycleEmail;
+            }
+            if ($subscriptionStatus) {
+                $fields['subscription_status'] = $subscriptionStatus;
             }
             if ($fields !== []) {
                 $recipient->setFields($fields);

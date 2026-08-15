@@ -42,6 +42,10 @@
     {{-- Subscriber summary --}}
     <div class="flex items-center gap-4 px-4 py-2 border-b border-grey-20 text-xs text-grey-60">
         <span>
+            <span class="font-semibold text-yellow-dark">{{ number_format($subscriberStats['pending'] ?? 0) }}</span> pending
+        </span>
+        <span>&middot;</span>
+        <span>
             <span class="font-semibold text-green-dark">{{ number_format($subscriberStats['active']) }}</span> active
         </span>
         <span>&middot;</span>
@@ -53,6 +57,12 @@
             <span class="font-semibold {{ $subscriberStats['bounced'] > 0 ? 'text-red' : 'text-grey-60' }}">
                 {{ number_format($subscriberStats['bounced']) }}
             </span> bounced
+        </span>
+        <span>&middot;</span>
+        <span>
+            <span class="font-semibold {{ ($subscriberStats['complained'] ?? 0) > 0 ? 'text-red' : 'text-grey-60' }}">
+                {{ number_format($subscriberStats['complained'] ?? 0) }}
+            </span> complained
         </span>
         @if($webhookFailed > 0)
         <span class="ml-auto text-red font-semibold">

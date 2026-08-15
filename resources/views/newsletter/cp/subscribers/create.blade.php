@@ -36,8 +36,11 @@
             <div>
                 <label class="publish-field-label">Status</label>
                 <select name="status" class="input-text w-full">
-                    <option value="active" @selected(old('status','active') === 'active')>Active</option>
-                    <option value="unsubscribed" @selected(old('status') === 'unsubscribed')>Unsubscribed</option>
+                    @foreach($statuses as $statusValue => $statusLabel)
+                        <option value="{{ $statusValue }}" @selected(old('status', 'active') === $statusValue)>
+                            {{ $statusLabel }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 

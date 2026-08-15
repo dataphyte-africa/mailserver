@@ -115,6 +115,10 @@ class ProcessWebhookJob implements ShouldQueue
             $submission = app(ApplicationSubmissionTrackingService::class)->resolveSubmission($log);
 
             if (! $submission) {
+                if ($this->handleSubscriberLifecycleEmail($log, $event)) {
+                    return;
+                }
+
                 // We may receive events for emails sent outside this system — ignore
                 Log::debug("ProcessWebhookJob: no CampaignSend or application submission for tx={$log->transaction_id} email={$log->to_email}");
                 return;
@@ -332,6 +336,63 @@ class ProcessWebhookJob implements ShouldQueue
         }
 
         return null;
+    }
+
+    private function handleSubscriberLifecycleEmail(WebhookLog $log, string $event): bool
+    {
+        $payload = $log->payload ?? [];
+
+        if ($this->extractField($payload, ['submission_id']) || $this->extractField($payload, ['submission_mode']) === 'application') {
+            return false;
+        }
+
+        if ($this->extractField($payload, ['lifecycle_email']) !== 'subscription_confirmation') {
+            return false;
+        }
+
+        $subscriptionStatus = $this->extractField($payload, ['subscription_status']);
+
+        if (! in_array($subscriptionStatus, ['subscribed', 'resubscribed'], true)) {
+            return false;
+        }
+
+        $subscriberId = $this->extractField($payload, ['subscriber_id']);
+
+        if (! $subscriberId) {
+            return false;
+        }
+
+        $subscriber = Subscriber::find((int) $subscriberId);
+
+        if (! $subscriber) {
+            return false;
+        }
+
+        $eventDate = $this->eventDate($log) ?? now();
+
+        match ($event) {
+            'delivered', 'opened', 'clicked' => $subscriber->status === 'pending'
+                ? $subscriber->update([
+                    'status' => 'active',
+                    'confirmed_at' => $subscriber->confirmed_at ?? $eventDate,
+                    'unsubscribed_at' => null,
+                ])
+                : null,
+            'bounced' => in_array($subscriber->status, ['pending', 'active'], true)
+                ? $subscriber->update(['status' => 'bounced'])
+                : null,
+            'unsubscribed', 'complained' => $subscriber->status !== 'unsubscribed'
+                ? $subscriber->update([
+                    'status' => 'unsubscribed',
+                    'unsubscribed_at' => $eventDate,
+                ])
+                : null,
+            default => null,
+        };
+
+        app(SubscriberEngagementService::class)->persist($subscriber->fresh());
+
+        return true;
     }
 
     public static function normaliseEventType(?string $rawEvent): ?string

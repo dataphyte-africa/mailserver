@@ -11,17 +11,17 @@ use Tests\TestCase;
 class ProcessWebhookJobTest extends TestCase
 {
     /* ------------------------------------------------------------------ */
-    /* Helpers                                                              */
+    /* Helpers */
     /* ------------------------------------------------------------------ */
 
     private function makeLog(string $event, string $txId, string $email, array $extra = []): WebhookLog
     {
         return WebhookLog::factory()->forEvent($event, $txId, $email)->create(array_merge([
             'payload' => array_merge([
-                'EventType'     => $event,
+                'EventType' => $event,
                 'TransactionID' => $txId,
-                'To'            => $email,
-                'Date'          => now()->toIso8601String(),
+                'To' => $email,
+                'Date' => now()->toIso8601String(),
             ], $extra),
         ], $extra));
     }
@@ -31,20 +31,38 @@ class ProcessWebhookJobTest extends TestCase
         $subscriber = Subscriber::factory()->create($subscriberState);
 
         return CampaignSend::factory()->create([
-            'subscriber_id'                => $subscriber->id,
+            'subscriber_id' => $subscriber->id,
             'elastic_email_transaction_id' => $txId,
-            'status'                       => 'sent',
+            'status' => 'sent',
+        ]);
+    }
+
+    private function makeLifecycleLog(string $event, Subscriber $subscriber, string $subscriptionStatus = 'subscribed'): WebhookLog
+    {
+        return WebhookLog::factory()->create([
+            'event_type' => $event,
+            'transaction_id' => 'tx-lifecycle-'.$subscriber->id.'-'.strtolower($event),
+            'to_email' => $subscriber->email,
+            'payload' => [
+                'EventType' => $event,
+                'TransactionID' => 'tx-lifecycle-'.$subscriber->id.'-'.strtolower($event),
+                'To' => $subscriber->email,
+                'Date' => now()->toIso8601String(),
+                'subscriber_id' => (string) $subscriber->id,
+                'lifecycle_email' => 'subscription_confirmation',
+                'subscription_status' => $subscriptionStatus,
+            ],
         ]);
     }
 
     /* ------------------------------------------------------------------ */
-    /* Delivery                                                             */
+    /* Delivery */
     /* ------------------------------------------------------------------ */
 
     public function test_delivery_event_marks_send_delivered(): void
     {
         $send = $this->makeSend('tx-del-001');
-        $log  = $this->makeLog('Delivery', 'tx-del-001', $send->subscriber->email);
+        $log = $this->makeLog('Delivery', 'tx-del-001', $send->subscriber->email);
 
         ProcessWebhookJob::dispatchSync($log->id);
 
@@ -52,18 +70,51 @@ class ProcessWebhookJobTest extends TestCase
         $this->assertNotNull($send->fresh()->delivered_at);
     }
 
+    public function test_delivery_event_activates_pending_subscription_lifecycle_email(): void
+    {
+        $subscriber = Subscriber::factory()->pending()->create();
+        $log = $this->makeLifecycleLog('Delivery', $subscriber);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $this->assertEquals('active', $subscriber->fresh()->status);
+        $this->assertNotNull($subscriber->fresh()->confirmed_at);
+    }
+
+    public function test_bounce_event_does_not_activate_pending_subscription_lifecycle_email(): void
+    {
+        $subscriber = Subscriber::factory()->pending()->create();
+        $log = $this->makeLifecycleLog('Bounce', $subscriber);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $this->assertEquals('bounced', $subscriber->fresh()->status);
+        $this->assertNull($subscriber->fresh()->confirmed_at);
+    }
+
+    public function test_delivery_event_does_not_activate_pending_subscription_update_email(): void
+    {
+        $subscriber = Subscriber::factory()->pending()->create();
+        $log = $this->makeLifecycleLog('Delivery', $subscriber, 'subscription_updated');
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $this->assertEquals('pending', $subscriber->fresh()->status);
+        $this->assertNull($subscriber->fresh()->confirmed_at);
+    }
+
     public function test_delivery_event_without_date_marks_status_without_fabricating_timestamp(): void
     {
         $send = $this->makeSend('tx-del-001b');
 
         $log = WebhookLog::factory()->create([
-            'event_type'     => 'Delivery',
+            'event_type' => 'Delivery',
             'transaction_id' => 'tx-del-001b',
-            'to_email'       => $send->subscriber->email,
-            'payload'        => [
-                'EventType'     => 'Delivery',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'EventType' => 'Delivery',
                 'TransactionID' => 'tx-del-001b',
-                'To'            => $send->subscriber->email,
+                'To' => $send->subscriber->email,
             ],
         ]);
 
@@ -86,13 +137,13 @@ class ProcessWebhookJobTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Open                                                                 */
+    /* Open */
     /* ------------------------------------------------------------------ */
 
     public function test_open_event_marks_send_opened(): void
     {
         $send = $this->makeSend('tx-open-001');
-        $log  = $this->makeLog('Open', 'tx-open-001', $send->subscriber->email);
+        $log = $this->makeLog('Open', 'tx-open-001', $send->subscriber->email);
 
         ProcessWebhookJob::dispatchSync($log->id);
 
@@ -106,14 +157,14 @@ class ProcessWebhookJobTest extends TestCase
         $eventDate = now()->subHours(6)->startOfMinute();
 
         $log = WebhookLog::factory()->create([
-            'event_type'     => 'Open',
+            'event_type' => 'Open',
             'transaction_id' => 'tx-open-001b',
-            'to_email'       => $send->subscriber->email,
-            'payload'        => [
-                'EventType'     => 'Open',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'EventType' => 'Open',
                 'TransactionID' => 'tx-open-001b',
-                'To'            => $send->subscriber->email,
-                'Date'          => $eventDate->toIso8601String(),
+                'To' => $send->subscriber->email,
+                'Date' => $eventDate->toIso8601String(),
             ],
         ]);
 
@@ -127,14 +178,14 @@ class ProcessWebhookJobTest extends TestCase
         $send = $this->makeSend('tx-open-001c');
 
         $log = WebhookLog::factory()->create([
-            'event_type'     => 'Open',
+            'event_type' => 'Open',
             'transaction_id' => 'tx-open-001c',
-            'to_email'       => $send->subscriber->email,
-            'payload'        => [
-                'EventType'     => 'Open',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'EventType' => 'Open',
                 'TransactionID' => 'tx-open-001c',
-                'To'            => $send->subscriber->email,
-                '_source'       => 'sync-command',
+                'To' => $send->subscriber->email,
+                '_source' => 'sync-command',
             ],
         ]);
 
@@ -160,7 +211,7 @@ class ProcessWebhookJobTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Click                                                                */
+    /* Click */
     /* ------------------------------------------------------------------ */
 
     public function test_click_event_marks_send_clicked_and_records_link(): void
@@ -169,11 +220,11 @@ class ProcessWebhookJobTest extends TestCase
 
         $log = WebhookLog::factory()->forEvent('Click', 'tx-click-001', $send->subscriber->email)->create([
             'payload' => [
-                'EventType'     => 'Click',
+                'EventType' => 'Click',
                 'TransactionID' => 'tx-click-001',
-                'To'            => $send->subscriber->email,
-                'Date'          => now()->toIso8601String(),
-                'Link'          => 'https://dataphyte.com/story?utm_source=newsletter',
+                'To' => $send->subscriber->email,
+                'Date' => now()->toIso8601String(),
+                'Link' => 'https://dataphyte.com/story?utm_source=newsletter',
             ],
         ]);
 
@@ -183,18 +234,18 @@ class ProcessWebhookJobTest extends TestCase
         $this->assertNotNull($send->fresh()->clicked_at);
         $this->assertDatabaseHas('campaign_link_clicks', [
             'campaign_send_id' => $send->id,
-            'url'              => 'https://dataphyte.com/story?utm_source=newsletter',
+            'url' => 'https://dataphyte.com/story?utm_source=newsletter',
         ]);
     }
 
     /* ------------------------------------------------------------------ */
-    /* Hard Bounce                                                          */
+    /* Hard Bounce */
     /* ------------------------------------------------------------------ */
 
     public function test_hard_bounce_marks_send_bounced(): void
     {
         $send = $this->makeSend('tx-bounce-001');
-        $log  = $this->makeLog('Bounce', 'tx-bounce-001', $send->subscriber->email);
+        $log = $this->makeLog('Bounce', 'tx-bounce-001', $send->subscriber->email);
 
         ProcessWebhookJob::dispatchSync($log->id);
 
@@ -204,7 +255,7 @@ class ProcessWebhookJobTest extends TestCase
 
     public function test_hard_bounce_suppresses_active_subscriber(): void
     {
-        $send       = $this->makeSend('tx-bounce-002', ['status' => 'active']);
+        $send = $this->makeSend('tx-bounce-002', ['status' => 'active']);
         $subscriber = $send->subscriber;
 
         $log = $this->makeLog('Bounce', 'tx-bounce-002', $subscriber->email);
@@ -216,14 +267,14 @@ class ProcessWebhookJobTest extends TestCase
 
     public function test_hard_bounce_variant_bouncedhard_also_suppresses(): void
     {
-        $send       = $this->makeSend('tx-bounce-003', ['status' => 'active']);
+        $send = $this->makeSend('tx-bounce-003', ['status' => 'active']);
         $subscriber = $send->subscriber;
 
         $log = WebhookLog::factory()->create([
-            'event_type'     => 'BouncedHard',
+            'event_type' => 'BouncedHard',
             'transaction_id' => 'tx-bounce-003',
-            'to_email'       => $subscriber->email,
-            'payload'        => ['EventType' => 'BouncedHard', 'TransactionID' => 'tx-bounce-003', 'To' => $subscriber->email, 'Date' => now()->toIso8601String()],
+            'to_email' => $subscriber->email,
+            'payload' => ['EventType' => 'BouncedHard', 'TransactionID' => 'tx-bounce-003', 'To' => $subscriber->email, 'Date' => now()->toIso8601String()],
         ]);
 
         ProcessWebhookJob::dispatchSync($log->id);
@@ -232,12 +283,12 @@ class ProcessWebhookJobTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Unsubscribe / Complaint                                              */
+    /* Unsubscribe / Complaint */
     /* ------------------------------------------------------------------ */
 
     public function test_unsubscribe_event_suppresses_subscriber(): void
     {
-        $send       = $this->makeSend('tx-unsub-001', ['status' => 'active']);
+        $send = $this->makeSend('tx-unsub-001', ['status' => 'active']);
         $subscriber = $send->subscriber;
 
         $log = $this->makeLog('Unsubscribe', 'tx-unsub-001', $subscriber->email);
@@ -250,7 +301,7 @@ class ProcessWebhookJobTest extends TestCase
 
     public function test_complaint_event_suppresses_subscriber(): void
     {
-        $send       = $this->makeSend('tx-complaint-001', ['status' => 'active']);
+        $send = $this->makeSend('tx-complaint-001', ['status' => 'active']);
         $subscriber = $send->subscriber;
 
         $log = $this->makeLog('Complaint', 'tx-complaint-001', $subscriber->email);
@@ -261,19 +312,19 @@ class ProcessWebhookJobTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Soft Bounce / Error                                                  */
+    /* Soft Bounce / Error */
     /* ------------------------------------------------------------------ */
 
     public function test_soft_bounce_marks_send_failed_without_suppressing_subscriber(): void
     {
-        $send       = $this->makeSend('tx-soft-001', ['status' => 'active']);
+        $send = $this->makeSend('tx-soft-001', ['status' => 'active']);
         $subscriber = $send->subscriber;
 
         $log = WebhookLog::factory()->create([
-            'event_type'     => 'BouncedSoft',
+            'event_type' => 'BouncedSoft',
             'transaction_id' => 'tx-soft-001',
-            'to_email'       => $subscriber->email,
-            'payload'        => ['EventType' => 'BouncedSoft', 'TransactionID' => 'tx-soft-001', 'To' => $subscriber->email, 'Date' => now()->toIso8601String()],
+            'to_email' => $subscriber->email,
+            'payload' => ['EventType' => 'BouncedSoft', 'TransactionID' => 'tx-soft-001', 'To' => $subscriber->email, 'Date' => now()->toIso8601String()],
         ]);
 
         ProcessWebhookJob::dispatchSync($log->id);
@@ -283,13 +334,13 @@ class ProcessWebhookJobTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Log Lifecycle                                                        */
+    /* Log Lifecycle */
     /* ------------------------------------------------------------------ */
 
     public function test_log_marked_processed_after_successful_handling(): void
     {
         $send = $this->makeSend('tx-proc-001');
-        $log  = $this->makeLog('Delivery', 'tx-proc-001', $send->subscriber->email);
+        $log = $this->makeLog('Delivery', 'tx-proc-001', $send->subscriber->email);
 
         ProcessWebhookJob::dispatchSync($log->id);
 
@@ -301,10 +352,10 @@ class ProcessWebhookJobTest extends TestCase
     {
         // Unknown events skip processing but should still mark the log processed
         $log = WebhookLog::factory()->create([
-            'event_type'     => 'UnknownXYZ',
+            'event_type' => 'UnknownXYZ',
             'transaction_id' => 'tx-unknown-001',
-            'to_email'       => 'nobody@example.com',
-            'payload'        => ['EventType' => 'UnknownXYZ'],
+            'to_email' => 'nobody@example.com',
+            'payload' => ['EventType' => 'UnknownXYZ'],
         ]);
 
         ProcessWebhookJob::dispatchSync($log->id);
@@ -313,7 +364,7 @@ class ProcessWebhookJobTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Fallback resolution by email                                        */
+    /* Fallback resolution by email */
     /* ------------------------------------------------------------------ */
 
     public function test_resolves_send_by_email_when_no_transaction_id_match(): void
@@ -321,22 +372,22 @@ class ProcessWebhookJobTest extends TestCase
         // Create a send with a different transaction ID but matching email
         $subscriber = Subscriber::factory()->create();
         $send = CampaignSend::factory()->create([
-            'subscriber_id'                => $subscriber->id,
+            'subscriber_id' => $subscriber->id,
             'elastic_email_transaction_id' => 'different-tx',
-            'status'                       => 'sent',
+            'status' => 'sent',
         ]);
         // Set campaign to 'sent' so fallback query includes it
         $send->campaign->update(['status' => 'sent']);
 
         $log = WebhookLog::factory()->create([
-            'event_type'     => 'Delivery',
+            'event_type' => 'Delivery',
             'transaction_id' => 'no-match-tx',
-            'to_email'       => $subscriber->email,
-            'payload'        => [
-                'EventType'     => 'Delivery',
+            'to_email' => $subscriber->email,
+            'payload' => [
+                'EventType' => 'Delivery',
                 'TransactionID' => 'no-match-tx',
-                'To'            => $subscriber->email,
-                'Date'          => now()->toIso8601String(),
+                'To' => $subscriber->email,
+                'Date' => now()->toIso8601String(),
             ],
         ]);
 

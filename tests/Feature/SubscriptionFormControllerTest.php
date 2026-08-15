@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Mail\SubscriptionConfirmationMail;
+use App\Models\Organisation;
+use App\Models\Product;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Statamic\Contracts\Forms\Submission as StatamicSubmission;
 use Statamic\Facades\Blueprint;
 use Statamic\Facades\Form;
@@ -32,6 +35,18 @@ class SubscriptionFormControllerTest extends TestCase
         $this->assertSame('Monthly', $options->get('monthly')['label']);
     }
 
+    public function test_schema_endpoint_uses_verified_product_forms_domain_when_available(): void
+    {
+        $form = $this->makePolicyPointForm();
+        $this->createPolicyPointProduct();
+
+        $response = $this->getJson(route('newsletter.forms.schema', ['form' => 'policy-point']));
+
+        $response->assertOk()
+            ->assertJsonPath('handle', $form->handle())
+            ->assertJsonPath('endpoint', 'https://join.policy.example.test/subscribe/policy-point');
+    }
+
     public function test_submit_endpoint_creates_subscriber_and_managed_sub_groups(): void
     {
         Mail::fake();
@@ -54,7 +69,8 @@ class SubscriptionFormControllerTest extends TestCase
         /** @var StatamicSubmission $submission */
         $submission = $form->querySubmissions()->first();
 
-        $this->assertEquals('active', $subscriber->status);
+        $this->assertEquals('pending', $subscriber->status);
+        $this->assertNull($subscriber->confirmed_at);
         $this->assertSame(1, $form->querySubmissions()->count());
         $this->assertDatabaseHas('subscriber_groups', ['slug' => 'policy-point']);
         $this->assertDatabaseHas('subscriber_sub_groups', ['slug' => 'as-frequently']);
@@ -105,6 +121,37 @@ class SubscriptionFormControllerTest extends TestCase
         $this->assertDatabaseMissing('subscriber_sub_group', [
             'subscriber_id' => $subscriber->id,
             'subscriber_sub_group_id' => $monthly->id,
+            'unsubscribed_at' => null,
+        ]);
+    }
+
+    public function test_pending_subscriber_preference_update_does_not_activate_before_delivery(): void
+    {
+        Mail::fake();
+        $this->makePolicyPointForm();
+
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'policy-point']), [
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.com',
+            'frequency' => 'monthly',
+        ])->assertOk();
+
+        $subscriber = Subscriber::where('email', 'ada@example.com')->firstOrFail();
+        $frequent = SubscriberSubGroup::where('slug', 'as-frequently')->firstOrFail();
+
+        $this->post(URL::signedRoute('newsletter.preferences.update', [
+            'token' => $subscriber->confirmation_token,
+            'collection' => 'policy_point_newsletters',
+        ]), [
+            'sub_groups' => [$frequent->id],
+        ])->assertOk();
+
+        $this->assertSame('pending', $subscriber->fresh()->status);
+        $this->assertNull($subscriber->fresh()->confirmed_at);
+        $this->assertDatabaseHas('subscriber_sub_group', [
+            'subscriber_id' => $subscriber->id,
+            'subscriber_sub_group_id' => $frequent->id,
             'unsubscribed_at' => null,
         ]);
     }
@@ -245,7 +292,8 @@ class SubscriptionFormControllerTest extends TestCase
             ->assertJsonPath('status', 'resubscribed')
             ->assertJsonPath('message', 'Your subscription has been restored.');
 
-        $this->assertSame('active', $subscriber->fresh()->status);
+        $this->assertSame('pending', $subscriber->fresh()->status);
+        $this->assertNull($subscriber->fresh()->confirmed_at);
         $this->assertNull($subscriber->fresh()->unsubscribed_at);
         Mail::assertQueued(SubscriptionConfirmationMail::class, function (SubscriptionConfirmationMail $mail) {
             return $mail->hasTo('ada@example.com') && $mail->status === 'resubscribed';
@@ -334,5 +382,28 @@ class SubscriptionFormControllerTest extends TestCase
         $form->save();
 
         return $form;
+    }
+
+    private function createPolicyPointProduct(): Product
+    {
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte',
+            'slug' => 'dataphyte',
+            'default_domain' => 'org.example.test',
+        ]);
+
+        return Product::query()->create([
+            'organisation_id' => $organisation->getKey(),
+            'name' => 'Policy Point',
+            'slug' => 'policy-point',
+            'status' => 'active',
+            'product_type' => 'newsletter',
+            'public_domain' => 'policy.example.test',
+            'forms_domain' => 'join.policy.example.test',
+            'domain_status' => 'verified',
+            'domain_verified_at' => now(),
+            'primary_collection_handle' => 'policy_point_newsletters',
+            'fallback_to_platform_domain' => true,
+        ]);
     }
 }

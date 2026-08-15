@@ -108,9 +108,9 @@
             <label class="text-sm font-medium text-gray-700 block mb-1">Status</label>
             <select name="status" class="input-text">
                 <option value="">All statuses</option>
-                @foreach(['active','unsubscribed','bounced','complained'] as $s)
-                    <option value="{{ $s }}" @selected(request('status') === $s)>
-                        {{ ucfirst($s) }}
+                @foreach($statuses as $statusValue => $statusLabel)
+                    <option value="{{ $statusValue }}" @selected(request('status') === $statusValue)>
+                        {{ $statusLabel }}
                     </option>
                 @endforeach
             </select>
@@ -207,8 +207,17 @@
                         </td>
                         <td class="subscriber-name-col">{{ $subscriber->full_name }}</td>
                         <td>
+                            @php
+                                $statusClasses = match ($subscriber->status) {
+                                    'active' => 'bg-green-100 text-green-700',
+                                    'pending' => 'bg-yellow-100 text-yellow-700',
+                                    'bounced', 'complained' => 'bg-red-100 text-red-600',
+                                    'unsubscribed' => 'bg-gray-100 text-gray-600',
+                                    default => 'bg-gray-50 text-gray-400',
+                                };
+                            @endphp
                             <span class="badge-sm
-                                {{ $subscriber->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
+                                {{ $statusClasses }}">
                                 {{ ucfirst($subscriber->status) }}
                             </span>
                         </td>

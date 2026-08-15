@@ -199,6 +199,7 @@ class PreferencesController extends Controller
 
         $group = SubscriberGroup::with('subGroups')
             ->where('collection_handle', $collectionHandle)
+            ->whereNull('archived_at')
             ->first();
 
         if (! $group) {
@@ -215,14 +216,16 @@ class PreferencesController extends Controller
         $hasActiveSubscriptions = $subscriber->subGroups()->exists();
 
         $subscriber->update([
-            'status' => $hasActiveSubscriptions ? 'active' : 'unsubscribed',
+            'status' => $hasActiveSubscriptions
+                ? ($subscriber->status === 'active' ? 'active' : 'pending')
+                : 'unsubscribed',
             'unsubscribed_at' => $hasActiveSubscriptions ? null : now(),
         ]);
     }
 
     private function visibleSubGroupsForCollection(SubscriberGroup $group, ?string $collectionHandle)
     {
-        $query = $group->subGroups()->orderBy('name');
+        $query = $group->subGroups()->whereNull('archived_at')->orderBy('name');
 
         if ($collectionHandle !== 'foundation_newsletters') {
             return $query->get();

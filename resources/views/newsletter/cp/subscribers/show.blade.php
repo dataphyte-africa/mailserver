@@ -187,7 +187,15 @@
                 <div class="flex justify-between py-3">
                     <dt class="text-gray-500">Status</dt>
                     <dd>
-                        <span class="font-medium {{ $subscriber->status === 'active' ? 'text-green-600' : 'text-red-500' }}">
+                        @php
+                            $statusTextClass = match ($subscriber->status) {
+                                'active' => 'text-green-600',
+                                'pending' => 'text-yellow-600',
+                                'bounced', 'complained' => 'text-red-500',
+                                default => 'text-gray-600',
+                            };
+                        @endphp
+                        <span class="font-medium {{ $statusTextClass }}">
                             {{ ucfirst($subscriber->status) }}
                         </span>
                     </dd>

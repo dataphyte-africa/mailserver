@@ -2,6 +2,8 @@
 
 namespace App\Services\Newsletter;
 
+use App\Contracts\Domain\DomainResolverInterface;
+use App\Contracts\Domain\ProductUrlGeneratorInterface;
 use App\Mail\SubscriptionConfirmationMail;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
@@ -24,6 +26,8 @@ class SubscriptionFormService
     public function __construct(
         private readonly CollectionRegistry $collections,
         private readonly ApplicationSubmissionTrackingService $applicationTracking,
+        private readonly ProductUrlGeneratorInterface $productUrls,
+        private readonly DomainResolverInterface $domains,
     ) {}
 
     public function isNewsletterForm(StatamicForm $form): bool
@@ -47,6 +51,7 @@ class SubscriptionFormService
         return SubscriberGroup::query()
             ->whereKey($id)
             ->whereNotNull('collection_handle')
+            ->whereNull('archived_at')
             ->first();
     }
 
@@ -207,7 +212,7 @@ class SubscriptionFormService
             'title' => $form->title(),
             'collection' => $this->collectionHandle($form),
             'group' => $this->group($form)?->only(['id', 'name', 'slug']),
-            'endpoint' => $this->collections->formEndpoint($this->endpointSlug($form)),
+            'endpoint' => $this->publicFormSubmitUrl($form),
             'privacy_url' => $this->privacyUrl($form),
             'logo_url' => $this->logoUrl($form),
             'brand_color' => $this->brandColor($form),
@@ -217,6 +222,32 @@ class SubscriptionFormService
                 ->map(fn (Field $field) => $this->serializeField($field))
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function publicFormLinks(StatamicForm $form): array
+    {
+        $identifier = $this->endpointSlug($form);
+        $productKey = $this->productKey($form);
+
+        return [
+            'page' => $this->publicFormPageUrl($form),
+            'schema' => $this->publicFormRouteUrl('newsletter.forms.schema', ['form' => $identifier], $productKey),
+            'submit' => $this->publicFormSubmitUrl($form),
+            'states' => $this->publicFormRouteUrl('newsletter.forms.locations.states', ['form' => $identifier], $productKey),
+            'lgas_template' => $this->publicFormRouteUrl(
+                'newsletter.forms.locations.lgas',
+                ['form' => $identifier, 'state' => '__STATE__'],
+                $productKey,
+            ),
+            'wards_template' => $this->publicFormRouteUrl(
+                'newsletter.forms.locations.wards',
+                ['form' => $identifier, 'lga' => '__LGA__'],
+                $productKey,
+            ),
         ];
     }
 
@@ -257,6 +288,82 @@ class SubscriptionFormService
         $submission->save();
 
         return $submission;
+    }
+
+    public function publicFormPageUrl(StatamicForm $form): string
+    {
+        $identifier = $this->endpointSlug($form);
+        $productKey = $this->productKey($form);
+
+        if ($productKey) {
+            return $this->productUrls->formPage($productKey, $identifier);
+        }
+
+        return route('newsletter.forms.show', ['form' => $identifier]);
+    }
+
+    public function publicFormSubmitUrl(StatamicForm $form): string
+    {
+        $identifier = $this->endpointSlug($form);
+        $productKey = $this->productKey($form);
+
+        if ($productKey) {
+            return $this->productUrls->formSubmitEndpoint($productKey, $identifier);
+        }
+
+        return route('newsletter.forms.submit', ['form' => $identifier]);
+    }
+
+    protected function productKey(StatamicForm $form): ?string
+    {
+        $collectionHandle = $this->collectionHandle($form);
+
+        return is_string($collectionHandle) && trim($collectionHandle) !== ''
+            ? trim($collectionHandle)
+            : null;
+    }
+
+    /**
+     * @param  array<string, string>  $parameters
+     */
+    protected function publicFormRouteUrl(string $routeName, array $parameters, ?string $productKey): string
+    {
+        $url = route($routeName, $parameters);
+
+        if (! $productKey) {
+            return $url;
+        }
+
+        $domain = $this->domains->resolveProductDomain($productKey, 'form_submit_endpoint');
+
+        if (! is_string($domain) || trim($domain) === '') {
+            return $url;
+        }
+
+        return $this->replaceUrlHost($url, $domain);
+    }
+
+    protected function replaceUrlHost(string $url, string $domain): string
+    {
+        $parts = parse_url($url);
+
+        if ($parts === false) {
+            return $url;
+        }
+
+        $scheme = (string) config('platform.domain.platform_scheme', $parts['scheme'] ?? 'https');
+        $path = $parts['path'] ?? '/';
+        $query = isset($parts['query']) ? '?'.$parts['query'] : '';
+        $fragment = isset($parts['fragment']) ? '#'.$parts['fragment'] : '';
+
+        return sprintf(
+            '%s://%s%s%s%s',
+            $scheme,
+            trim($domain),
+            $path === '' ? '/' : $path,
+            $query,
+            $fragment,
+        );
     }
 
     public function annotateSubmission(StatamicSubmission $submission, array $attributes): void
@@ -334,11 +441,15 @@ class SubscriptionFormService
             ],
         ]);
 
+        $targetStatus = $wasExisting && $previousStatus === 'active'
+            ? 'active'
+            : 'pending';
+
         $subscriber->fill([
             'first_name' => $this->resolveNameField($payload, ['first_name', 'firstname', 'first']),
             'last_name' => $this->resolveNameField($payload, ['last_name', 'lastname', 'last']),
-            'status' => 'active',
-            'confirmed_at' => $subscriber->confirmed_at ?? now(),
+            'status' => $targetStatus,
+            'confirmed_at' => $targetStatus === 'active' ? ($subscriber->confirmed_at ?? now()) : null,
             'unsubscribed_at' => null,
             'ip_address' => $request->ip(),
             'user_agent' => Str::limit((string) $request->userAgent(), 65535, ''),
@@ -858,16 +969,27 @@ class SubscriptionFormService
             ]);
         }
 
-        return SubscriberSubGroup::query()->firstOrCreate(
-            [
-                'subscriber_group_id' => $group->id,
-                'slug' => $slug,
-            ],
-            [
-                'name' => $this->targetSubGroupName($form) ?: Str::of($slug)->replace('-', ' ')->title()->toString(),
-                'description' => 'Auto-managed from public application intake.',
-            ]
-        );
+        $existing = SubscriberSubGroup::query()
+            ->where('subscriber_group_id', $group->id)
+            ->where('slug', $slug)
+            ->first();
+
+        if ($existing?->isArchived()) {
+            throw ValidationException::withMessages([
+                'form' => 'Application target subgroup is archived and must be remapped.',
+            ]);
+        }
+
+        if ($existing instanceof SubscriberSubGroup) {
+            return $existing;
+        }
+
+        return SubscriberSubGroup::query()->create([
+            'subscriber_group_id' => $group->id,
+            'slug' => $slug,
+            'name' => $this->targetSubGroupName($form) ?: Str::of($slug)->replace('-', ' ')->title()->toString(),
+            'description' => 'Auto-managed from public application intake.',
+        ]);
     }
 
     private function applicationPhoneJsonPath(StatamicForm $form): string
