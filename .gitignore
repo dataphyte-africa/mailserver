@@ -29,7 +29,11 @@ Thumbs.db
 .env.example
 .mcp.json
 
-docs/
+docs/*
+!docs/project/
+!docs/project/**
+!docs/features/
+!docs/features/**
 app/Console/Commands/Newsletter/ProvisionPolicyPoint.php
 app/Services/Newsletter/PolicyPointProvisioner.php
 cleaned_policy_point_subscribers.csv
