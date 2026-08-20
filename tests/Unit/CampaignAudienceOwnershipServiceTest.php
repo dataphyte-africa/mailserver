@@ -216,6 +216,43 @@ class CampaignAudienceOwnershipServiceTest extends TestCase
         });
     }
 
+    public function test_restored_audience_structures_become_selectable_again_through_existing_targeting_validation(): void
+    {
+        $product = $this->createProduct('product-one');
+        $group = $this->createGroup($product, 'group-one');
+        $subGroup = $this->createSubGroup($group, 'subgroup-one');
+
+        $group->forceFill(['archived_at' => '2026-08-18 00:00:00'])->save();
+
+        $this->expectOwnershipFailure('send_to_all', function () use ($product) {
+            $this->service->validateForProduct($product, true, []);
+        });
+
+        $group->forceFill(['archived_at' => null, 'archived_by' => null])->save();
+        $sendToAll = $this->service->validateForProduct($product, true, []);
+
+        $this->assertTrue($sendToAll->sendsToAll());
+        $this->assertSame($group->getKey(), $sendToAll->group?->getKey());
+
+        $group->forceFill(['archived_at' => '2026-08-18 00:00:00'])->save();
+
+        $this->expectOwnershipFailure('sub_groups', function () use ($product, $subGroup) {
+            $this->service->validateForProduct($product, false, [$subGroup->getKey()]);
+        });
+
+        $group->forceFill(['archived_at' => null, 'archived_by' => null])->save();
+        $subGroup->forceFill(['archived_at' => '2026-08-18 00:00:00'])->save();
+
+        $this->expectOwnershipFailure('sub_groups', function () use ($product, $subGroup) {
+            $this->service->validateForProduct($product, false, [$subGroup->getKey()]);
+        });
+
+        $subGroup->forceFill(['archived_at' => null, 'archived_by' => null])->save();
+        $validated = $this->service->validateForProduct($product, false, [$subGroup->getKey()]);
+
+        $this->assertSame([$subGroup->getKey()], $validated->subGroups->modelKeys());
+    }
+
     public function test_archiving_does_not_remove_historical_campaign_audience_rows(): void
     {
         $product = $this->createProduct('product-one');

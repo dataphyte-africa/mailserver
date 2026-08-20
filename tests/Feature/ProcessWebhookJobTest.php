@@ -103,6 +103,21 @@ class ProcessWebhookJobTest extends TestCase
         $this->assertNull($subscriber->fresh()->confirmed_at);
     }
 
+    public function test_delivery_event_does_not_activate_expired_pending_subscription_lifecycle_email(): void
+    {
+        $subscriber = Subscriber::factory()->pending()->create([
+            'pending_confirmation_expires_at' => now()->subMinute(),
+            'pending_lifecycle_state' => 'awaiting_confirmation',
+        ]);
+        $log = $this->makeLifecycleLog('Delivery', $subscriber);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $this->assertEquals('pending', $subscriber->fresh()->status);
+        $this->assertNull($subscriber->fresh()->confirmed_at);
+        $this->assertSame('expired_pending', $subscriber->fresh()->pending_lifecycle_state);
+    }
+
     public function test_delivery_event_without_date_marks_status_without_fabricating_timestamp(): void
     {
         $send = $this->makeSend('tx-del-001b');
@@ -134,6 +149,32 @@ class ProcessWebhookJobTest extends TestCase
         ProcessWebhookJob::dispatchSync($log->id);
 
         $this->assertEquals('opened', $send->fresh()->status);
+    }
+
+    public function test_lowercase_delivered_event_variant_marks_send_delivered(): void
+    {
+        $send = $this->makeSend('tx-del-real-001');
+
+        $log = WebhookLog::factory()->create([
+            'event_type' => 'delivered',
+            'transaction_id' => 'tx-del-real-001',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'EventType' => 'delivered',
+                'TransactionID' => 'tx-del-real-001',
+                'To' => $send->subscriber->email,
+                '_source' => 'sync-command',
+                'Date' => now()->toIso8601String(),
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $fresh = $send->fresh();
+
+        $this->assertEquals('delivered', $fresh->status);
+        $this->assertNotNull($fresh->delivered_at);
+        $this->assertNotNull($fresh->synced_at);
     }
 
     /* ------------------------------------------------------------------ */
@@ -210,6 +251,42 @@ class ProcessWebhookJobTest extends TestCase
         $this->assertNotNull($send->fresh()->delivered_at);
     }
 
+    public function test_real_lowercase_opened_payload_family_marks_send_opened(): void
+    {
+        $send = $this->makeSend('tx-open-real-001');
+
+        $log = WebhookLog::factory()->create([
+            'event_type' => 'Opened',
+            'transaction_id' => 'tx-open-real-001',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'transaction' => 'tx-open-real-001',
+                'to' => $send->subscriber->email,
+                'from' => 'sender@example.com',
+                'date' => now()->toIso8601String(),
+                'status' => 'Opened',
+                'channel' => 'API',
+                'account' => 'redacted-account',
+                'category' => 'redacted-category',
+                'ip' => '203.0.113.10',
+                'country' => 'NG',
+                'state' => 'Lagos',
+                'city' => 'Ikeja',
+                'useragent' => 'Mozilla/5.0',
+                'subject' => 'Redacted subject',
+                'messageid' => 'redacted-message-id',
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $fresh = $send->fresh();
+
+        $this->assertEquals('opened', $fresh->status);
+        $this->assertNotNull($fresh->opened_at);
+        $this->assertNotNull($fresh->delivered_at);
+    }
+
     /* ------------------------------------------------------------------ */
     /* Click */
     /* ------------------------------------------------------------------ */
@@ -235,6 +312,46 @@ class ProcessWebhookJobTest extends TestCase
         $this->assertDatabaseHas('campaign_link_clicks', [
             'campaign_send_id' => $send->id,
             'url' => 'https://dataphyte.com/story?utm_source=newsletter',
+        ]);
+    }
+
+    public function test_real_lowercase_clicked_payload_family_records_target_url_and_metadata(): void
+    {
+        $send = $this->makeSend('tx-click-real-001');
+
+        $log = WebhookLog::factory()->create([
+            'event_type' => 'clicked',
+            'transaction_id' => 'tx-click-real-001',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'transaction' => 'tx-click-real-001',
+                'to' => $send->subscriber->email,
+                'from' => 'sender@example.com',
+                'date' => now()->toIso8601String(),
+                'status' => 'clicked',
+                'channel' => 'API',
+                'account' => 'redacted-account',
+                'category' => 'redacted-category',
+                'target' => 'https://dataphyte.com/story?utm_source=elastic',
+                'ip' => '203.0.113.11',
+                'country' => 'NG',
+                'useragent' => 'Mozilla/5.0',
+                'subject' => 'Redacted subject',
+                'messageid' => 'redacted-message-id',
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $fresh = $send->fresh();
+
+        $this->assertEquals('clicked', $fresh->status);
+        $this->assertNotNull($fresh->clicked_at);
+        $this->assertDatabaseHas('campaign_link_clicks', [
+            'campaign_send_id' => $send->id,
+            'url' => 'https://dataphyte.com/story?utm_source=elastic',
+            'ip_address' => '203.0.113.11',
+            'user_agent' => 'Mozilla/5.0',
         ]);
     }
 
@@ -311,6 +428,35 @@ class ProcessWebhookJobTest extends TestCase
         $this->assertEquals('unsubscribed', $subscriber->fresh()->status);
     }
 
+    public function test_real_lowercase_unsubscribed_payload_family_suppresses_subscriber(): void
+    {
+        $send = $this->makeSend('tx-unsub-real-001', ['status' => 'active']);
+        $subscriber = $send->subscriber;
+
+        $log = WebhookLog::factory()->create([
+            'event_type' => 'Unsubscribed',
+            'transaction_id' => 'tx-unsub-real-001',
+            'to_email' => $subscriber->email,
+            'payload' => [
+                'transaction' => 'tx-unsub-real-001',
+                'to' => $subscriber->email,
+                'from' => 'sender@example.com',
+                'date' => now()->toIso8601String(),
+                'status' => 'Unsubscribed',
+                'channel' => 'API',
+                'account' => 'redacted-account',
+                'category' => 'redacted-category',
+                'subject' => 'Redacted subject',
+                'messageid' => 'redacted-message-id',
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $this->assertEquals('unsubscribed', $subscriber->fresh()->status);
+        $this->assertNotNull($subscriber->fresh()->unsubscribed_at);
+    }
+
     /* ------------------------------------------------------------------ */
     /* Soft Bounce / Error */
     /* ------------------------------------------------------------------ */
@@ -331,6 +477,64 @@ class ProcessWebhookJobTest extends TestCase
 
         $this->assertEquals('failed', $send->fresh()->status);
         $this->assertEquals('active', $subscriber->fresh()->status); // not suppressed
+    }
+
+    public function test_lowercase_failed_event_variant_marks_send_failed(): void
+    {
+        $send = $this->makeSend('tx-failed-real-001', ['status' => 'active']);
+
+        $log = WebhookLog::factory()->create([
+            'event_type' => 'failed',
+            'transaction_id' => 'tx-failed-real-001',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'EventType' => 'failed',
+                'TransactionID' => 'tx-failed-real-001',
+                'To' => $send->subscriber->email,
+                '_source' => 'sync-command',
+                'BounceError' => 'Mailbox unavailable',
+                'Date' => now()->toIso8601String(),
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $fresh = $send->fresh();
+
+        $this->assertEquals('failed', $fresh->status);
+        $this->assertSame('Mailbox unavailable', $fresh->bounce_reason);
+        $this->assertNotNull($fresh->failed_at);
+        $this->assertNotNull($fresh->synced_at);
+    }
+
+    public function test_real_lowercase_error_payload_family_marks_send_failed(): void
+    {
+        $send = $this->makeSend('tx-error-real-001', ['status' => 'active']);
+
+        $log = WebhookLog::factory()->create([
+            'event_type' => 'Error',
+            'transaction_id' => 'tx-error-real-001',
+            'to_email' => $send->subscriber->email,
+            'payload' => [
+                'transaction' => 'tx-error-real-001',
+                'to' => $send->subscriber->email,
+                'from' => 'sender@example.com',
+                'date' => now()->toIso8601String(),
+                'status' => 'Error',
+                'channel' => 'API',
+                'account' => 'redacted-account',
+                'category' => 'redacted-category',
+                'subject' => 'Redacted subject',
+                'messageid' => 'redacted-message-id',
+            ],
+        ]);
+
+        ProcessWebhookJob::dispatchSync($log->id);
+
+        $fresh = $send->fresh();
+
+        $this->assertEquals('failed', $fresh->status);
+        $this->assertNotNull($fresh->failed_at);
     }
 
     /* ------------------------------------------------------------------ */

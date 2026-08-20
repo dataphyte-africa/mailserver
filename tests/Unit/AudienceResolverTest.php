@@ -121,4 +121,33 @@ class AudienceResolverTest extends TestCase
 
         $this->assertCount(0, $resolved);
     }
+
+    public function test_expired_pending_subscriber_remains_excluded_from_group_audiences(): void
+    {
+        $group = SubscriberGroup::factory()->create();
+        $subGroup = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
+
+        $active = Subscriber::factory()->create();
+        $expiredPending = Subscriber::factory()->pending()->create([
+            'pending_confirmation_expires_at' => now()->subDay(),
+            'pending_lifecycle_state' => 'expired_pending',
+        ]);
+
+        $active->subGroups()->attach($subGroup->id, ['subscribed_at' => now()]);
+        $expiredPending->subGroups()->attach($subGroup->id, ['subscribed_at' => now()]);
+
+        $campaign = Campaign::factory()->create();
+        CampaignAudience::create([
+            'campaign_id' => $campaign->id,
+            'targetable_type' => 'subscriber_group',
+            'targetable_id' => $group->id,
+            'send_to_all' => true,
+        ]);
+
+        $resolved = $this->resolver->resolve($campaign->load('audiences'));
+
+        $this->assertCount(1, $resolved);
+        $this->assertTrue($resolved->contains('id', $active->id));
+        $this->assertFalse($resolved->contains('id', $expiredPending->id));
+    }
 }

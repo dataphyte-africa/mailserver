@@ -46,6 +46,25 @@ class SubscriberArchiveAssignmentTest extends TestCase
         ]));
     }
 
+    public function test_create_form_relists_sub_groups_after_their_archive_state_is_cleared(): void
+    {
+        $restoredSubGroup = $this->createSubGroup(['archived_at' => now()]);
+        $childOfRestoredGroup = $this->createSubGroup([], ['archived_at' => now()]);
+
+        $initialIds = (new SubscriberController)->create()->getData()['subGroups']->modelKeys();
+
+        $this->assertNotContains($restoredSubGroup->id, $initialIds);
+        $this->assertNotContains($childOfRestoredGroup->id, $initialIds);
+
+        $restoredSubGroup->forceFill(['archived_at' => null, 'archived_by' => null])->save();
+        $childOfRestoredGroup->group->forceFill(['archived_at' => null, 'archived_by' => null])->save();
+
+        $restoredIds = (new SubscriberController)->create()->getData()['subGroups']->modelKeys();
+
+        $this->assertContains($restoredSubGroup->id, $restoredIds);
+        $this->assertContains($childOfRestoredGroup->id, $restoredIds);
+    }
+
     public function test_update_rejects_archived_sub_group_and_preserves_existing_membership(): void
     {
         $active = $this->createSubGroup();
@@ -169,6 +188,25 @@ class SubscriberArchiveAssignmentTest extends TestCase
         (new ImportController)->import($this->request('POST', [
             'default_sub_groups' => [$archived->id],
         ], ['csv_file' => $file]));
+    }
+
+    public function test_import_form_relists_default_sub_groups_after_their_archive_state_is_cleared(): void
+    {
+        $restoredSubGroup = $this->createSubGroup(['archived_at' => now()]);
+        $childOfRestoredGroup = $this->createSubGroup([], ['archived_at' => now()]);
+
+        $initialIds = (new ImportController)->form()->getData()['subGroups']->modelKeys();
+
+        $this->assertNotContains($restoredSubGroup->id, $initialIds);
+        $this->assertNotContains($childOfRestoredGroup->id, $initialIds);
+
+        $restoredSubGroup->forceFill(['archived_at' => null, 'archived_by' => null])->save();
+        $childOfRestoredGroup->group->forceFill(['archived_at' => null, 'archived_by' => null])->save();
+
+        $restoredIds = (new ImportController)->form()->getData()['subGroups']->modelKeys();
+
+        $this->assertContains($restoredSubGroup->id, $restoredIds);
+        $this->assertContains($childOfRestoredGroup->id, $restoredIds);
     }
 
     public function test_import_does_not_assign_archived_csv_slug(): void

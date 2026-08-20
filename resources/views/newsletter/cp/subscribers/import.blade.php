@@ -2,6 +2,7 @@
 @section('title', 'Import Subscribers')
 
 @section('content')
+    <div class="subscriber-import-page">
     <div class="mb-6">
         <a href="{{ cp_route('newsletter.subscribers.index') }}"
            class="text-sm text-gray-500 hover:underline mb-1 block">← Subscribers</a>
@@ -77,5 +78,6 @@ alex@example.com,,,activities</pre>
                 <button type="submit" class="btn-primary">Import</button>
             </div>
         </form>
+    </div>
     </div>
 @endsection

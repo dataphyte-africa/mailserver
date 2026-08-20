@@ -199,7 +199,7 @@ class ProcessWebhookJob implements ShouldQueue
     private function handleClicked(CampaignSend $send, WebhookLog $log): void
     {
         $clickedAt = $this->eventDate($log);
-        $url       = $this->extractField($log->payload, ['link', 'Link', 'clickedlink', 'ClickedLink', 'url', 'URL']);
+        $url       = $this->extractField($log->payload, ['target', 'Target', 'link', 'Link', 'clickedlink', 'ClickedLink', 'url', 'URL']);
 
         $updates = [
             'bounce_reason' => null,
@@ -369,14 +369,13 @@ class ProcessWebhookJob implements ShouldQueue
         }
 
         $eventDate = $this->eventDate($log) ?? now();
+        $pendingLifecycles = app(\App\Services\Newsletter\PendingSubscriberLifecycleService::class);
+        $pendingLifecycles->syncState($subscriber, $eventDate);
 
         match ($event) {
             'delivered', 'opened', 'clicked' => $subscriber->status === 'pending'
-                ? $subscriber->update([
-                    'status' => 'active',
-                    'confirmed_at' => $subscriber->confirmed_at ?? $eventDate,
-                    'unsubscribed_at' => null,
-                ])
+                && ! $pendingLifecycles->isExpired($subscriber, $eventDate)
+                ? $pendingLifecycles->markDeliveryConfirmed($subscriber, $eventDate)
                 : null,
             'bounced' => in_array($subscriber->status, ['pending', 'active'], true)
                 ? $subscriber->update(['status' => 'bounced'])

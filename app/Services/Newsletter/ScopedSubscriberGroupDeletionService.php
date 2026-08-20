@@ -45,6 +45,17 @@ class ScopedSubscriberGroupDeletionService
         return $this->archiveModel($group, $operator);
     }
 
+    public function restore(
+        ?Authenticatable $operator,
+        SubscriberGroup $group,
+    ): bool {
+        if ($this->products->resolveGroup($operator, $group) === null) {
+            return false;
+        }
+
+        return $this->restoreModel($group);
+    }
+
     public function deleteSubGroup(
         ?Authenticatable $operator,
         SubscriberGroup $group,
@@ -75,6 +86,22 @@ class ScopedSubscriberGroupDeletionService
         }
 
         return $this->archiveModel($subGroup, $operator);
+    }
+
+    public function restoreSubGroup(
+        ?Authenticatable $operator,
+        SubscriberGroup $group,
+        SubscriberSubGroup $subGroup,
+    ): bool {
+        if ($this->products->resolveSubGroup($operator, $group, $subGroup) === null) {
+            return false;
+        }
+
+        if ($group->getAttribute('archived_at') !== null) {
+            return false;
+        }
+
+        return $this->restoreModel($subGroup);
     }
 
     public function canDeleteGroup(SubscriberGroup $group): bool
@@ -126,6 +153,18 @@ class ScopedSubscriberGroupDeletionService
         return $model->forceFill([
             'archived_at' => Carbon::now(),
             'archived_by' => $this->operatorKey($operator),
+        ])->save();
+    }
+
+    private function restoreModel(Model $model): bool
+    {
+        if ($model->getAttribute('archived_at') === null) {
+            return false;
+        }
+
+        return $model->forceFill([
+            'archived_at' => null,
+            'archived_by' => null,
         ])->save();
     }
 

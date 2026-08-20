@@ -100,4 +100,21 @@ class SubGroupController extends Controller
             ->route('statamic.cp.newsletter.groups.edit', $group)
             ->with('success', 'Sub-group archived.');
     }
+
+    public function restore(
+        Request $request,
+        SubscriberGroup $group,
+        SubscriberSubGroup $subGroup,
+        ScopedSubscriberGroupDeletionService $deletions,
+    ) {
+        abort_unless(
+            $deletions->restoreSubGroup($request->user(), $group, $subGroup),
+            403,
+            'Subgroup can only be restored when it is archived, in scope, and its parent group is active.',
+        );
+
+        return redirect()
+            ->route('statamic.cp.newsletter.groups.edit', $group)
+            ->with('success', 'Sub-group restored.');
+    }
 }

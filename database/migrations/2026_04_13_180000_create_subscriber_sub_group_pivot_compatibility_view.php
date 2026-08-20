@@ -7,6 +7,13 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('DROP VIEW IF EXISTS subscriber_sub_group_pivot');
+            DB::statement('CREATE VIEW subscriber_sub_group_pivot AS SELECT * FROM subscriber_sub_group');
+
+            return;
+        }
+
         $exists = DB::table('information_schema.tables')
             ->where('table_schema', DB::getDatabaseName())
             ->where('table_name', 'subscriber_sub_group_pivot')

@@ -71,6 +71,9 @@ class SubscriptionFormControllerTest extends TestCase
 
         $this->assertEquals('pending', $subscriber->status);
         $this->assertNull($subscriber->confirmed_at);
+        $this->assertSame(0, $subscriber->pending_confirmation_resend_count);
+        $this->assertNotNull($subscriber->pending_confirmation_expires_at);
+        $this->assertSame('awaiting_confirmation', $subscriber->pending_lifecycle_state);
         $this->assertSame(1, $form->querySubmissions()->count());
         $this->assertDatabaseHas('subscriber_groups', ['slug' => 'policy-point']);
         $this->assertDatabaseHas('subscriber_sub_groups', ['slug' => 'as-frequently']);
@@ -87,6 +90,47 @@ class SubscriptionFormControllerTest extends TestCase
         Mail::assertQueued(SubscriptionConfirmationMail::class, function (SubscriptionConfirmationMail $mail) {
             return $mail->hasTo('ada@example.com') && $mail->status === 'subscribed';
         });
+    }
+
+    public function test_submit_endpoint_accepts_a_restored_group_through_the_existing_form_lookup(): void
+    {
+        Mail::fake();
+        $form = $this->makePolicyPointForm();
+        $group = SubscriberGroup::query()->findOrFail($form->get('newsletter_group'));
+
+        $group->forceFill([
+            'archived_at' => now(),
+            'archived_by' => 88,
+        ])->save();
+
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'policy-point']), [
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada-restored@example.com',
+            'frequency' => 'monthly',
+        ])->assertNotFound();
+
+        $this->assertDatabaseMissing('subscribers', [
+            'email' => 'ada-restored@example.com',
+        ]);
+
+        $group->forceFill([
+            'archived_at' => null,
+            'archived_by' => null,
+        ])->save();
+
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'policy-point']), [
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada-restored@example.com',
+            'frequency' => 'monthly',
+        ])->assertOk()
+            ->assertJsonPath('status', 'subscribed');
+
+        $this->assertDatabaseHas('subscribers', [
+            'email' => 'ada-restored@example.com',
+            'status' => 'pending',
+        ]);
     }
 
     public function test_resubmitting_switches_managed_preferences_within_the_form_scope(): void
@@ -295,6 +339,8 @@ class SubscriptionFormControllerTest extends TestCase
         $this->assertSame('pending', $subscriber->fresh()->status);
         $this->assertNull($subscriber->fresh()->confirmed_at);
         $this->assertNull($subscriber->fresh()->unsubscribed_at);
+        $this->assertSame(0, $subscriber->fresh()->pending_confirmation_resend_count);
+        $this->assertSame('awaiting_reconfirmation', $subscriber->fresh()->pending_lifecycle_state);
         Mail::assertQueued(SubscriptionConfirmationMail::class, function (SubscriptionConfirmationMail $mail) {
             return $mail->hasTo('ada@example.com') && $mail->status === 'resubscribed';
         });

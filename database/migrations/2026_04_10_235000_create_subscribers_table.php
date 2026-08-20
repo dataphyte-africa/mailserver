@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
-            $table->enum('status', ['active', 'unsubscribed', 'bounced', 'complained', 'erased'])
+            $table->enum('status', ['pending', 'active', 'unsubscribed', 'bounced', 'complained', 'erased'])
                 ->default('active');
             $table->string('confirmation_token', 64)->nullable()->unique();
             $table->timestamp('confirmed_at')->nullable();

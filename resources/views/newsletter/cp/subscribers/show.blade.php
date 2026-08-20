@@ -8,115 +8,7 @@
             : null;
     @endphp
 
-    <style>
-        .subscriber-show-stat {
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
-            background: #fff;
-            overflow: hidden;
-        }
-
-        .subscriber-show-block {
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
-            background: #fff;
-            overflow: hidden;
-        }
-
-        .subscriber-show-list > div,
-        .subscriber-show-subgroups > li {
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .subscriber-show-list > div:first-child,
-        .subscriber-show-subgroups > li:first-child {
-            border-top: 0;
-        }
-
-        .subscriber-show-list > div {
-            display: grid;
-            grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
-            align-items: center;
-            min-height: 58px;
-        }
-
-        .subscriber-show-list > div dt {
-            border-right: 1px solid #e5e7eb;
-            padding: 1rem 1.25rem;
-            background: #fafbfd;
-        }
-
-        .subscriber-show-list > div dd {
-            padding: 1rem 1.5rem 1rem 1.25rem;
-            text-align: right;
-        }
-
-        .subscriber-show-subgroups > li {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
-            align-items: center;
-            min-height: 58px;
-        }
-
-        .subscriber-show-subgroups > li span:first-child {
-            padding: 1rem 1.25rem;
-            background: #fafbfd;
-            border-right: 1px solid #e5e7eb;
-        }
-
-        .subscriber-show-subgroups > li span:last-child {
-            padding: 1rem 1.5rem 1rem 1.25rem;
-            text-align: right;
-        }
-
-        .subscriber-show-table thead th {
-            background: #f8fafc;
-            border-bottom: 1px solid #e5e7eb;
-            font-weight: 600;
-            padding: 0.9rem 1.25rem;
-        }
-
-        .subscriber-show-table thead th + th,
-        .subscriber-show-table tbody td + td {
-            border-left: 1px solid #eef2f7;
-        }
-
-        .subscriber-show-table tbody tr {
-            border-bottom: 1px solid #eef2f7;
-        }
-
-        .subscriber-show-table tbody tr:last-child {
-            border-bottom: 0;
-        }
-
-        .subscriber-show-table td,
-        .subscriber-show-table th {
-            padding-right: 1rem;
-        }
-
-        .subscriber-show-table tbody td {
-            padding: 1rem 1.25rem;
-        }
-
-        .subscriber-show-section-title {
-            padding: 1.25rem 1.25rem 1rem;
-            border-bottom: 1px solid #e5e7eb;
-            background: #fff;
-        }
-
-        .subscriber-show-section-body {
-            padding: 0;
-        }
-
-        .subscriber-show-table-wrap {
-            padding: 0 1.25rem 1.25rem;
-        }
-
-        .subscriber-show-meta {
-            padding: 1rem 1.25rem 0.75rem;
-        }
-    </style>
-
+    <div class="subscriber-show-page">
     <div class="flex items-center justify-between mb-6">
         <div>
             <a href="{{ cp_route('newsletter.subscribers.index') }}"
@@ -144,6 +36,19 @@
         <div class="flex items-center gap-2">
             <a href="{{ cp_route('newsletter.subscribers.edit', $subscriber) }}"
                class="btn-primary">Edit</a>
+            @if($pendingLifecycle['is_pending'] ?? false)
+                <form method="POST" action="{{ cp_route('newsletter.subscribers.resend-confirmation', $subscriber) }}" class="inline">
+                    @csrf
+                    <button
+                        type="submit"
+                        class="btn"
+                        @disabled(! ($pendingLifecycle['can_resend'] ?? false))
+                        title="{{ $pendingLifecycle['can_resend'] ? 'Resend the original confirmation email.' : ($pendingLifecycle['resend_block_message'] ?? 'Confirmation resend is unavailable.') }}"
+                    >
+                        Resend Confirmation
+                    </button>
+                </form>
+            @endif
             <a href="{{ cp_route('newsletter.subscribers.gdpr.export', $subscriber) }}"
                class="btn" title="Download all personal data (GDPR export)">
                 Export Data
@@ -233,6 +138,44 @@
                     </div>
                 @endif
             </dl>
+
+            @if($pendingLifecycle['is_pending'] ?? false)
+                <div class="subscriber-show-section-title border-t">
+                    <h2 class="font-semibold text-gray-700">Pending Lifecycle</h2>
+                </div>
+                <dl class="subscriber-show-list text-sm">
+                    <div class="flex justify-between py-3">
+                        <dt class="text-gray-500">State</dt>
+                        <dd class="{{ ($pendingLifecycle['is_expired'] ?? false) ? 'text-red-600' : 'text-yellow-700' }}">
+                            {{ $pendingLifecycle['label'] }}
+                        </dd>
+                    </div>
+                    <div class="flex justify-between py-3">
+                        <dt class="text-gray-500">Age</dt>
+                        <dd>{{ $pendingLifecycle['age_label'] ?? '—' }}</dd>
+                    </div>
+                    <div class="flex justify-between py-3">
+                        <dt class="text-gray-500">Expiry</dt>
+                        <dd>{{ $pendingLifecycle['expiry_label'] ?? '—' }}</dd>
+                    </div>
+                    <div class="flex justify-between py-3">
+                        <dt class="text-gray-500">Operator resends</dt>
+                        <dd>{{ $pendingLifecycle['resend_count'] ?? 0 }} / 3 used</dd>
+                    </div>
+                    <div class="flex justify-between py-3">
+                        <dt class="text-gray-500">Last resend</dt>
+                        <dd>{{ $pendingLifecycle['last_resent_label'] ?? '—' }}</dd>
+                    </div>
+                </dl>
+                <div class="subscriber-show-meta text-sm text-gray-500">
+                    <p>{{ $pendingLifecycle['activation_notice'] ?? '' }}</p>
+                    @if(! ($pendingLifecycle['can_resend'] ?? false) && filled($pendingLifecycle['resend_block_message'] ?? null))
+                        <p class="mt-2 {{ ($pendingLifecycle['is_expired'] ?? false) ? 'text-red-600' : 'text-yellow-700' }}">
+                            {{ $pendingLifecycle['resend_block_message'] }}
+                        </p>
+                    @endif
+                </div>
+            @endif
 
             <div class="subscriber-show-section-title border-t">
                 <h2 class="font-semibold text-gray-700">Sub-groups</h2>
@@ -368,5 +311,6 @@
             @endif
         </div>
         </div>
+    </div>
     </div>
 @endsection

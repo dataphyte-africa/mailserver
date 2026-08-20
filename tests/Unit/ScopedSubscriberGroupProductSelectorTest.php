@@ -388,6 +388,103 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
         $this->assertTrue(Capsule::table('campaign_audiences')->where('targetable_id', $targeted->getKey())->exists());
     }
 
+    public function test_restore_requires_archived_group_scope_and_preserves_child_archive_state(): void
+    {
+        $user = $this->createUser('statamic-123');
+        $product = $this->createProduct('allowed');
+        $otherProduct = $this->createProduct('other');
+        $this->scope($user, $product);
+        $operator = $this->statamicUser('statamic-123');
+
+        $group = $this->createGroup($product);
+        $activeGroup = $this->createGroup($product);
+        $archivedChild = $this->createSubGroup($group);
+        $subscriber = $this->createSubscriber($archivedChild);
+        $unscoped = $this->createGroup($otherProduct);
+
+        $group->forceFill([
+            'archived_at' => '2026-08-18 00:00:00',
+            'archived_by' => 44,
+        ])->save();
+        $archivedChild->forceFill([
+            'archived_at' => '2026-08-18 00:00:00',
+            'archived_by' => 45,
+        ])->save();
+        $unscoped->forceFill([
+            'archived_at' => '2026-08-18 00:00:00',
+            'archived_by' => 46,
+        ])->save();
+
+        $this->assertFalse($this->deletions->restore($operator, $activeGroup));
+        $this->assertFalse($this->deletions->restore($operator, $unscoped));
+        $this->assertFalse($this->deletions->restore($this->statamicUser('missing-link'), $group));
+        $this->assertTrue($this->deletions->restore($operator, $group));
+
+        $this->assertNull($group->refresh()->archived_at);
+        $this->assertNull($group->archived_by);
+        $this->assertNotNull($archivedChild->refresh()->archived_at);
+        $this->assertTrue(Subscriber::query()->whereKey($subscriber->getKey())->exists());
+        $this->assertTrue(Capsule::table('subscriber_sub_group')->where([
+            'subscriber_id' => $subscriber->getKey(),
+            'subscriber_sub_group_id' => $archivedChild->getKey(),
+            'unsubscribed_at' => null,
+        ])->exists());
+    }
+
+    public function test_restore_subgroup_requires_archived_state_exact_scope_and_an_active_parent_group(): void
+    {
+        $user = $this->createUser('statamic-123');
+        $product = $this->createProduct('allowed');
+        $otherProduct = $this->createProduct('other');
+        $this->scope($user, $product);
+        $operator = $this->statamicUser('statamic-123');
+
+        $group = $this->createGroup($product);
+        $otherGroup = $this->createGroup($product);
+        $subGroup = $this->createSubGroup($group);
+        $activeSubGroup = $this->createSubGroup($group);
+        $otherProductGroup = $this->createGroup($otherProduct);
+        $otherProductSubGroup = $this->createSubGroup($otherProductGroup);
+        $subscriber = $this->createSubscriber($subGroup);
+
+        $subGroup->forceFill([
+            'archived_at' => '2026-08-18 00:00:00',
+            'archived_by' => 54,
+        ])->save();
+        $otherProductSubGroup->forceFill([
+            'archived_at' => '2026-08-18 00:00:00',
+            'archived_by' => 55,
+        ])->save();
+
+        $this->assertFalse($this->deletions->restoreSubGroup($operator, $group, $activeSubGroup));
+        $this->assertFalse($this->deletions->restoreSubGroup($operator, $otherGroup, $subGroup));
+        $this->assertFalse($this->deletions->restoreSubGroup($this->statamicUser('missing-link'), $group, $subGroup));
+        $this->assertFalse($this->deletions->restoreSubGroup($operator, $otherProductGroup, $otherProductSubGroup));
+        $this->assertTrue($this->deletions->restoreSubGroup($operator, $group, $subGroup));
+
+        $this->assertNull($subGroup->refresh()->archived_at);
+        $this->assertNull($subGroup->archived_by);
+        $this->assertTrue(Subscriber::query()->whereKey($subscriber->getKey())->exists());
+        $this->assertTrue(Capsule::table('subscriber_sub_group')->where([
+            'subscriber_id' => $subscriber->getKey(),
+            'subscriber_sub_group_id' => $subGroup->getKey(),
+            'unsubscribed_at' => null,
+        ])->exists());
+
+        $group->forceFill([
+            'archived_at' => '2026-08-18 00:00:00',
+            'archived_by' => 56,
+        ])->save();
+        $subGroup->forceFill([
+            'archived_at' => '2026-08-18 00:00:00',
+            'archived_by' => 57,
+        ])->save();
+
+        $this->assertFalse($this->deletions->restoreSubGroup($operator, $group, $subGroup));
+        $this->assertNotNull($group->refresh()->archived_at);
+        $this->assertNotNull($subGroup->refresh()->archived_at);
+    }
+
     public function test_archived_groups_remain_scoped_for_management_visibility(): void
     {
         $user = $this->createUser('statamic-123');

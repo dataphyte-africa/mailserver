@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\CampaignLinkClick;
 use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\PendingSubscriberLifecycleService;
 use App\Services\Newsletter\SubscriberEngagementService;
+use App\Services\Newsletter\SubscriptionFormService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -90,8 +92,9 @@ class SubscriberController extends Controller
         $subscribers = $query->paginate(50)->withQueryString();
         $subGroups   = $this->assignableSubGroups();
         $statuses = self::STATUSES;
+        $pendingLifecycles = $this->pendingLifecycleSnapshots(collect($subscribers->items()));
 
-        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction', 'statuses'));
+        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction', 'statuses', 'pendingLifecycles'));
     }
 
     public function create()
@@ -126,6 +129,10 @@ class SubscriberController extends Controller
             ['subscribed_at' => now()]
         );
 
+        if ($subscriber->status === 'pending') {
+            $this->pendingLifecycles()->resetForPending($subscriber);
+        }
+
         app(SubscriberEngagementService::class)->persist($subscriber);
 
         return redirect()
@@ -135,6 +142,7 @@ class SubscriberController extends Controller
 
     public function show(Subscriber $subscriber)
     {
+        $this->pendingLifecycles()->syncState($subscriber);
         $subscriber->load('subGroups.group')
             ->loadCount([
                 'campaignSends as campaigns_count',
@@ -171,30 +179,35 @@ class SubscriberController extends Controller
                 ->selectRaw('MAX(COALESCE(clicked_at, opened_at)) as last_engaged_at')
                 ->value('last_engaged_at'),
         ];
+        $pendingLifecycle = $this->pendingLifecycles()->snapshot($subscriber);
 
-        return view('newsletter.cp.subscribers.show', compact('subscriber', 'sendHistory', 'stats', 'recentLinkClicks'));
+        return view('newsletter.cp.subscribers.show', compact('subscriber', 'sendHistory', 'stats', 'recentLinkClicks', 'pendingLifecycle'));
     }
 
     public function edit(Subscriber $subscriber)
     {
+        $this->pendingLifecycles()->syncState($subscriber);
         $subscriber->load('subGroups');
         $subGroups = $this->assignableSubGroups();
-        $statuses = self::STATUSES;
+        $statuses = $this->editableStatuses($subscriber);
+        $pendingLifecycle = $this->pendingLifecycles()->snapshot($subscriber);
 
-        return view('newsletter.cp.subscribers.edit', compact('subscriber', 'subGroups', 'statuses'));
+        return view('newsletter.cp.subscribers.edit', compact('subscriber', 'subGroups', 'statuses', 'pendingLifecycle'));
     }
 
     public function update(Request $request, Subscriber $subscriber)
     {
+        $statuses = $this->editableStatuses($subscriber);
         $validated = $request->validate([
             'email'      => 'required|email|unique:subscribers,email,' . $subscriber->id,
             'first_name' => 'nullable|string|max:255',
             'last_name'  => 'nullable|string|max:255',
-            'status'     => 'required|in:' . implode(',', array_keys(self::STATUSES)),
+            'status'     => 'required|in:' . implode(',', array_keys($statuses)),
             'sub_groups' => 'required|array|min:1',
             'sub_groups.*' => 'exists:subscriber_sub_groups,id',
         ]);
         $this->validateAssignableSubGroupIds($validated['sub_groups']);
+        $previousStatus = $subscriber->status;
 
         $subscriber->update([
             'email'      => $validated['email'],
@@ -217,11 +230,45 @@ class SubscriberController extends Controller
             $subscriber->subGroups()->attach($toAttach, ['subscribed_at' => now()]);
         }
 
+        if ($validated['status'] === 'pending') {
+            if ($previousStatus !== 'pending') {
+                $this->pendingLifecycles()->resetForPending(
+                    $subscriber,
+                    $previousStatus === 'unsubscribed' ? 'resubscribed' : 'subscribed',
+                );
+            } else {
+                $this->pendingLifecycles()->syncState($subscriber);
+            }
+        }
+
         app(SubscriberEngagementService::class)->persist($subscriber);
 
         return redirect()
             ->route('statamic.cp.newsletter.subscribers.show', $subscriber)
             ->with('success', 'Subscriber updated successfully.');
+    }
+
+    public function resendConfirmation(Subscriber $subscriber)
+    {
+        $decision = $this->pendingLifecycles()->resendDecision($subscriber);
+
+        if (! ($decision['eligible'] ?? false)) {
+            return redirect()
+                ->route('statamic.cp.newsletter.subscribers.show', $subscriber)
+                ->with('error', $decision['message']);
+        }
+
+        try {
+            app(SubscriptionFormService::class)->resendPendingConfirmation($subscriber);
+        } catch (\RuntimeException $exception) {
+            return redirect()
+                ->route('statamic.cp.newsletter.subscribers.show', $subscriber)
+                ->with('error', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('statamic.cp.newsletter.subscribers.show', $subscriber)
+            ->with('success', 'Confirmation email resent. Activation still requires a delivered, opened, or clicked confirmation webhook from the signup lifecycle email.');
     }
 
     public function destroy(Subscriber $subscriber)
@@ -267,5 +314,37 @@ class SubscriberController extends Controller
                 'sub_groups' => 'Archived audience sub-groups cannot be assigned to subscribers.',
             ]);
         }
+    }
+
+    /**
+     * @param  Collection<int, Subscriber>  $subscribers
+     * @return array<int, array<string, mixed>>
+     */
+    private function pendingLifecycleSnapshots(Collection $subscribers): array
+    {
+        $lifecycles = $this->pendingLifecycles();
+
+        return $subscribers
+            ->mapWithKeys(fn (Subscriber $subscriber) => [
+                $subscriber->id => $lifecycles->snapshot($subscriber),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function editableStatuses(Subscriber $subscriber): array
+    {
+        if ($subscriber->status !== 'pending') {
+            return self::STATUSES;
+        }
+
+        return array_diff_key(self::STATUSES, ['active' => true]);
+    }
+
+    private function pendingLifecycles(): PendingSubscriberLifecycleService
+    {
+        return app(PendingSubscriberLifecycleService::class);
     }
 }

@@ -15,6 +15,8 @@ class Subscriber extends Model
     protected $fillable = [
         'email', 'first_name', 'last_name', 'status',
         'confirmation_token', 'confirmed_at', 'unsubscribed_at',
+        'pending_confirmation_resend_count', 'pending_confirmation_last_resent_at',
+        'pending_confirmation_expires_at', 'pending_lifecycle_state',
         'ip_address', 'user_agent', 'metadata',
         'engagement_score', 'engagement_rating', 'last_engaged_at',
     ];
@@ -22,6 +24,9 @@ class Subscriber extends Model
     protected $casts = [
         'confirmed_at'    => 'datetime',
         'unsubscribed_at' => 'datetime',
+        'pending_confirmation_resend_count' => 'integer',
+        'pending_confirmation_last_resent_at' => 'datetime',
+        'pending_confirmation_expires_at' => 'datetime',
         'metadata'        => 'array',
         'last_engaged_at' => 'datetime',
     ];

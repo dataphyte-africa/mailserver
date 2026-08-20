@@ -80,14 +80,21 @@
                             <button @click="editing = !editing" class="text-blue hover:underline">
                                 <span x-text="editing ? 'Cancel' : 'Rename'"></span>
                             </button>
-                            @unless($subGroup->isArchived())
+                            @if($subGroup->isArchived())
+                                <form method="POST"
+                                      action="{{ cp_route('newsletter.groups.sub-groups.restore', [$group, $subGroup]) }}"
+                                      onsubmit="return confirm('Restore sub-group {{ $subGroup->name }}? Its parent group must already be active.')">
+                                    @csrf
+                                    <button type="submit" class="text-gray-500 hover:underline">Restore</button>
+                                </form>
+                            @else
                                 <form method="POST"
                                       action="{{ cp_route('newsletter.groups.sub-groups.archive', [$group, $subGroup]) }}"
                                       onsubmit="return confirm('Archive sub-group {{ $subGroup->name }}?')">
                                     @csrf
                                     <button type="submit" class="text-gray-500 hover:underline">Archive</button>
                                 </form>
-                            @endunless
+                            @endif
                             <form method="POST"
                                   action="{{ cp_route('newsletter.groups.sub-groups.destroy', [$group, $subGroup]) }}"
                                   onsubmit="return confirm('Delete sub-group {{ $subGroup->name }}?')">

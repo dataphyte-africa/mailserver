@@ -90,6 +90,38 @@ class WebhookControllerTest extends TestCase
         Queue::assertPushedOn('webhooks', ProcessWebhookJob::class);
     }
 
+    public function test_stores_webhook_log_from_real_lowercase_json_payload_family(): void
+    {
+        Queue::fake();
+
+        $this->postJson(
+            $this->endpoint . '?secret=test-secret',
+            [
+                'transaction' => 'tx-opened-real-001',
+                'to' => 'reader@example.com',
+                'from' => 'sender@example.com',
+                'date' => '2026-08-18T10:30:00+00:00',
+                'status' => 'Opened',
+                'channel' => 'API',
+                'account' => 'redacted-account',
+                'category' => 'redacted-category',
+                'ip' => '203.0.113.10',
+                'country' => 'NG',
+                'state' => 'Lagos',
+                'city' => 'Ikeja',
+                'useragent' => 'Mozilla/5.0',
+                'subject' => 'Redacted subject',
+                'messageid' => 'redacted-message-id',
+            ]
+        );
+
+        $this->assertDatabaseHas('webhook_logs', [
+            'event_type' => 'Opened',
+            'transaction_id' => 'tx-opened-real-001',
+            'to_email' => 'reader@example.com',
+        ]);
+    }
+
     /* ------------------------------------------------------------------ */
     /* Form-encoded Payload                                                 */
     /* ------------------------------------------------------------------ */

@@ -184,4 +184,20 @@ class GroupController extends Controller
             ->route('statamic.cp.newsletter.groups.index')
             ->with('success', 'Group archived.');
     }
+
+    public function restore(
+        Request $request,
+        SubscriberGroup $group,
+        ScopedSubscriberGroupDeletionService $groups,
+    ) {
+        abort_unless(
+            $groups->restore($request->user(), $group),
+            403,
+            'Audience group can only be restored when it is archived and inside your active product scope.',
+        );
+
+        return redirect()
+            ->route('statamic.cp.newsletter.groups.index')
+            ->with('success', 'Group restored.');
+    }
 }

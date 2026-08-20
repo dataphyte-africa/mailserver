@@ -26,6 +26,7 @@ class SubscriptionFormService
     public function __construct(
         private readonly CollectionRegistry $collections,
         private readonly ApplicationSubmissionTrackingService $applicationTracking,
+        private readonly PendingSubscriberLifecycleService $pendingLifecycles,
         private readonly ProductUrlGeneratorInterface $productUrls,
         private readonly DomainResolverInterface $domains,
     ) {}
@@ -444,6 +445,8 @@ class SubscriptionFormService
         $targetStatus = $wasExisting && $previousStatus === 'active'
             ? 'active'
             : 'pending';
+        $enteredPendingFromNonPending = $targetStatus === 'pending'
+            && (! $wasExisting || $previousStatus !== 'pending');
 
         $subscriber->fill([
             'first_name' => $this->resolveNameField($payload, ['first_name', 'firstname', 'first']),
@@ -458,6 +461,17 @@ class SubscriptionFormService
 
         $subscriber->ensureConfirmationToken();
         $subscriber->save();
+
+        if ($targetStatus === 'pending') {
+            if ($enteredPendingFromNonPending) {
+                $this->pendingLifecycles->resetForPending(
+                    $subscriber,
+                    $previousStatus === 'unsubscribed' ? 'resubscribed' : 'subscribed',
+                );
+            } else {
+                $this->pendingLifecycles->syncState($subscriber);
+            }
+        }
 
         $managedIds = $managedSubGroups->pluck('id')->all();
         $selectedIds = collect($this->selectedPreferenceSlugs($form, $payload))
@@ -522,6 +536,29 @@ class SubscriptionFormService
             'message' => $this->messageForStatus($status, $form),
             'email_sent' => $this->dispatchLifecycleEmail($form, $subscriber, $status),
         ];
+    }
+
+    public function resendPendingConfirmation(Subscriber $subscriber): void
+    {
+        $decision = $this->pendingLifecycles->resendDecision($subscriber);
+
+        if (! ($decision['eligible'] ?? false)) {
+            throw new \RuntimeException($decision['message'] ?? 'This pending subscriber is not eligible for a confirmation resend.');
+        }
+
+        $form = $this->resolveLifecycleFormForSubscriber($subscriber);
+
+        if (! $form) {
+            throw new \RuntimeException('The original signup form could not be resolved for this pending subscriber.');
+        }
+
+        $status = $this->pendingLifecycles->confirmationEmailStatus($subscriber);
+
+        if (! $this->dispatchLifecycleEmail($form, $subscriber, $status)) {
+            throw new \RuntimeException('The original signup form no longer allows confirmation emails to be sent.');
+        }
+
+        $this->pendingLifecycles->markConfirmationResent($subscriber);
     }
 
     private function submitApplication(
@@ -869,6 +906,38 @@ class SubscriptionFormService
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function resolveLifecycleFormForSubscriber(Subscriber $subscriber): ?StatamicForm
+    {
+        $formHandle = Arr::get($subscriber->metadata, 'newsletter_form.handle');
+
+        if (is_string($formHandle) && trim($formHandle) !== '') {
+            $form = Form::find(trim($formHandle));
+
+            if ($form && $this->isNewsletterForm($form)) {
+                return $form;
+            }
+        }
+
+        $endpoint = Arr::get($subscriber->metadata, 'newsletter_form.endpoint');
+
+        if (is_string($endpoint) && trim($endpoint) !== '') {
+            $form = $this->resolveForm(trim($endpoint));
+
+            if ($form) {
+                return $form;
+            }
+        }
+
+        $collectionHandle = Arr::get($subscriber->metadata, 'newsletter_form.collection');
+
+        if (! is_string($collectionHandle) || trim($collectionHandle) === '') {
+            return null;
+        }
+
+        return Form::all()
+            ->first(fn (StatamicForm $form) => $this->isNewsletterForm($form) && $this->collectionHandle($form) === trim($collectionHandle));
     }
 
     private function assertFormIsOpen(StatamicForm $form): void

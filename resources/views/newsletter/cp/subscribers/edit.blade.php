@@ -12,6 +12,13 @@
         @csrf @method('PUT')
 
         <div class="card p-6 space-y-5">
+            @if($pendingLifecycle['is_pending'] ?? false)
+                <div class="rounded-lg border {{ ($pendingLifecycle['is_expired'] ?? false) ? 'border-red-200 bg-red-50 text-red-700' : 'border-yellow-200 bg-yellow-50 text-yellow-800' }} p-4 text-sm">
+                    <p class="font-medium">{{ $pendingLifecycle['label'] }}</p>
+                    <p class="mt-1">{{ $pendingLifecycle['activation_notice'] ?? '' }}</p>
+                    <p class="mt-1">{{ $pendingLifecycle['expiry_label'] ?? '' }}</p>
+                </div>
+            @endif
 
             <div>
                 <label class="publish-field-label">Email <span class="text-red-500">*</span></label>
