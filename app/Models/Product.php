@@ -24,6 +24,7 @@ class Product extends Model
         'domain_verified_at',
         'domain_is_primary',
         'primary_collection_handle',
+        'blueprint_handle',
         'default_sender_profile',
         'default_template_family',
         'fallback_to_platform_domain',

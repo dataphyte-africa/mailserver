@@ -14,6 +14,7 @@ class Organisation extends Model
         'name',
         'slug',
         'status',
+        'primary_collection_handle',
         'default_domain',
         'default_mail_domain',
         'default_from_name',

@@ -13,6 +13,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('status')->default('active');
+            $table->string('primary_collection_handle')->nullable()->index();
             $table->string('default_domain')->nullable();
             $table->string('default_mail_domain')->nullable();
             $table->string('default_from_name')->nullable();

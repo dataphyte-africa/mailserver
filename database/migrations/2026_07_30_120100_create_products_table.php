@@ -22,6 +22,7 @@ return new class extends Migration
             $table->timestamp('domain_verified_at')->nullable();
             $table->boolean('domain_is_primary')->default(false);
             $table->string('primary_collection_handle')->nullable();
+            $table->string('blueprint_handle')->nullable();
             $table->json('default_sender_profile')->nullable();
             $table->string('default_template_family')->nullable();
             $table->boolean('fallback_to_platform_domain')->default(true);
@@ -30,6 +31,7 @@ return new class extends Migration
             $table->index(['organisation_id', 'status']);
             $table->index('product_type');
             $table->index('primary_collection_handle');
+            $table->index(['primary_collection_handle', 'blueprint_handle']);
         });
     }
 
