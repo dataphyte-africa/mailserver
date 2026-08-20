@@ -104,6 +104,19 @@ class ScopedCampaignProductSelectorTest extends TestCase
         $this->assertNotContains($unscoped->getKey(), $products->modelKeys());
     }
 
+    public function test_super_user_can_list_active_newsletter_products_without_relational_scope_rows(): void
+    {
+        $allowed = $this->createProduct('Allowed', 'allowed', 'allowed_newsletters');
+        $inactiveProduct = $this->createProduct('Inactive Product', 'inactive-product', 'disabled_newsletters', 'inactive');
+        $noCollection = $this->createProduct('No Collection', 'no-collection', '');
+
+        $products = $this->selector->productsFor($this->statamicUser('super-user', true));
+
+        $this->assertSame([$allowed->getKey()], $products->modelKeys());
+        $this->assertNotContains($inactiveProduct->getKey(), $products->modelKeys());
+        $this->assertNotContains($noCollection->getKey(), $products->modelKeys());
+    }
+
     public function test_resolves_a_scoped_active_product_for_its_primary_collection(): void
     {
         $user = $this->createUser('statamic-123');
@@ -253,10 +266,11 @@ class ScopedCampaignProductSelectorTest extends TestCase
     /**
      * @return StatamicUser&Stub
      */
-    private function statamicUser(string $id): StatamicUser
+    private function statamicUser(string $id, bool $super = false): StatamicUser
     {
         $user = $this->createStub(StatamicUser::class);
         $user->method('getAuthIdentifier')->willReturn($id);
+        $user->method('isSuper')->willReturn($super);
 
         return $user;
     }

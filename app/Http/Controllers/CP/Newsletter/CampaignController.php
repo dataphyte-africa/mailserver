@@ -180,7 +180,7 @@ class CampaignController extends Controller
             ->with('subscriber');
 
         $sends = $sends
-            ->paginate(50)
+            ->paginate(20)
             ->withQueryString();
 
         return view('newsletter.cp.campaigns.show', compact('campaign', 'stats', 'entry', 'sends', 'sort', 'direction'));

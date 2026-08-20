@@ -29,6 +29,7 @@ class NewsletterServiceProvider extends ServiceProvider
         $this->registerEntryFeedSyncListener();
         $this->registerCpNav();
         $this->registerRoutes();
+        $this->registerCpStyles();
     }
 
     /**
@@ -207,27 +208,31 @@ class NewsletterServiceProvider extends ServiceProvider
     protected function registerCpNav(): void
     {
         Nav::extend(function ($nav) {
-            $nav->content('Newsletter')
+            $nav->content('Campaigns')
                 ->section('Newsletter')
-                ->icon('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z"/><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z"/></svg>')
-                ->children([
-                    $nav->item('Campaigns')
-                        ->url(cp_route('newsletter.campaigns.index'))
-                        ->icon('send-email'),
+                ->url(cp_route('newsletter.campaigns.index'))
+                ->icon('send-email');
 
-                    $nav->item('Analytics')
-                        ->url(cp_route('newsletter.analytics.index'))
-                        ->icon('charts'),
+            $nav->content('Analytics')
+                ->section('Newsletter')
+                ->url(cp_route('newsletter.analytics.index'))
+                ->icon('charts');
 
-                    $nav->item('Subscribers')
-                        ->url(cp_route('newsletter.subscribers.index'))
-                        ->icon('users'),
+            $nav->content('Subscribers')
+                ->section('Newsletter')
+                ->url(cp_route('newsletter.subscribers.index'))
+                ->icon('users');
 
-                    $nav->item('Groups')
-                        ->url(cp_route('newsletter.groups.index'))
-                        ->icon('tags'),
-                ]);
+            $nav->content('Groups')
+                ->section('Newsletter')
+                ->url(cp_route('newsletter.groups.index'))
+                ->icon('tags');
         });
+    }
+
+    protected function registerCpStyles(): void
+    {
+        Statamic::style('dataphyte/mailserver', 'cp');
     }
 
     protected function registerRoutes(): void
@@ -240,6 +245,7 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::get('/',              [\App\Http\Controllers\CP\Newsletter\SubscriberController::class, 'index'])->name('index');
                     \Route::get('/create',        [\App\Http\Controllers\CP\Newsletter\SubscriberController::class, 'create'])->name('create');
                     \Route::post('/',             [\App\Http\Controllers\CP\Newsletter\SubscriberController::class, 'store'])->name('store');
+                    \Route::post('/{subscriber}/resend-confirmation', [\App\Http\Controllers\CP\Newsletter\SubscriberController::class, 'resendConfirmation'])->name('resend-confirmation');
                     \Route::get('/{subscriber}',  [\App\Http\Controllers\CP\Newsletter\SubscriberController::class, 'show'])->name('show');
                     \Route::get('/{subscriber}/edit', [\App\Http\Controllers\CP\Newsletter\SubscriberController::class, 'edit'])->name('edit');
                     \Route::put('/{subscriber}',  [\App\Http\Controllers\CP\Newsletter\SubscriberController::class, 'update'])->name('update');
@@ -297,12 +303,14 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::get('/{group}/edit',[\App\Http\Controllers\CP\Newsletter\GroupController::class, 'edit'])->name('edit');
                     \Route::put('/{group}',    [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'update'])->name('update');
                     \Route::post('/{group}/archive', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'archive'])->name('archive');
+                    \Route::post('/{group}/restore', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'restore'])->name('restore');
                     \Route::delete('/{group}', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'destroy'])->name('destroy');
 
                     // Sub-groups (nested under a group)
                     \Route::post('/{group}/sub-groups',              [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'store'])->name('sub-groups.store');
                     \Route::put('/{group}/sub-groups/{subGroup}',    [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'update'])->name('sub-groups.update');
                     \Route::post('/{group}/sub-groups/{subGroup}/archive', [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'archive'])->name('sub-groups.archive');
+                    \Route::post('/{group}/sub-groups/{subGroup}/restore', [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'restore'])->name('sub-groups.restore');
                     \Route::delete('/{group}/sub-groups/{subGroup}', [\App\Http\Controllers\CP\Newsletter\SubGroupController::class, 'destroy'])->name('sub-groups.destroy');
                 });
             });

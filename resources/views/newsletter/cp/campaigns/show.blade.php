@@ -27,104 +27,6 @@
     ]);
 @endphp
 
-<style>
-    .campaign-show-page {
-        max-width: 100%;
-        overflow-x: hidden;
-    }
-
-    .campaign-show-shell {
-        display: block;
-        max-width: 100%;
-        overflow-x: hidden;
-    }
-
-    .campaign-show-main,
-    .campaign-show-sidebar {
-        min-width: 0;
-    }
-
-    .campaign-show-stats {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 1px;
-        background: #e5e7eb;
-    }
-
-    .campaign-show-stat {
-        background: #fff;
-    }
-
-    .campaign-show-table-wrap {
-        overflow-x: auto;
-        overflow-y: hidden;
-        width: 100%;
-        max-width: 100%;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .campaign-show-table {
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .campaign-show-table .campaign-show-sticky-col {
-        position: sticky;
-        left: 0;
-        z-index: 3;
-        background: #fff;
-        min-width: 320px;
-        width: 320px;
-        box-shadow: 1px 0 0 #e5e7eb;
-    }
-
-    .campaign-show-table thead .campaign-show-sticky-col {
-        z-index: 4;
-        background: #f9fafb;
-    }
-
-    .campaign-show-table tbody .campaign-show-sticky-col {
-        vertical-align: top;
-    }
-
-    .campaign-show-sidebar {
-        width: 100%;
-    }
-
-    @media (min-width: 900px) {
-        .campaign-show-stats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-
-    @media (min-width: 1280px) {
-        .campaign-show-shell {
-            display: flex;
-            align-items: flex-start;
-            gap: 1.5rem;
-        }
-
-        .campaign-show-main {
-            flex: 1 1 auto;
-            min-width: 0;
-            max-width: calc(100% - 344px);
-            overflow-x: hidden;
-        }
-
-        .campaign-show-sidebar {
-            width: 320px;
-            flex: 0 0 320px;
-            position: sticky;
-            top: 1.5rem;
-            align-self: flex-start;
-        }
-
-        .campaign-show-stats {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-    }
-</style>
-
 {{-- Header --}}
 <div class="campaign-show-page">
 <div class="flex flex-col gap-4 mb-6 xl:flex-row xl:items-start xl:justify-between">
@@ -177,7 +79,7 @@
                  class="hidden absolute right-0 top-full mt-1 w-80 bg-white border border-grey-20 rounded shadow-lg z-50 p-4">
                 <p class="text-sm font-medium mb-1">Send test email to:</p>
                 <p class="text-xs text-grey-50 mb-3">
-                    Merge tags (<code>@{{first_name}}</code>, <code>@{{full_name}}</code>, <code>@{{email}}</code>) are replaced with real subscriber data if the address matches a subscriber, otherwise blank.
+                    Merge tag tokens (<code>first_name</code>, <code>full_name</code>, <code>email</code>) are replaced with real subscriber data if the address matches a subscriber, otherwise blank.
                 </p>
                 <form method="POST"
                       action="{{ cp_route('newsletter.campaigns.test-send', $campaign) }}">
@@ -421,11 +323,11 @@
                         <a href="{{ $sends->previousPageUrl() }}" class="btn btn-sm">&laquo; Prev</a>
                     @endif
 
-                    @foreach($sends->getUrlRange(max(1, $sends->currentPage()-2), min($sends->lastPage(), $sends->currentPage()+2)) as $page => $url)
-                        @if($page === $sends->currentPage())
-                            <span class="btn btn-sm btn-primary">{{ $page }}</span>
+                    @foreach($sends->getUrlRange(max(1, $sends->currentPage()-2), min($sends->lastPage(), $sends->currentPage()+2)) as $pageNumber => $url)
+                        @if($pageNumber === $sends->currentPage())
+                            <span class="btn btn-sm btn-primary">{{ $pageNumber }}</span>
                         @else
-                            <a href="{{ $url }}" class="btn btn-sm">{{ $page }}</a>
+                            <a href="{{ $url }}" class="btn btn-sm">{{ $pageNumber }}</a>
                         @endif
                     @endforeach
 

@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Models\WebhookLog;
 use App\Support\Platform\Ownership\CampaignOwnershipWriter;
 use App\Support\Platform\Ownership\ProductOwnershipResolver;
 use App\Support\Platform\Ownership\SubscriberGroupOwnershipWriter;
@@ -40,6 +41,10 @@ class SeedDemoCampaign extends Command
         DB::transaction(function () use ($campaigns, $collection, $product, $subscriberGroups) {
             if ($this->option('fresh')) {
                 Campaign::where('name', self::DEMO_NAME)->delete();
+                WebhookLog::query()
+                    ->where('payload->seeded_demo', true)
+                    ->where('payload->campaign', self::DEMO_NAME)
+                    ->delete();
             }
 
             $group = $this->resolveGroup($subscriberGroups, $product, $collection);
@@ -208,6 +213,8 @@ class SeedDemoCampaign extends Command
             }
 
             $campaign->forceFill($updates)->save();
+
+            $this->seedWebhookHealthLogs($campaign);
         });
 
         $this->info('Demo campaign seeded successfully.');
@@ -215,8 +222,47 @@ class SeedDemoCampaign extends Command
         $this->line('Collection: ' . $collection);
         $this->line('Recipients: 60');
         $this->line('Mix: 12 clicked, 18 opened, 22 delivered, 4 failed, 4 bounced');
+        $this->line('Webhook health: 24 seeded events in the last 24 hours');
 
         return self::SUCCESS;
+    }
+
+    private function seedWebhookHealthLogs(Campaign $campaign): void
+    {
+        WebhookLog::query()
+            ->where('payload->seeded_demo', true)
+            ->where('payload->campaign', self::DEMO_NAME)
+            ->delete();
+
+        $eventTypes = array_merge(
+            array_fill(0, 8, 'delivered'),
+            array_fill(0, 7, 'opened'),
+            array_fill(0, 5, 'clicked'),
+            array_fill(0, 2, 'bounced'),
+            array_fill(0, 2, 'failed'),
+        );
+
+        foreach ($eventTypes as $index => $eventType) {
+            $failed = in_array($eventType, ['bounced', 'failed'], true) && $index % 2 === 0;
+            $pending = $index >= 20 && ! $failed;
+
+            WebhookLog::create([
+                'event_type' => $eventType,
+                'transaction_id' => (string) Str::uuid(),
+                'to_email' => sprintf('local-demo-%02d@dataphyte.test', ($index % 60) + 1),
+                'payload' => [
+                    'seeded_demo' => true,
+                    'campaign' => self::DEMO_NAME,
+                    'campaign_id' => $campaign->id,
+                    'event' => $eventType,
+                    'source' => 'newsletter:seed-demo-campaign',
+                ],
+                'processed_at' => $pending ? null : now()->subMinutes(90 - ($index * 3)),
+                'error' => $failed ? 'Seeded demo processing error' : null,
+                'created_at' => now()->subHours(23)->addMinutes($index * 50),
+                'updated_at' => now()->subHours(23)->addMinutes($index * 50),
+            ]);
+        }
     }
 
     private function resolveGroup(

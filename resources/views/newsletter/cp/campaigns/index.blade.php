@@ -2,16 +2,16 @@
 @section('title', 'Campaigns')
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
-    <h1 class="text-3xl font-bold">Campaigns</h1>
+<div class="campaign-index-header">
+    <h1 class="campaign-index-title">Campaigns</h1>
     <a href="{{ cp_route('newsletter.campaigns.create') }}"
-       class="btn-primary">New Campaign</a>
+       class="campaign-index-button-primary">New Campaign</a>
 </div>
 
 {{-- Filters --}}
-<form method="GET" class="flex gap-3 mb-6">
+<form method="GET" class="campaign-index-filters">
     <select name="collection" onchange="this.form.submit()"
-            class="input-text text-sm">
+            class="input-text campaign-index-filter-control">
         <option value="">All Collections</option>
         @foreach($collections as $value => $label)
             <option value="{{ $value }}" {{ request('collection') === $value ? 'selected' : '' }}>
@@ -21,7 +21,7 @@
     </select>
 
     <select name="status" onchange="this.form.submit()"
-            class="input-text text-sm">
+            class="input-text campaign-index-filter-control">
         <option value="">All Statuses</option>
         @foreach($statuses as $value => $label)
             <option value="{{ $value }}" {{ request('status') === $value ? 'selected' : '' }}>
@@ -32,22 +32,23 @@
 
     @if(request()->hasAny(['collection','status']))
         <a href="{{ cp_route('newsletter.campaigns.index') }}"
-           class="btn btn-sm">Clear</a>
+           class="campaign-index-button">Clear</a>
     @endif
 </form>
 
 @if(session('success'))
-    <div class="bg-green-100 border border-green-300 text-green-800 rounded p-3 mb-4 text-sm">
+    <div class="campaign-index-notice">
         {{ session('success') }}
     </div>
 @endif
 
 {{-- Table --}}
-<div class="card p-0 overflow-hidden">
-    <table class="data-table">
+<div class="campaign-index-table-card">
+    <div class="campaign-index-table-scroll">
+    <table class="data-table campaign-index-table">
         <thead>
             <tr>
-                <th>Name</th>
+                <th class="campaign-index-sticky-col">Name</th>
                 <th>Collection</th>
                 <th>Subject</th>
                 <th>Status</th>
@@ -59,16 +60,16 @@
         <tbody>
             @forelse($campaigns as $campaign)
             <tr>
-                <td class="font-medium">
+                <td class="campaign-index-sticky-col campaign-index-name-cell">
                     <a href="{{ cp_route('newsletter.campaigns.show', $campaign) }}"
-                       class="text-blue hover:underline">
+                       class="campaign-index-link">
                         {{ $campaign->name }}
                     </a>
                 </td>
-                <td class="text-sm text-grey-70">
+                <td class="campaign-index-muted">
                     {{ $campaign->collectionShortLabel() }}
                 </td>
-                <td class="text-sm max-w-xs truncate">{{ $campaign->subject }}</td>
+                <td class="campaign-index-subject">{{ $campaign->subject }}</td>
                 <td>
                     @php
                         $badge = match($campaign->status) {
@@ -83,10 +84,10 @@
                     @endphp
                     <span class="badge {{ $badge }}">{{ ucfirst($campaign->status) }}</span>
                 </td>
-                <td class="text-sm text-grey-70">
+                <td class="campaign-index-muted">
                     {{ number_format($campaign->total_recipients ?? 0) }}
                 </td>
-                <td class="text-sm text-grey-70">
+                <td class="campaign-index-muted campaign-index-date-cell">
                     @if($campaign->scheduled_at && $campaign->status === 'scheduled')
                         {{ $campaign->scheduled_at->format('M j, Y g:i A') }}
                     @elseif($campaign->sent_at)
@@ -95,20 +96,20 @@
                         &mdash;
                     @endif
                 </td>
-                <td class="text-right">
+                <td class="campaign-index-actions-cell">
                     @if(in_array($campaign->status, ['draft','scheduled']))
                         <a href="{{ cp_route('newsletter.campaigns.edit', $campaign) }}"
-                           class="text-sm text-blue hover:underline mr-3">Edit</a>
+                           class="campaign-index-link campaign-index-action-link">Edit</a>
                     @endif
                     <a href="{{ cp_route('newsletter.campaigns.show', $campaign) }}"
-                       class="text-sm text-blue hover:underline">View</a>
+                       class="campaign-index-link campaign-index-action-link">View</a>
                 </td>
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center text-grey-60 py-8">
+                <td colspan="7" class="campaign-index-empty">
                     No campaigns yet.
-                    <a href="{{ cp_route('newsletter.campaigns.create') }}" class="text-blue hover:underline">
+                    <a href="{{ cp_route('newsletter.campaigns.create') }}" class="campaign-index-link">
                         Create your first campaign.
                     </a>
                 </td>
@@ -116,11 +117,12 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 {{-- Pagination --}}
 @if($campaigns->hasPages())
-    <div class="mt-4">{{ $campaigns->links() }}</div>
+    <div class="campaign-index-pagination">{{ $campaigns->links() }}</div>
 @endif
 
 @endsection

@@ -53,7 +53,9 @@ return [
     */
 
     'widgets' => [
-        //
+        [
+            'type' => 'newsletter',
+        ],
     ],
 
     /*

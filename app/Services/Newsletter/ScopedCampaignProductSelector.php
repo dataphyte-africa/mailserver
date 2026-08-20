@@ -8,6 +8,7 @@ use App\Models\Campaign;
 use App\Models\Product;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
+use Statamic\Contracts\Auth\User as StatamicUser;
 
 class ScopedCampaignProductSelector
 {
@@ -21,6 +22,10 @@ class ScopedCampaignProductSelector
      */
     public function productsFor(?Authenticatable $operator): Collection
     {
+        if ($operator instanceof StatamicUser && $operator->isSuper()) {
+            return $this->activeNewsletterProductsQuery()->get();
+        }
+
         $user = $this->identityBridge->resolve($operator);
 
         if ($user === null) {
@@ -33,12 +38,8 @@ class ScopedCampaignProductSelector
             return new Collection;
         }
 
-        return Product::query()
-            ->with('organisation')
+        return $this->activeNewsletterProductsQuery()
             ->whereKey($productIds)
-            ->where('status', 'active')
-            ->whereNotNull('primary_collection_handle')
-            ->orderBy('name')
             ->get();
     }
 
@@ -64,6 +65,20 @@ class ScopedCampaignProductSelector
             ->where('status', 'active')
             ->where('primary_collection_handle', $collectionHandle)
             ->first();
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<Product>
+     */
+    private function activeNewsletterProductsQuery()
+    {
+        return Product::query()
+            ->with('organisation')
+            ->where('status', 'active')
+            ->whereNotNull('primary_collection_handle')
+            ->where('primary_collection_handle', '!=', '')
+            ->whereHas('organisation', fn ($query) => $query->where('status', 'active'))
+            ->orderBy('name');
     }
 
     public function resolveCampaign(

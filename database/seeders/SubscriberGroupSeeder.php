@@ -2,69 +2,112 @@
 
 namespace Database\Seeders;
 
+use App\Models\Product;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\CollectionRegistry;
+use App\Support\Platform\Ownership\SubscriberGroupOwnershipWriter;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class SubscriberGroupSeeder extends Seeder
 {
-    public function run(): void
+    public function run(SubscriberGroupOwnershipWriter $groups): void
     {
-        $groups = [
+        $newsletterCollections = array_keys(app(CollectionRegistry::class)->options());
+        $seeded = 0;
+
+        Product::query()
+            ->with('organisation')
+            ->where('status', 'active')
+            ->whereHas('organisation', fn ($query) => $query->where('status', 'active'))
+            ->whereIn('primary_collection_handle', $newsletterCollections)
+            ->orderBy('primary_collection_handle')
+            ->orderBy('name')
+            ->get()
+            ->each(function (Product $product) use ($groups, &$seeded): void {
+                $groupName = "{$product->name} Subscribers";
+                $slug = Str::slug($groupName);
+
+                $group = SubscriberGroup::query()->firstOrNew(['slug' => $slug]);
+
+                $groups->updateForProduct($product, $group, [
+                    'name' => $groupName,
+                    'slug' => $slug,
+                    'collection_handle' => $product->primary_collection_handle,
+                    'description' => "Audience group for {$product->organisation?->name} / {$product->name}.",
+                    'archived_at' => null,
+                    'archived_by' => null,
+                ]);
+
+                foreach ($this->subGroupsForProduct($product) as $subGroup) {
+                    SubscriberSubGroup::updateOrCreate(
+                        [
+                            'subscriber_group_id' => $group->id,
+                            'slug' => $subGroup['slug'],
+                        ],
+                        [
+                            'name' => $subGroup['name'],
+                            'description' => $subGroup['description'],
+                            'archived_at' => null,
+                            'archived_by' => null,
+                        ],
+                    );
+                }
+
+                $seeded++;
+            });
+
+        $this->command->info("Product-owned subscriber groups seeded: {$seeded}.");
+    }
+
+    /**
+     * @return array<int, array{name: string, slug: string, description: string}>
+     */
+    private function subGroupsForProduct(Product $product): array
+    {
+        $base = [
             [
-                'name'        => 'Insight Subscribers',
-                'slug'        => 'insight-subscribers',
-                'collection_handle' => 'insight_newsletters',
-                'description' => 'Dataphyte Insight newsletter subscribers',
-                'sub_groups'  => [
-                    ['name' => 'Pocket Science', 'slug' => 'pocket-science'],
-                    ['name' => 'SenorRita', 'slug' => 'senorrita'],
-                    ['name' => 'Marina and Maitama', 'slug' => 'marina-maitama'],
-                    ['name' => 'Data Dive', 'slug' => 'data-dive'],
-                ],
+                'name' => 'Regular',
+                'slug' => 'regular',
+                'description' => 'Default audience list for confirmed subscribers.',
             ],
             [
-                'name'        => 'Foundation',
-                'slug'        => 'foundation',
-                'collection_handle' => 'foundation_newsletters',
-                'description' => 'Dataphyte Foundation newsletter subscribers',
-                'sub_groups'  => [
-                    ['name' => 'Weekly',     'slug' => 'weekly'],
-                    ['name' => 'Activities', 'slug' => 'activities'],
-                ],
-            ],
-            [
-                'name'        => 'Policy Point',
-                'slug'        => 'policy-point',
-                'collection_handle' => 'policy_point_newsletters',
-                'description' => 'Policy Point newsletter subscribers',
-                'sub_groups'  => [
-                    ['name' => 'As Frequently', 'slug' => 'as-frequently'],
-                    ['name' => 'Monthly',       'slug' => 'monthly'],
-                ],
+                'name' => 'Priority Updates',
+                'slug' => 'priority-updates',
+                'description' => 'Subscribers who should receive urgent or high-priority updates.',
             ],
         ];
 
-        foreach ($groups as $groupData) {
-            $subGroups = $groupData['sub_groups'];
-            unset($groupData['sub_groups']);
+        $custom = match ($product->blueprint_handle) {
+            'activities', 'project_update' => [
+                [
+                    'name' => 'Events and Applications',
+                    'slug' => 'events-applications',
+                    'description' => 'Subscribers interested in events, opportunities, forms, or applications.',
+                ],
+            ],
+            'policy_point' => [
+                [
+                    'name' => 'Monthly',
+                    'slug' => 'monthly',
+                    'description' => 'Subscribers who prefer monthly Policy Point updates.',
+                ],
+                [
+                    'name' => 'As Frequently',
+                    'slug' => 'as-frequently',
+                    'description' => 'Subscribers who prefer each Policy Point update as it is published.',
+                ],
+            ],
+            default => [
+                [
+                    'name' => 'Newsletter',
+                    'slug' => 'newsletter',
+                    'description' => 'Standard newsletter audience segment.',
+                ],
+            ],
+        };
 
-            $group = SubscriberGroup::firstOrCreate(
-                ['slug' => $groupData['slug']],
-                $groupData
-            );
-
-            foreach ($subGroups as $subGroup) {
-                SubscriberSubGroup::firstOrCreate(
-                    [
-                        'subscriber_group_id' => $group->id,
-                        'slug'                => $subGroup['slug'],
-                    ],
-                    ['name' => $subGroup['name']]
-                );
-            }
-        }
-
-        $this->command->info('Subscriber groups and sub-groups seeded.');
+        return array_merge($base, $custom);
     }
 }

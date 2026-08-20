@@ -2,6 +2,7 @@
 @section('title', 'New Campaign')
 
 @section('content')
+<div class="campaign-form-page">
 <div class="flex items-center gap-3 mb-6">
     <a href="{{ cp_route('newsletter.campaigns.index') }}" class="text-grey-60 hover:text-grey-80">&larr; Campaigns</a>
     <h1 class="text-3xl font-bold">New Campaign</h1>
@@ -300,4 +301,5 @@ function campaignForm() {
 }
 </script>
 
+</div>
 @endsection
