@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Campaign;
+use App\Models\Organisation;
+use App\Models\Product;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
@@ -65,6 +67,82 @@ class HistoricalOwnershipAuditCommandTest extends TestCase
         $this->assertSame(1, $report['records']['subscribers']['without_any_membership_count']);
         $this->assertSame(1, $report['records']['subscriber_groups']['affected_count']);
         $this->assertSame(1, $report['records']['campaigns']['affected_count']);
+    }
+
+    public function test_backfill_command_applies_only_deterministic_campaign_ownership(): void
+    {
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Insight',
+            'slug' => 'insight-newsletters',
+            'status' => 'active',
+        ]);
+
+        $dataDive = Product::query()->create([
+            'organisation_id' => $organisation->id,
+            'name' => 'Data Dive',
+            'slug' => 'insight-newsletters-data-dive',
+            'status' => 'active',
+            'product_type' => 'newsletter',
+            'primary_collection_handle' => 'insight_newsletters',
+            'blueprint_handle' => 'data_dive',
+        ]);
+
+        Product::query()->create([
+            'organisation_id' => $organisation->id,
+            'name' => 'Pocket Science',
+            'slug' => 'insight-newsletters-pocket-science',
+            'status' => 'active',
+            'product_type' => 'newsletter',
+            'primary_collection_handle' => 'insight_newsletters',
+            'blueprint_handle' => 'pocket_science',
+        ]);
+
+        $group = SubscriberGroup::factory()->create([
+            'collection_handle' => 'insight_newsletters',
+            'organisation_id' => null,
+            'product_id' => null,
+        ]);
+
+        $subGroup = SubscriberSubGroup::factory()->create([
+            'subscriber_group_id' => $group->id,
+            'slug' => 'data-dive',
+        ]);
+
+        $mappable = Campaign::factory()->create([
+            'collection' => 'insight_newsletters',
+            'organisation_id' => null,
+            'product_id' => null,
+        ]);
+
+        $ambiguous = Campaign::factory()->create([
+            'collection' => 'insight_newsletters',
+            'organisation_id' => null,
+            'product_id' => null,
+        ]);
+
+        DB::table('campaign_audiences')->insert([
+            'campaign_id' => $mappable->id,
+            'targetable_type' => 'subscriber_sub_group',
+            'targetable_id' => $subGroup->id,
+            'send_to_all' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->artisan('newsletter:backfill-historical-ownership', ['--apply' => true])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseHas('campaigns', [
+            'id' => $mappable->id,
+            'organisation_id' => $organisation->id,
+            'product_id' => $dataDive->id,
+        ]);
+
+        $this->assertDatabaseHas('campaigns', [
+            'id' => $ambiguous->id,
+            'organisation_id' => null,
+            'product_id' => null,
+        ]);
     }
 
     private function snapshotTables(): array
