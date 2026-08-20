@@ -33,6 +33,10 @@ The new version of this platform is to be built on:
 
 All coordinator and feature-session prompts should treat `version/2` as the target build branch for this revamp unless explicitly changed later.
 
+## Custom CP Styling Rule
+
+Custom control-panel pages must render inside the Statamic CP shell and use feature-scoped pure CSS classes. Do not rely on Tailwind utility-only layouts for custom CP surfaces because the Statamic CP runtime may not compile or preserve those utilities consistently.
+
 ## Core Goals
 
 ### 1. Standardise The Newsletter Platform

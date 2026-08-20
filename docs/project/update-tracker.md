@@ -3838,3 +3838,38 @@ Adjusted the next CP issues from browser review: campaign sends should paginate 
 - syntax checks passed for `CampaignController`, group create Blade, and subscriber index Blade
 - `php artisan test tests/Feature/NewsletterDashboardWidgetTest.php tests/Unit/PlatformContractsTest.php`
   - result: `PASS`, `6 tests`, `30 assertions`
+
+## Coordinator Implementation - 2026-08-20 - V2 Domain Links, Workflow Guards, Historical Backfill, And Form Expansion
+
+### Scope
+
+Continued the approved `version/2` implementation lane after grouped commits `7ee9ea0`, `a39b2a0`, `e7e6cb8`, `133e21a`, and `73cf383`. This work keeps the custom CP direction on feature-scoped pure CSS and avoids Tailwind utility dependence for custom CP pages.
+
+### Implementation Added
+
+- added product-aware public newsletter URL generation through [app/Services/Newsletter/NewsletterPublicUrlService.php](/Users/dataphytefoundation/Herd/mailserver/app/Services/Newsletter/NewsletterPublicUrlService.php)
+- updated newsletter campaign emails and subscription confirmation emails so preference and unsubscribe links can use the product public domain when a verified product context is available
+- updated public preference and unsubscribe controllers/views so signed actions remain valid on product domains and fall back safely to platform URLs when product context is ambiguous
+- changed [app/Support/Platform/Domain/DomainResolver.php](/Users/dataphytefoundation/Herd/mailserver/app/Support/Platform/Domain/DomainResolver.php) so a shared collection handle only resolves to a product domain when exactly one product owns that handle
+- added deterministic historical ownership backfill command [app/Console/Commands/Newsletter/BackfillHistoricalOwnership.php](/Users/dataphytefoundation/Herd/mailserver/app/Console/Commands/Newsletter/BackfillHistoricalOwnership.php)
+- added [app/Services/Newsletter/CampaignWorkflowService.php](/Users/dataphytefoundation/Herd/mailserver/app/Services/Newsletter/CampaignWorkflowService.php) to enforce draft, review, approval, schedule, send, reset, and cancel guards
+- wired campaign submit-for-review, request-changes, approve, schedule, and send checks into CP campaign controllers, routes, and create/edit/show views
+- expanded product forms with a public schema endpoint, pending-review submission status for review-required forms, and CP submission status transitions
+- kept form submission review controls styled through [resources/views/forms/cp/_styles.blade.php](/Users/dataphytefoundation/Herd/mailserver/resources/views/forms/cp/_styles.blade.php), using pure CSS classes only
+
+### Verification
+
+- `php -l` passed for the new and modified newsletter workflow, domain, historical cleanup, and form platform PHP files
+- `php artisan test tests/Unit/CampaignWorkflowServiceTest.php tests/Unit/PlatformDomainScaffoldingTest.php tests/Feature/SubscriptionFormControllerTest.php tests/Feature/HistoricalOwnershipAuditCommandTest.php`
+  - result: `PASS`, `24 tests`, `113 assertions`
+- `php artisan test tests/Feature/ProductFormPlatformTest.php`
+  - result: `PASS`, `10 tests`, `80 assertions`
+- local MySQL migration status had already confirmed all v2 migrations as `Ran`
+- local deterministic historical backfill was applied only for safe campaign rows; ambiguous groups/campaigns, missing audience targets, and membershipless subscribers remain intentionally unresolved pending explicit cleanup approval
+
+### Remaining Guardrails
+
+- do not treat Elastic Email lifecycle payload capture as complete until a real v2-generated confirmation email is delivered and its webhook payload is stored
+- do not convert product-form `subscription` mode into subscriber truth until it reuses the accepted pending-to-active lifecycle path without duplicate activation logic
+- do not mutate remaining ambiguous historical ownership rows without a reviewed mapping for old organisation/product/group ownership
+- do not use Tailwind utility-only rendering for custom CP pages; use Statamic shell plus feature-scoped pure CSS in the registered CP stylesheet or the feature's scoped Blade style partial
