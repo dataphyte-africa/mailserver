@@ -143,9 +143,14 @@
                         <span class="text-sm">Save as Draft</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="action" value="submit_review"
+                               x-model="action" class="radio">
+                        <span class="text-sm">Submit for Review</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="action" value="schedule"
                                x-model="action" class="radio">
-                        <span class="text-sm">Schedule <span class="text-grey-50 font-normal">(pick a future date &darr;)</span></span>
+                        <span class="text-sm">Schedule <span class="text-grey-50 font-normal">(approved or super admin)</span></span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="action" value="send"
@@ -168,7 +173,7 @@
 
                 <button type="submit" class="btn-primary w-full"
                         :class="{ 'bg-red border-red': action === 'send' }">
-                    <span x-text="action === 'send' ? 'Send Campaign' : (action === 'schedule' ? 'Update Schedule' : 'Save Draft')"></span>
+                    <span x-text="action === 'send' ? 'Send Campaign' : (action === 'schedule' ? 'Update Schedule' : (action === 'submit_review' ? 'Submit for Review' : 'Save Draft'))"></span>
                 </button>
             </div>
 

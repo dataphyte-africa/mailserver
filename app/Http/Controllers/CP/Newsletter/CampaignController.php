@@ -13,6 +13,7 @@ use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\CampaignAudienceOwnershipService;
 use App\Services\Newsletter\CampaignSendRetryService;
+use App\Services\Newsletter\CampaignWorkflowService;
 use App\Services\Newsletter\CollectionRegistry;
 use App\Services\Newsletter\CuratedRssStoriesService;
 use App\Services\Newsletter\RssFeedService;
@@ -86,6 +87,7 @@ class CampaignController extends Controller
         ScopedCampaignProductSelector $products,
         CampaignOwnershipWriter $campaigns,
         CampaignAudienceOwnershipService $audiences,
+        CampaignWorkflowService $workflow,
     ) {
         $data = $request->validate([
             'product_id'   => 'required|integer',
@@ -99,7 +101,7 @@ class CampaignController extends Controller
             'send_to_all'  => 'nullable|boolean',
             'sub_groups'   => 'nullable|array',
             'sub_groups.*' => 'integer|exists:subscriber_sub_groups,id',
-            'action'       => 'required|in:draft,schedule,send',
+            'action'       => 'required|in:draft,submit_review,schedule,send',
             'scheduled_at' => 'required_if:action,schedule|nullable|date|after:now',
         ]);
 
@@ -127,7 +129,7 @@ class CampaignController extends Controller
             ]);
         }
 
-        $status = $data['action'] === 'schedule' ? 'scheduled' : 'draft';
+        $status = $workflow->statusForAuthorAction($request->user(), $data['action']);
 
         $campaign = $campaigns->createForProduct($product, [
             'name'         => $data['name'],
@@ -287,11 +289,12 @@ class CampaignController extends Controller
         ScopedCampaignProductSelector $products,
         CampaignOwnershipWriter $campaigns,
         CampaignAudienceOwnershipService $audiences,
+        CampaignWorkflowService $workflow,
     ) {
         $product = $products->resolveCampaign($request->user(), $campaign);
 
         abort_if($product === null, 403, 'Campaign is outside your active product scope.');
-        abort_if(! in_array($campaign->status, ['draft', 'scheduled']), 403, 'Only draft or scheduled campaigns can be edited.');
+        $workflow->assertCanEdit($campaign);
 
         $data = $request->validate([
             'name'         => 'required|string|max:255',
@@ -304,7 +307,7 @@ class CampaignController extends Controller
             'send_to_all'  => 'nullable|boolean',
             'sub_groups'   => 'nullable|array',
             'sub_groups.*' => 'integer|exists:subscriber_sub_groups,id',
-            'action'       => 'required|in:draft,schedule,send',
+            'action'       => 'required|in:draft,submit_review,schedule,send',
             'scheduled_at' => 'required_if:action,schedule|nullable|date|after:now',
         ]);
 
@@ -332,7 +335,7 @@ class CampaignController extends Controller
             ]);
         }
 
-        $status = $data['action'] === 'schedule' ? 'scheduled' : 'draft';
+        $status = $workflow->statusForAuthorAction($request->user(), $data['action'], $campaign);
 
         $campaign = DB::transaction(function () use ($campaign, $campaigns, $product, $data, $status, $audiences, $audience) {
             $campaign = $campaigns->updateForProduct($product, $campaign, [
@@ -387,9 +390,9 @@ class CampaignController extends Controller
     /* Cancel Scheduled                                                     */
     /* ------------------------------------------------------------------ */
 
-    public function cancel(Campaign $campaign)
+    public function cancel(Campaign $campaign, CampaignWorkflowService $workflow)
     {
-        abort_if($campaign->status !== 'scheduled', 403, 'Only scheduled campaigns can be cancelled.');
+        $workflow->assertCanCancelSchedule($campaign);
 
         $campaign->update(['status' => 'draft', 'scheduled_at' => null]);
 
@@ -397,17 +400,37 @@ class CampaignController extends Controller
             ->with('success', 'Campaign moved back to draft.');
     }
 
+    public function requestChanges(Request $request, Campaign $campaign, CampaignWorkflowService $workflow)
+    {
+        $workflow->assertCanRequestChanges($request->user(), $campaign);
+
+        $campaign->update([
+            'status' => CampaignWorkflowService::CHANGES_REQUESTED,
+        ]);
+
+        return redirect(cp_route('newsletter.campaigns.show', $campaign))
+            ->with('success', 'Campaign returned for changes.');
+    }
+
+    public function approve(Request $request, Campaign $campaign, CampaignWorkflowService $workflow)
+    {
+        $workflow->assertCanApprove($request->user(), $campaign);
+
+        $campaign->update([
+            'status' => CampaignWorkflowService::APPROVED,
+        ]);
+
+        return redirect(cp_route('newsletter.campaigns.show', $campaign))
+            ->with('success', 'Campaign approved for scheduling or send.');
+    }
+
     /* ------------------------------------------------------------------ */
     /* Reset Stuck Campaign to Draft                                       */
     /* ------------------------------------------------------------------ */
 
-    public function resetToDraft(Campaign $campaign)
+    public function resetToDraft(Campaign $campaign, CampaignWorkflowService $workflow)
     {
-        abort_if(
-            ! in_array($campaign->status, ['sending', 'failed']),
-            403,
-            'Only campaigns stuck in sending or failed state can be reset.'
-        );
+        $workflow->assertCanReset($campaign);
 
         $campaign->update(['status' => 'draft', 'sent_at' => null]);
 
@@ -419,13 +442,9 @@ class CampaignController extends Controller
     /* Send Now (from show/draft)                                           */
     /* ------------------------------------------------------------------ */
 
-    public function send(Campaign $campaign)
+    public function send(Campaign $campaign, Request $request, CampaignWorkflowService $workflow)
     {
-        abort_if(
-            ! in_array($campaign->status, ['draft', 'scheduled']),
-            403,
-            'Campaign cannot be sent in its current state.'
-        );
+        $workflow->assertCanSend($request->user(), $campaign);
 
         DispatchCampaignJob::dispatch($campaign->id)->onQueue('campaigns');
         $this->markCampaignAsQueuedForDispatch($campaign);

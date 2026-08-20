@@ -47,17 +47,21 @@
         @php
             $badge = match($campaign->status) {
                 'draft'     => 'bg-grey-30 text-grey-80',
+                'in_review' => 'bg-blue-lighter text-blue-dark',
+                'changes_requested' => 'bg-orange-lighter text-orange-dark',
+                'approved'  => 'bg-green-lighter text-green-dark',
                 'scheduled' => 'bg-yellow-lighter text-yellow-dark',
                 'sending'   => 'bg-blue-lighter text-blue-dark',
                 'sent'      => 'bg-green-lighter text-green-dark',
                 'partial'   => 'bg-orange-lighter text-orange-dark',
                 'failed'    => 'bg-red-lighter text-red-dark',
+                'cancelled' => 'bg-grey-30 text-grey-80',
                 default     => 'bg-grey-30 text-grey-80',
             };
         @endphp
-        <span class="badge {{ $badge }} text-sm px-3 py-1">{{ ucfirst($campaign->status) }}</span>
+        <span class="badge {{ $badge }} text-sm px-3 py-1">{{ str_replace('_', ' ', ucfirst($campaign->status)) }}</span>
 
-        @if(in_array($campaign->status, ['draft','scheduled']))
+        @if(in_array($campaign->status, ['draft','changes_requested','approved','scheduled']))
             <a href="{{ cp_route('newsletter.campaigns.edit', $campaign) }}"
                class="btn">Edit</a>
         @endif
@@ -95,7 +99,22 @@
             </div>
         </div>
 
-        @if(in_array($campaign->status, ['draft','scheduled']))
+        @if($campaign->status === 'in_review')
+            <form method="POST" action="{{ cp_route('newsletter.campaigns.request-changes', $campaign) }}">
+                @csrf
+                <button type="submit" class="btn">
+                    Request Changes
+                </button>
+            </form>
+            <form method="POST" action="{{ cp_route('newsletter.campaigns.approve', $campaign) }}">
+                @csrf
+                <button type="submit" class="btn-primary">
+                    Approve
+                </button>
+            </form>
+        @endif
+
+        @if(in_array($campaign->status, ['approved','scheduled']))
             <form method="POST" action="{{ cp_route('newsletter.campaigns.send', $campaign) }}">
                 @csrf
                 <button type="submit"
@@ -449,7 +468,7 @@
         @endif
 
         {{-- Danger zone --}}
-        @if(in_array($campaign->status, ['draft','scheduled']))
+        @if(in_array($campaign->status, ['draft','changes_requested','approved','scheduled']))
         <div class="card p-6 border-red-300">
             <h2 class="text-sm font-semibold text-red mb-3">Danger Zone</h2>
             <form method="POST" action="{{ cp_route('newsletter.campaigns.destroy', $campaign) }}">

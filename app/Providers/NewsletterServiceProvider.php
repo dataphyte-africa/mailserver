@@ -280,6 +280,8 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::put('/{campaign}',       [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'update'])->name('update');
                     \Route::delete('/{campaign}',    [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'destroy'])->name('destroy');
                     \Route::post('/{campaign}/send',       [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'send'])->name('send');
+                    \Route::post('/{campaign}/request-changes', [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'requestChanges'])->name('request-changes');
+                    \Route::post('/{campaign}/approve',    [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'approve'])->name('approve');
                     \Route::post('/{campaign}/retry-failed', [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'retryFailed'])->name('retry-failed');
                     \Route::post('/{campaign}/cancel',     [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'cancel'])->name('cancel');
                     \Route::post('/{campaign}/reset',      [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'resetToDraft'])->name('reset');
