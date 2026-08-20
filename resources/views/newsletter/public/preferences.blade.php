@@ -22,7 +22,7 @@
         </p>
 
         <form method="POST"
-              action="{{ URL::signedRoute('newsletter.preferences.update', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}"
+              action="{{ $preferencesUpdateUrl }}"
               x-data="{ selected: {{ json_encode($activeSubGroupIds) }} }">
             @csrf
 
@@ -60,7 +60,7 @@
                                py-2.5 px-4 rounded-lg transition text-sm">
                     Save Preferences
                 </button>
-                <a href="{{ URL::signedRoute('newsletter.unsubscribe.show', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}"
+                <a href="{{ $unsubscribeUrl }}"
                    class="block text-center text-xs text-gray-400 hover:text-red-500 hover:underline mt-2">
                     @if(!empty($scopedLabel))
                         Unsubscribe from {{ $scopedLabel }}

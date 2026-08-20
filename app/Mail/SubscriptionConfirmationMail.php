@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Subscriber;
+use App\Services\Newsletter\NewsletterPublicUrlService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -75,14 +76,8 @@ class SubscriptionConfirmationMail extends Mailable
                 'headline' => $this->headline(),
                 'bodyCopy' => $this->interpolate((string) ($this->mailConfig['body'] ?? '')),
                 'privacyUrl' => $this->mailConfig['privacy_url'] ?? null,
-                'unsubscribeUrl' => \URL::signedRoute('newsletter.unsubscribe.show', array_filter([
-                    'token' => $this->subscriber->ensureConfirmationToken(),
-                    'collection' => $collectionHandle,
-                ], fn ($value) => filled($value))),
-                'preferencesUrl' => \URL::signedRoute('newsletter.preferences.show', array_filter([
-                    'token' => $this->subscriber->ensureConfirmationToken(),
-                    'collection' => $collectionHandle,
-                ], fn ($value) => filled($value))),
+                'unsubscribeUrl' => $this->publicUrls()->unsubscribeUrl($this->subscriber, $collectionHandle, $this->mailConfig['product_key'] ?? $collectionHandle),
+                'preferencesUrl' => $this->publicUrls()->preferencesUrl($this->subscriber, $collectionHandle, $this->mailConfig['product_key'] ?? $collectionHandle),
                 'subscriberFirstName' => $this->subscriber->first_name ?? '',
                 'subscriberLastName' => $this->subscriber->last_name ?? '',
                 'subscriberFullName' => $this->subscriber->full_name ?? $this->subscriber->email,
@@ -128,6 +123,11 @@ class SubscriptionConfirmationMail extends Mailable
             ],
             $value
         );
+    }
+
+    private function publicUrls(): NewsletterPublicUrlService
+    {
+        return app(NewsletterPublicUrlService::class);
     }
 
     private function resolveAssetUrl(mixed $value): ?string

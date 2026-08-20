@@ -785,6 +785,7 @@ class SubscriptionFormService
                 status: $status,
                 mailConfig: [
                     'collection_handle' => $collectionHandle,
+                    'product_key' => $this->productKey($form),
                     'collection_label' => $this->collections->label($collectionHandle),
                     'sender' => $this->collections->sender($collectionHandle),
                     'privacy_url' => $this->privacyUrl($form),

@@ -137,10 +137,31 @@ class DomainResolver implements DomainResolverInterface
     {
         $query = Product::query()->with('organisation');
 
-        return $this->findScopedModel($query, $productKey, [
-            'slug',
-            'primary_collection_handle',
-        ]);
+        $trimmed = trim($productKey);
+
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (ctype_digit($trimmed)) {
+            return $query->find((int) $trimmed);
+        }
+
+        $lowered = Str::lower($trimmed);
+        $product = (clone $query)
+            ->whereRaw('lower(slug) = ?', [$lowered])
+            ->first();
+
+        if ($product) {
+            return $product;
+        }
+
+        $collectionMatches = (clone $query)
+            ->whereRaw('lower(primary_collection_handle) = ?', [$lowered])
+            ->limit(2)
+            ->get();
+
+        return $collectionMatches->count() === 1 ? $collectionMatches->first() : null;
     }
 
     protected function findOrganisation(string $organisationKey): ?Organisation

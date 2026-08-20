@@ -14,6 +14,7 @@ use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Facade;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\TestCase;
 
 class PlatformDomainScaffoldingTest extends TestCase
@@ -269,5 +270,35 @@ class PlatformDomainScaffoldingTest extends TestCase
         $this->assertSame('https://policy.example.test/browser-view/campaign-1', $generator->browserViewPage('policy-point', 'campaign-1'));
         $this->assertSame('https://policy.example.test/archive/story', $generator->campaignLink('policy-point', '/archive/story'));
         $this->assertSame('https://external.example.test/story', $generator->campaignLink('policy-point', 'https://external.example.test/story'));
+    }
+
+    public function test_collection_handle_product_lookup_is_ignored_when_it_is_ambiguous(): void
+    {
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Insight',
+            'slug' => 'dataphyte-insight',
+            'default_domain' => null,
+        ]);
+
+        foreach (['Data Dive', 'Marina and Maitama'] as $name) {
+            $slug = Str::slug($name);
+
+            Product::query()->create([
+                'organisation_id' => $organisation->getKey(),
+                'name' => $name,
+                'slug' => $slug,
+                'product_type' => 'newsletter',
+                'public_domain' => "{$slug}.example.test",
+                'domain_status' => 'verified',
+                'domain_verified_at' => '2026-07-30 12:00:00',
+                'primary_collection_handle' => 'insight_newsletters',
+                'fallback_to_platform_domain' => true,
+            ]);
+        }
+
+        $resolver = new DomainResolver;
+
+        $this->assertSame('platform.example.test', $resolver->resolveProductDomain('insight_newsletters', 'campaign_link'));
+        $this->assertSame('data-dive.example.test', $resolver->resolveProductDomain('data-dive', 'campaign_link'));
     }
 }

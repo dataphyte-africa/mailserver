@@ -27,7 +27,7 @@
             @endif
         </p>
 
-        <form method="POST" action="{{ URL::signedRoute('newsletter.unsubscribe.process', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}">
+        <form method="POST" action="{{ $unsubscribeProcessUrl }}">
             @csrf
             <button type="submit"
                     class="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2.5 px-4 rounded-lg transition">
@@ -39,7 +39,7 @@
             </button>
         </form>
 
-        <a href="{{ URL::signedRoute('newsletter.preferences.show', array_filter(['token' => $token, 'collection' => $scopedCollection ?? null])) }}"
+        <a href="{{ $preferencesUrl }}"
            class="block mt-3 text-sm text-blue-600 hover:underline">
             Manage my preferences instead
         </a>

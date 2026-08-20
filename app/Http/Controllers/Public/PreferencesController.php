@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\NewsletterPublicUrlService;
 use Illuminate\Http\Request;
 
 class PreferencesController extends Controller
 {
-    public function show(Request $request, string $token)
+    public function show(Request $request, string $token, NewsletterPublicUrlService $urls)
     {
-        if (! $request->hasValidSignature()) {
+        if (! $urls->hasValidSignature($request)) {
             abort(403, 'This preferences link has expired or is invalid.');
         }
 
@@ -40,19 +41,24 @@ class PreferencesController extends Controller
             $activeSubGroupIds = $subscriber->subGroups->pluck('id')->values()->all();
         }
 
+        $preferencesUpdateUrl = $urls->preferencesUpdateUrl($subscriber, $scopedCollection, $scopedCollection);
+        $unsubscribeUrl = $urls->unsubscribeUrl($subscriber, $scopedCollection, $scopedCollection);
+
         return view('newsletter.public.preferences', compact(
             'subscriber',
             'token',
             'allSubGroups',
             'activeSubGroupIds',
             'scopedCollection',
-            'scopedLabel'
+            'scopedLabel',
+            'preferencesUpdateUrl',
+            'unsubscribeUrl'
         ));
     }
 
-    public function update(Request $request, string $token)
+    public function update(Request $request, string $token, NewsletterPublicUrlService $urls)
     {
-        if (! $request->hasValidSignature()) {
+        if (! $urls->hasValidSignature($request)) {
             abort(403, 'This preferences link has expired or is invalid.');
         }
 

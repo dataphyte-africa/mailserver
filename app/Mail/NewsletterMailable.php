@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Campaign;
 use App\Models\Subscriber;
+use App\Services\Newsletter\NewsletterPublicUrlService;
 use App\Services\Newsletter\CuratedRssStoriesService;
 use App\Services\Newsletter\RssFeedService;
 use App\Services\Newsletter\TemplateResolver;
@@ -152,8 +153,8 @@ class NewsletterMailable extends Mailable
                 'newsletterSettings' => $settings,
                 'foundationCtaText'  => $entry?->get('cta_text') ?? null,
                 'foundationCtaUrl'   => $entry?->get('cta_url') ?? null,
-                'unsubscribeUrl'     => $this->buildSignedUrl('newsletter.unsubscribe.show'),
-                'preferencesUrl'     => $this->buildSignedUrl('newsletter.preferences.show'),
+                'unsubscribeUrl'     => $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign),
+                'preferencesUrl'     => $this->publicUrls()->preferencesUrl($this->subscriber, $this->campaign->collection, $this->campaign),
                 // Subscriber personalisation variables (use in templates directly)
                 'subscriberFirstName' => $this->subscriber->first_name ?? '',
                 'subscriberLastName'  => $this->subscriber->last_name  ?? '',
@@ -265,7 +266,7 @@ class NewsletterMailable extends Mailable
             messageId:  null,
             references: [],
             text: [
-                'List-Unsubscribe'      => '<' . $this->buildSignedUrl('newsletter.unsubscribe.show') . '>',
+                'List-Unsubscribe'      => '<' . $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign) . '>',
                 'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
                 'X-Campaign-Id'         => (string) $this->campaign->id,
                 'X-Campaign-Send-Id'    => $this->campaignSendId,
@@ -789,17 +790,9 @@ class NewsletterMailable extends Mailable
         $node->setAttribute('style', trim($merged));
     }
 
-    private function buildSignedUrl(string $routeName): string
+    private function publicUrls(): NewsletterPublicUrlService
     {
-        $parameters = [
-            'token' => $this->subscriber->ensureConfirmationToken(),
-        ];
-
-        if (filled($this->campaign->collection)) {
-            $parameters['collection'] = $this->campaign->collection;
-        }
-
-        return \URL::signedRoute($routeName, $parameters);
+        return app(NewsletterPublicUrlService::class);
     }
 
     private function normalizedSubject(?string $value): string

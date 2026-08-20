@@ -5,30 +5,35 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
+use App\Services\Newsletter\NewsletterPublicUrlService;
 use Illuminate\Http\Request;
 
 class UnsubscribeController extends Controller
 {
-    public function show(Request $request, string $token)
+    public function show(Request $request, string $token, NewsletterPublicUrlService $urls)
     {
-        if (! $request->hasValidSignature()) {
+        if (! $urls->hasValidSignature($request)) {
             abort(403, 'This unsubscribe link has expired or is invalid.');
         }
 
         $subscriber = Subscriber::where('confirmation_token', $token)->firstOrFail();
         [$scopedGroup, $scopedCollection, $scopedLabel] = $this->resolveScope($request);
+        $unsubscribeProcessUrl = $urls->unsubscribeProcessUrl($subscriber, $scopedCollection, $scopedCollection);
+        $preferencesUrl = $urls->preferencesUrl($subscriber, $scopedCollection, $scopedCollection);
 
         return view('newsletter.public.unsubscribe', compact(
             'subscriber',
             'token',
             'scopedCollection',
-            'scopedLabel'
+            'scopedLabel',
+            'unsubscribeProcessUrl',
+            'preferencesUrl'
         ));
     }
 
-    public function process(Request $request, string $token)
+    public function process(Request $request, string $token, NewsletterPublicUrlService $urls)
     {
-        if (! $request->hasValidSignature()) {
+        if (! $urls->hasValidSignature($request)) {
             abort(403, 'This unsubscribe link has expired or is invalid.');
         }
 

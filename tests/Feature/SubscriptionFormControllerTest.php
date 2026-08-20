@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Newsletter\NewsletterPublicUrlService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Statamic\Contracts\Forms\Submission as StatamicSubmission;
@@ -45,6 +46,51 @@ class SubscriptionFormControllerTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('handle', $form->handle())
             ->assertJsonPath('endpoint', 'https://join.policy.example.test/subscribe/policy-point');
+    }
+
+    public function test_subscription_confirmation_links_use_product_public_domain(): void
+    {
+        Mail::fake();
+        $this->makePolicyPointForm();
+        $this->createPolicyPointProduct();
+
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'policy-point']), [
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada-domain@example.com',
+            'frequency' => 'monthly',
+        ])->assertOk();
+
+        Mail::assertQueued(SubscriptionConfirmationMail::class, function (SubscriptionConfirmationMail $mail) {
+            $payload = $mail->content()->with;
+
+            return $mail->hasTo('ada-domain@example.com')
+                && str_starts_with($payload['preferencesUrl'], 'https://policy.example.test/preferences/')
+                && str_contains($payload['preferencesUrl'], 'signature=')
+                && str_starts_with($payload['unsubscribeUrl'], 'https://policy.example.test/unsubscribe/')
+                && str_contains($payload['unsubscribeUrl'], 'signature=');
+        });
+    }
+
+    public function test_product_domain_signed_preferences_page_keeps_actions_on_product_domain(): void
+    {
+        $this->makePolicyPointForm();
+        $this->createPolicyPointProduct();
+
+        $subscriber = Subscriber::factory()->create([
+            'email' => 'preference-domain@example.com',
+            'status' => 'active',
+            'confirmation_token' => 'preference-domain-token',
+            'confirmed_at' => now(),
+        ]);
+
+        $url = app(NewsletterPublicUrlService::class)
+            ->preferencesUrl($subscriber, 'policy_point_newsletters', 'policy_point_newsletters');
+
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('https://policy.example.test/preferences/preference-domain-token', false)
+            ->assertSee('https://policy.example.test/unsubscribe/preference-domain-token', false);
     }
 
     public function test_submit_endpoint_creates_subscriber_and_managed_sub_groups(): void
