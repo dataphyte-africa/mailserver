@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Http\Controllers\CP\Forms\ProductFormController;
 use App\Http\Controllers\CP\Forms\ProductFormSubmissionController;
+use App\Http\Controllers\CP\Platform\OrganisationDomainController;
 use App\Http\Controllers\Public\ProductFormPageController;
 use App\Http\Controllers\Public\ProductFormSubmissionController as PublicProductFormSubmissionController;
 use Illuminate\Support\ServiceProvider;
@@ -26,6 +27,11 @@ class FormDataCollectionServiceProvider extends ServiceProvider
                 ->section('Forms')
                 ->url(cp_route('product-forms.index'))
                 ->icon('form');
+
+            $nav->content('Organisation Domains')
+                ->section('Forms')
+                ->url(cp_route('organisation-domains.index'))
+                ->icon('earth');
         });
     }
 
@@ -41,6 +47,12 @@ class FormDataCollectionServiceProvider extends ServiceProvider
                 \Route::get('/{productForm}/submissions', [ProductFormSubmissionController::class, 'index'])->name('submissions.index');
                 \Route::get('/{productForm}/submissions/export/csv', [ProductFormSubmissionController::class, 'export'])->name('submissions.export');
                 \Route::post('/{productForm}/submissions/{submission}/status', [ProductFormSubmissionController::class, 'transition'])->name('submissions.status');
+            });
+
+            \Route::prefix('organisation-domains')->name('organisation-domains.')->group(function (): void {
+                \Route::get('/', [OrganisationDomainController::class, 'index'])->name('index');
+                \Route::post('/{organisation}', [OrganisationDomainController::class, 'update'])->name('update');
+                \Route::post('/{organisation}/verify', [OrganisationDomainController::class, 'verify'])->name('verify');
             });
         });
 

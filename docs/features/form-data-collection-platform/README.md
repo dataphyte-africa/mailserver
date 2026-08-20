@@ -94,7 +94,7 @@ Expected outcomes:
 
 - each organisation can create forms tied to a product or operational purpose
 - each form can collect preferences and map them into the right subscriber subgroup when relevant
-- each public form can use the product domain when available, otherwise the organisation or platform fallback domain
+- each public form can use the product domain when available, otherwise the verified organisation newsletter domain or platform fallback domain
 - external sites can fetch schema and submit through approved integration patterns
 - specialised flows such as observer applications can use reusable templates plus hardcoded business logic where necessary
 - operators can review, classify, export, and act on submissions from the admin side
@@ -142,6 +142,14 @@ External websites and GA4 may provide traffic and attribution signals, but not s
 Forms must use the shared domain-resolution rules.
 
 This feature must not invent a separate domain-selection path outside the accepted shared domain architecture.
+
+Organisation source domains should automatically feed hosted-form allowed origins. If an organisation source domain is `dataphyte.org`, the app derives `nl.dataphyte.org` and allows:
+
+- `https://dataphyte.org`
+- `https://www.dataphyte.org`
+- `https://nl.dataphyte.org`
+
+This means source-domain embeds should not require `.env` origin changes for each organisation. Operators still need DNS to point the generated newsletter host to the app before that host can become verified and active.
 
 The shared foundation design for this lives in:
 

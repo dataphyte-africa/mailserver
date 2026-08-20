@@ -101,6 +101,13 @@ class PlatformDomainScaffoldingTest extends TestCase
             $table->string('slug')->unique();
             $table->string('status')->default('active');
             $table->string('default_domain')->nullable();
+            $table->string('source_domain')->nullable();
+            $table->string('newsletter_subdomain')->default('nl');
+            $table->string('newsletter_domain')->nullable();
+            $table->string('newsletter_domain_status')->default('unconfigured');
+            $table->timestamp('newsletter_domain_verified_at')->nullable();
+            $table->string('newsletter_dns_record_type')->default('A');
+            $table->string('newsletter_dns_expected_value')->nullable();
             $table->string('default_mail_domain')->nullable();
             $table->string('default_from_name')->nullable();
             $table->string('default_reply_to')->nullable();
@@ -300,5 +307,64 @@ class PlatformDomainScaffoldingTest extends TestCase
 
         $this->assertSame('platform.example.test', $resolver->resolveProductDomain('insight_newsletters', 'campaign_link'));
         $this->assertSame('data-dive.example.test', $resolver->resolveProductDomain('data-dive', 'campaign_link'));
+    }
+
+    public function test_verified_organisation_newsletter_domain_is_product_fallback(): void
+    {
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Foundation',
+            'slug' => 'dataphyte-foundation',
+            'default_domain' => null,
+            'source_domain' => 'dataphyte.org',
+            'newsletter_subdomain' => 'nl',
+            'newsletter_domain' => 'nl.dataphyte.org',
+            'newsletter_domain_status' => 'verified',
+            'newsletter_domain_verified_at' => '2026-08-20 12:00:00',
+        ]);
+
+        Product::query()->create([
+            'organisation_id' => $organisation->getKey(),
+            'name' => 'Foundation Newsletter',
+            'slug' => 'foundation-newsletter',
+            'product_type' => 'newsletter',
+            'public_domain' => null,
+            'forms_domain' => null,
+            'domain_status' => 'unconfigured',
+            'fallback_to_platform_domain' => true,
+        ]);
+
+        $resolver = new DomainResolver;
+
+        $this->assertSame('nl.dataphyte.org', $resolver->resolveProductDomain('foundation-newsletter', 'form_page'));
+        $this->assertSame('nl.dataphyte.org', $resolver->resolveOrganisationDomain((string) $organisation->getKey(), 'form_page'));
+    }
+
+    public function test_pending_organisation_newsletter_domain_does_not_replace_platform_fallback(): void
+    {
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Foundation',
+            'slug' => 'dataphyte-foundation-pending',
+            'default_domain' => null,
+            'source_domain' => 'dataphyte.org',
+            'newsletter_subdomain' => 'nl',
+            'newsletter_domain' => 'nl.dataphyte.org',
+            'newsletter_domain_status' => 'pending_verification',
+        ]);
+
+        Product::query()->create([
+            'organisation_id' => $organisation->getKey(),
+            'name' => 'Foundation Newsletter',
+            'slug' => 'foundation-newsletter-pending',
+            'product_type' => 'newsletter',
+            'public_domain' => null,
+            'forms_domain' => null,
+            'domain_status' => 'unconfigured',
+            'fallback_to_platform_domain' => true,
+        ]);
+
+        $resolver = new DomainResolver;
+
+        $this->assertSame('platform.example.test', $resolver->resolveProductDomain('foundation-newsletter-pending', 'form_page'));
+        $this->assertSame('platform.example.test', $resolver->resolveOrganisationDomain((string) $organisation->getKey(), 'form_page'));
     }
 }

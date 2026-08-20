@@ -10,6 +10,7 @@ use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Contracts\Authorization\StatamicUserIdentityBridgeInterface;
 use App\Services\Forms\ProductFormService;
+use App\Services\Platform\OrganisationNewsletterDomainService;
 use App\Services\Platform\StatamicNewsletterProductSyncService;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
@@ -133,6 +134,87 @@ class ProductFormPlatformTest extends TestCase
         $fallbackResponse->assertOk()
             ->assertViewHas('hostedPageUrl', 'https://mailserver.test/forms/field-monitor-intake')
             ->assertViewHas('submitUrl', 'https://mailserver.test/forms/field-monitor-intake');
+    }
+
+    public function test_organisation_newsletter_domain_drives_forms_and_inherited_origins(): void
+    {
+        /** @var ProductFormService $service */
+        $service = app(ProductFormService::class);
+
+        $product = $this->createProduct([
+            'slug' => 'foundation-newsletter',
+            'name' => 'Foundation Newsletter',
+            'forms_domain' => null,
+            'domain_status' => 'unconfigured',
+            'domain_verified_at' => null,
+        ], [
+            'default_domain' => null,
+            'source_domain' => 'dataphyte.org',
+            'newsletter_subdomain' => 'nl',
+            'newsletter_domain' => 'nl.dataphyte.org',
+            'newsletter_domain_status' => 'verified',
+            'newsletter_domain_verified_at' => now(),
+        ]);
+
+        $form = $service->create($product, [
+            'name' => 'Osun Observer Application',
+            'slug' => 'osun-observer-application',
+            'template_family' => 'application_basic',
+            'field_definitions' => $this->fieldDefinitions(),
+        ]);
+
+        $this->assertSame('https://nl.dataphyte.org/forms/osun-observer-application', $service->hostedPageUrl($form));
+        $this->assertSame('https://nl.dataphyte.org/forms/osun-observer-application', $service->submitUrl($form));
+        $this->assertContains('https://dataphyte.org', $service->allowedOrigins($form));
+        $this->assertContains('https://www.dataphyte.org', $service->allowedOrigins($form));
+        $this->assertContains('https://nl.dataphyte.org', $service->allowedOrigins($form));
+
+        $this->withHeader('Origin', 'https://dataphyte.org')
+            ->postJson(route('product-forms.public.submit', ['form' => $form->slug]), [
+                'full_name' => 'Embedded Applicant',
+                'email' => 'embed@example.test',
+                'location' => 'lagos',
+            ])
+            ->assertCreated();
+    }
+
+    public function test_cp_domain_settings_derives_newsletter_domain_and_dns_instruction(): void
+    {
+        $this->withoutMiddleware(CountUsers::class);
+
+        $product = $this->createProduct();
+        $user = StatamicUser::findByEmail('admin@mailserver.test');
+        $this->assertNotNull($user);
+        $this->scopeStatamicUserToProduct($user, $product);
+
+        config([
+            'platform.domain.newsletter_dns_target' => '203.0.113.10',
+        ]);
+
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'))
+            ->post(cp_route('organisation-domains.update', $product->organisation), [
+                'source_domain' => 'dataphyte.org',
+                'newsletter_subdomain' => 'nl',
+                'newsletter_dns_record_type' => 'A',
+            ])
+            ->assertRedirect();
+
+        $product->organisation->refresh();
+
+        $this->assertSame('dataphyte.org', $product->organisation->source_domain);
+        $this->assertSame('nl.dataphyte.org', $product->organisation->newsletter_domain);
+        $this->assertSame('pending_verification', $product->organisation->newsletter_domain_status);
+
+        /** @var OrganisationNewsletterDomainService $domains */
+        $domains = app(OrganisationNewsletterDomainService::class);
+
+        $this->assertSame([
+            'type' => 'A',
+            'name' => 'nl',
+            'host' => 'nl.dataphyte.org',
+            'value' => '203.0.113.10',
+            'ttl' => 'Auto / 300',
+        ], $domains->dnsRecord($product->organisation));
     }
 
     public function test_allowed_origin_submission_is_stored_and_disallowed_origin_is_rejected(): void

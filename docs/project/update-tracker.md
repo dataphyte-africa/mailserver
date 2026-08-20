@@ -3873,3 +3873,33 @@ Continued the approved `version/2` implementation lane after grouped commits `7e
 - do not convert product-form `subscription` mode into subscriber truth until it reuses the accepted pending-to-active lifecycle path without duplicate activation logic
 - do not mutate remaining ambiguous historical ownership rows without a reviewed mapping for old organisation/product/group ownership
 - do not use Tailwind utility-only rendering for custom CP pages; use Statamic shell plus feature-scoped pure CSS in the registered CP stylesheet or the feature's scoped Blade style partial
+
+## Coordinator Implementation - 2026-08-20 - Organisation Newsletter Domain Management
+
+### Scope
+
+Implemented the approved organisation-domain model for `version/2`: operators enter an organisation source domain, the platform derives the newsletter host, shows the DNS record to create, and reuses that verified organisation host as the product fallback for forms, preferences, unsubscribe, and newsletter public links.
+
+### Implementation Added
+
+- added organisation newsletter-domain persistence through [database/migrations/2026_08_20_140000_add_newsletter_domain_fields_to_organisations_table.php](/Users/dataphytefoundation/Herd/mailserver/database/migrations/2026_08_20_140000_add_newsletter_domain_fields_to_organisations_table.php)
+- added [app/Services/Platform/OrganisationNewsletterDomainService.php](/Users/dataphytefoundation/Herd/mailserver/app/Services/Platform/OrganisationNewsletterDomainService.php) to normalise source domains, derive `nl.{source_domain}`, generate DNS instructions, verify DNS, and return inherited allowed origins
+- added the CP `Organisation Domains` surface under the Forms section through [app/Http/Controllers/CP/Platform/OrganisationDomainController.php](/Users/dataphytefoundation/Herd/mailserver/app/Http/Controllers/CP/Platform/OrganisationDomainController.php) and [resources/views/platform/cp/organisation-domains/index.blade.php](/Users/dataphytefoundation/Herd/mailserver/resources/views/platform/cp/organisation-domains/index.blade.php)
+- updated [app/Support/Platform/Domain/DomainResolver.php](/Users/dataphytefoundation/Herd/mailserver/app/Support/Platform/Domain/DomainResolver.php) so verified organisation newsletter domains are the fallback before the platform domain
+- updated [app/Services/Forms/ProductFormService.php](/Users/dataphytefoundation/Herd/mailserver/app/Services/Forms/ProductFormService.php) so organisation source domains, `www` source domains, and generated newsletter domains are allowed automatically for hosted-form embeds
+- updated source-of-truth and feature docs to state the canonical organisation URL pattern: `https://nl.{source_domain}/forms/{form-slug}`, `https://nl.{source_domain}/preferences`, and `https://nl.{source_domain}/unsubscribe/{signed-token}`
+
+### Verification
+
+- `php artisan test tests/Feature/ProductFormPlatformTest.php tests/Unit/PlatformDomainScaffoldingTest.php tests/Feature/SubscriptionFormControllerTest.php`
+  - result: `PASS`, `32 tests`, `195 assertions`
+- `php artisan migrate`
+  - result: `2026_08_20_140000_add_newsletter_domain_fields_to_organisations_table` ran successfully against local MySQL
+- `php artisan migrate:status`
+  - result: the organisation newsletter-domain migration is batch `[15] Ran`
+
+### Remaining Guardrails
+
+- DNS verification depends on the operator creating the displayed DNS record outside the app
+- product-specific verified domains still override the organisation newsletter domain when configured
+- organisation source/newsletter origins are automatic for hosted forms, but any unrelated third-party embed origin must still be configured explicitly on the form

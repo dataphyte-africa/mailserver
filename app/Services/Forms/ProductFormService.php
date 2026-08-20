@@ -9,6 +9,7 @@ use App\Models\ProductForm;
 use App\Models\ProductFormSubmission;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Platform\OrganisationNewsletterDomainService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -23,6 +24,7 @@ class ProductFormService
     public function __construct(
         private readonly DomainResolverInterface $domains,
         private readonly FormTemplateRegistry $templates,
+        private readonly OrganisationNewsletterDomainService $organisationDomains,
     ) {}
 
     public function create(Product $product, array $attributes): ProductForm
@@ -264,6 +266,16 @@ class ProductFormService
 
             if ($normalized !== null) {
                 $origins[] = $normalized;
+            }
+        }
+
+        if ($form->organisation) {
+            foreach ($this->organisationDomains->allowedOrigins($form->organisation) as $origin) {
+                $normalized = $this->normalizeOrigin($origin);
+
+                if ($normalized !== null) {
+                    $origins[] = $normalized;
+                }
             }
         }
 

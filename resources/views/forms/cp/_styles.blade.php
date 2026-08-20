@@ -224,6 +224,28 @@
         color: #166534;
     }
 
+    .form-platform-alert-warning {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+    }
+
+    .form-platform-nested-card {
+        box-shadow: none;
+        padding: 1rem;
+    }
+
+    .form-platform-chip {
+        background: #eef4ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        color: #1d4ed8;
+        display: inline-block;
+        font-size: .8125rem;
+        margin: .25rem .25rem 0 0;
+        padding: .25rem .625rem;
+    }
+
     .form-platform-error-title {
         font-weight: 600;
         margin: 0;

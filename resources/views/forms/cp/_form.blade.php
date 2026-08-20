@@ -156,7 +156,7 @@
         <label class="form-platform-label">Allowed Embed Origins</label>
         <textarea name="allowed_origins_text" rows="4" class="input-text form-platform-control" placeholder="https://example.com">{{ old('allowed_origins_text', $allowedOriginsText) }}</textarea>
         <p class="form-platform-help">
-            One origin per line. The hosted form's own product/platform origin is allowed automatically.
+            One origin per line. Organisation source/newsletter domains and the hosted form's own product/platform origin are allowed automatically.
         </p>
     </div>
 

@@ -263,7 +263,7 @@ An `Organisation` is the highest operational owner in the platform.
 It is responsible for:
 
 - brand identity
-- default public-domain ownership
+- source-domain ownership for organisation newsletter surfaces
 - default mail-domain ownership
 - product ownership
 - organisation-level users and operator access boundaries
@@ -272,15 +272,23 @@ It is responsible for:
 Recommended organisation-level responsibilities:
 
 - owns one or more products
-- provides the default domain fallback for its products
+- provides the generated newsletter-domain fallback for its products
 - provides shared sender defaults unless a product overrides them
 - defines who may administer products under it
+- provides the automatic source/newsletter origins allowed for hosted form embeds
 
 Suggested organisation-level fields:
 
 - `name`
 - `slug`
 - `status`
+- `source_domain`
+- `newsletter_subdomain`
+- `newsletter_domain`
+- `newsletter_domain_status`
+- `newsletter_domain_verified_at`
+- `newsletter_dns_record_type`
+- `newsletter_dns_expected_value`
 - `default_domain`
 - `default_mail_domain`
 - `default_from_name`
@@ -305,6 +313,13 @@ Recommended minimum persistence fields:
 - `name`
 - `slug`
 - `status`
+- `source_domain`
+- `newsletter_subdomain`
+- `newsletter_domain`
+- `newsletter_domain_status`
+- `newsletter_domain_verified_at`
+- `newsletter_dns_record_type`
+- `newsletter_dns_expected_value`
 - `default_domain`
 - `default_mail_domain`
 - `default_from_name`
@@ -663,14 +678,23 @@ If cross-product audience reuse is required later, it must be explicitly designe
 
 Domain ownership should be a first-class platform capability.
 
-Each product collection should be able to use its own domain when available, and fall back to the platform domain when it is not.
+Each organisation collection owns a source domain when available. The platform derives the organisation newsletter domain from that source domain, using the configured newsletter subdomain. For example, if the source domain is `dataphyte.org`, the newsletter domain is `nl.dataphyte.org`.
+
+Each product can still use a product-specific domain when needed. If no verified product domain exists, product public surfaces should fall back to the verified organisation newsletter domain, then the platform domain.
+
+The DNS instruction shown to operators should be generated from application configuration, not handwritten per feature. Current default intent:
+
+- record name: `nl`
+- record type: `A` by default unless configured as `CNAME`
+- expected value: server IP or configured canonical host
+- resulting host: `nl.{source_domain}`
 
 ### Domain Resolution Rule
 
 For each product:
 
 1. use the product domain if it exists, is verified, and is enabled
-2. else use the organisation default domain if defined
+2. else use the organisation newsletter domain if it is generated and verified
 3. else use the platform domain
 
 This fallback must be deterministic and centrally configured.
@@ -695,6 +719,13 @@ The target platform should support domain configuration at the organisation and 
 Suggested fields:
 
 - Organisation:
+  - `source_domain`
+  - `newsletter_subdomain`
+  - `newsletter_domain`
+  - `newsletter_domain_status`
+  - `newsletter_domain_verified_at`
+  - `newsletter_dns_record_type`
+  - `newsletter_dns_expected_value`
   - `default_domain`
   - `default_mail_domain`
 - Product:
@@ -708,22 +739,32 @@ Suggested fields:
 Ownership should be split like this:
 
 - platform owns the final fallback domain
-- organisation owns default brand-level domain and mail defaults
+- organisation owns the source domain, generated newsletter host, DNS verification state, and mail defaults
 - product owns public-surface overrides when needed
 
 Recommended surface ownership:
 
 - `public_domain`
   - owner: product
-  - fallback: organisation, then platform
+  - fallback: verified organisation newsletter domain, then platform
 - `forms_domain`
   - owner: product
-  - fallback: organisation, then platform
+  - fallback: verified organisation newsletter domain, then platform
 - `mail_from_domain`
   - owner: product
   - fallback: organisation, then platform-approved mail domain policy
 - unsubscribe/preferences/browser-view URL base
   - resolved from product public-surface domain policy, not per-template hardcoding
+
+### Organisation Newsletter URL Pattern
+
+When an organisation source domain is configured and verified, organisation-owned newsletter surfaces should use:
+
+- forms: `https://nl.{source_domain}/forms/{form-slug}`
+- preference centre: `https://nl.{source_domain}/preferences`
+- unsubscribe: `https://nl.{source_domain}/unsubscribe/{signed-token}`
+
+The source domain, `www` source-domain variant, and generated newsletter domain should be included automatically in hosted-form allowed origins. Operators should not need to add these origins to `.env`.
 
 ### Technical Rule
 

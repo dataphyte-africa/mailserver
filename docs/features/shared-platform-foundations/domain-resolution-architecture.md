@@ -9,7 +9,7 @@ Define the exact domain-resolution architecture for Mailserver `version/2` so al
 For each product-facing surface:
 
 1. use the product domain if it exists, is verified, and is enabled
-2. else use the organisation default domain if defined
+2. else use the generated organisation newsletter domain if it exists and is verified
 3. else use the platform domain
 
 This order applies to both:
@@ -39,6 +39,13 @@ Only verified and enabled domains may be used as active product domains.
 
 Recommended organisation fields:
 
+- `source_domain`
+- `newsletter_subdomain`
+- `newsletter_domain`
+- `newsletter_domain_status`
+- `newsletter_domain_verified_at`
+- `newsletter_dns_record_type`
+- `newsletter_dns_expected_value`
 - `default_domain`
 - `default_mail_domain`
 - `status`
@@ -47,6 +54,15 @@ Organisation defaults support:
 
 - shared branded fallback for multiple products
 - organisations that do not yet have per-product domains
+- automatic allowed origins for hosted forms embedded on the source domain or generated newsletter domain
+
+The canonical organisation newsletter host is generated from the source domain. Example:
+
+- source domain: `dataphyte.org`
+- newsletter subdomain: `nl`
+- generated newsletter domain: `nl.dataphyte.org`
+
+Operators should be shown the DNS record to create, usually an `A` record for `nl` pointing at the app server IP unless the platform is configured to require a `CNAME`.
 
 ### Product Level
 
@@ -123,7 +139,7 @@ Policy:
 Expected behaviour:
 
 - use verified product domain when available
-- else organisation default
+- else verified organisation newsletter domain
 - else platform domain
 - canonical URL should point to the resolved preferred domain
 
@@ -137,6 +153,7 @@ Expected behaviour:
 
 - form pages should inherit the product-facing public domain chain
 - application, subscription, and data collection pages should not invent their own unrelated domain logic
+- if the form uses the organisation fallback, the public URL should be `https://nl.{source_domain}/forms/{form-slug}`
 
 ### Public Form Submit Endpoints
 
@@ -159,7 +176,8 @@ Expected behaviour:
 
 - links in outgoing mail should use the resolved product-preferred domain
 - avoid unnecessary redirect hops in the email click path
-- fallback remains organisation, then platform
+- fallback remains verified organisation newsletter domain, then platform
+- organisation fallback URLs should use `/preferences` and `/unsubscribe/{signed-token}` under `https://nl.{source_domain}`
 
 ### Browser-View Newsletter Pages
 
@@ -231,6 +249,7 @@ Recommended behaviour:
 - never hardcode domains in mailables
 - route and link generation must go through shared domain services
 - product-level and form-level features must reuse the same resolver logic
+- organisation source/newsletter domains must be added to hosted-form allowed origins by the domain service, not `.env`
 
 ## Dependencies
 

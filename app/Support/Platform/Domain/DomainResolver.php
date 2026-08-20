@@ -22,7 +22,8 @@ class DomainResolver implements DomainResolverInterface
         $surface = $this->surfaceConfig($surfacePolicy);
         $policy = $this->surfacePolicy($surfacePolicy);
         $productDomain = $this->normaliseHost($this->productSurfaceDomain($product, $surface));
-        $organisationDomain = $this->normaliseHost($product->organisation?->default_domain);
+        $organisationDomain = $this->organisationPublicDomain($product->organisation)
+            ?: $this->normaliseHost($product->organisation?->default_domain);
         $platformDomain = $this->platformDomain();
 
         if ($policy === 'platform_only') {
@@ -66,7 +67,8 @@ class DomainResolver implements DomainResolverInterface
             return $policy === 'product_required' ? null : $platformDomain;
         }
 
-        $organisationDomain = $this->normaliseHost($organisation->default_domain);
+        $organisationDomain = $this->organisationPublicDomain($organisation)
+            ?: $this->normaliseHost($organisation->default_domain);
 
         if ($organisationDomain) {
             return $organisationDomain;
@@ -95,7 +97,12 @@ class DomainResolver implements DomainResolverInterface
         }
 
         $organisation = Organisation::query()
-            ->whereRaw('lower(default_domain) = ?', [Str::lower($normalisedHost)])
+            ->where(function (Builder $query) use ($normalisedHost): void {
+                $query->where(function (Builder $query) use ($normalisedHost): void {
+                    $query->whereRaw('lower(newsletter_domain) = ?', [Str::lower($normalisedHost)])
+                        ->where('newsletter_domain_status', 'verified');
+                })->orWhereRaw('lower(default_domain) = ?', [Str::lower($normalisedHost)]);
+            })
             ->first();
 
         if ($organisation) {
@@ -265,6 +272,19 @@ class DomainResolver implements DomainResolverInterface
         return is_string($value) ? $value : null;
     }
 
+    protected function organisationPublicDomain(?Organisation $organisation): ?string
+    {
+        if (! $organisation) {
+            return null;
+        }
+
+        if ($organisation->newsletter_domain_status !== 'verified') {
+            return null;
+        }
+
+        return $this->normaliseHost($organisation->newsletter_domain);
+    }
+
     protected function canUseProductDomain(Product $product, ?string $domain): bool
     {
         return $domain !== null
@@ -356,7 +376,9 @@ class DomainResolver implements DomainResolverInterface
             'product_id' => null,
             'product_slug' => null,
             'product_primary_collection_handle' => null,
-            'matched_domain_field' => 'default_domain',
+            'matched_domain_field' => $this->normaliseHost($organisation->newsletter_domain) === $host
+                ? 'newsletter_domain'
+                : 'default_domain',
             'matched_surface' => 'organisation_fallback',
             'resolved_domain' => $host,
             'fallback_domain' => $this->platformDomain(),

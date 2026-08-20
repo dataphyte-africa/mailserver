@@ -16,6 +16,13 @@ class Organisation extends Model
         'status',
         'primary_collection_handle',
         'default_domain',
+        'source_domain',
+        'newsletter_subdomain',
+        'newsletter_domain',
+        'newsletter_domain_status',
+        'newsletter_domain_verified_at',
+        'newsletter_dns_record_type',
+        'newsletter_dns_expected_value',
         'default_mail_domain',
         'default_from_name',
         'default_reply_to',
@@ -25,6 +32,7 @@ class Organisation extends Model
 
     protected $casts = [
         'compliance_profile' => 'array',
+        'newsletter_domain_verified_at' => 'datetime',
     ];
 
     public function products(): HasMany

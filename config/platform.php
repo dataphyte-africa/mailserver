@@ -35,6 +35,9 @@ return [
     'domain' => [
         'platform_scheme' => env('PLATFORM_SCHEME', 'https'),
         'platform_domain' => env('PLATFORM_DOMAIN', ''),
+        'newsletter_subdomain' => env('PLATFORM_NEWSLETTER_SUBDOMAIN', 'nl'),
+        'newsletter_dns_record_type' => env('PLATFORM_NEWSLETTER_DNS_RECORD_TYPE', 'A'),
+        'newsletter_dns_target' => env('PLATFORM_NEWSLETTER_DNS_TARGET', env('PLATFORM_DOMAIN')),
         'resolver' => DomainResolver::class,
         'url_generator' => ProductUrlGenerator::class,
         'request_context_resolver' => RequestContextResolver::class,
