@@ -40,11 +40,13 @@ class FormDataCollectionServiceProvider extends ServiceProvider
                 \Route::put('/{productForm}', [ProductFormController::class, 'update'])->name('update');
                 \Route::get('/{productForm}/submissions', [ProductFormSubmissionController::class, 'index'])->name('submissions.index');
                 \Route::get('/{productForm}/submissions/export/csv', [ProductFormSubmissionController::class, 'export'])->name('submissions.export');
+                \Route::post('/{productForm}/submissions/{submission}/status', [ProductFormSubmissionController::class, 'transition'])->name('submissions.status');
             });
         });
 
         \Route::prefix('forms')->name('product-forms.public.')->group(function (): void {
             \Route::get('/{form}', [ProductFormPageController::class, 'show'])->name('show');
+            \Route::get('/{form}/schema', [ProductFormPageController::class, 'schema'])->name('schema');
             \Route::post('/{form}', [PublicProductFormSubmissionController::class, 'store'])
                 ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
                 ->middleware('throttle:10,1')

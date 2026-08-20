@@ -98,6 +98,19 @@
         text-decoration: none;
     }
 
+    .form-platform-button-sm {
+        font-size: .8125rem;
+        min-height: 2rem;
+        padding: .375rem .625rem;
+    }
+
+    .form-platform-inline-form {
+        align-items: center;
+        display: inline-flex;
+        gap: .5rem;
+        min-width: 17rem;
+    }
+
     .form-platform-grid {
         display: grid;
         gap: 1.25rem 1.5rem;
@@ -173,6 +186,13 @@
         cursor: not-allowed;
     }
 
+    .form-platform-control-sm {
+        font-size: .8125rem;
+        min-height: 2rem;
+        padding-bottom: .3125rem;
+        padding-top: .3125rem;
+    }
+
     .form-platform-control::placeholder {
         color: #94a3b8;
     }
@@ -189,6 +209,19 @@
         color: #b91c1c;
         margin-bottom: 1rem;
         padding: 1rem;
+    }
+
+    .form-platform-alert {
+        border-radius: .5rem;
+        font-size: .875rem;
+        margin: 1rem;
+        padding: .75rem 1rem;
+    }
+
+    .form-platform-alert-success {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
     }
 
     .form-platform-error-title {

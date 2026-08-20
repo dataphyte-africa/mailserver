@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Models\ProductForm;
 use App\Services\Forms\ProductFormService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 
 class ProductFormPageController
 {
@@ -23,5 +24,14 @@ class ProductFormPageController
             'hostedPageUrl' => $this->forms->hostedPageUrl($resolved),
             'submitUrl' => $this->forms->submitUrl($resolved),
         ]);
+    }
+
+    public function schema(string $form): JsonResponse
+    {
+        $resolved = $this->forms->resolvePublishedForm($form);
+
+        abort_unless($resolved?->isPublished(), 404);
+
+        return response()->json($this->forms->publicSchema($resolved));
     }
 }

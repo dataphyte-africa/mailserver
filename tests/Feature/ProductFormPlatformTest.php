@@ -179,6 +179,75 @@ class ProductFormPlatformTest extends TestCase
         $this->assertSame(1, ProductFormSubmission::query()->count());
     }
 
+    public function test_public_schema_endpoint_exposes_embed_contract(): void
+    {
+        $product = $this->createProduct([
+            'forms_domain' => 'join.policy.example.test',
+            'domain_status' => 'verified',
+            'domain_verified_at' => now(),
+        ]);
+
+        /** @var ProductFormService $service */
+        $service = app(ProductFormService::class);
+        $form = $service->create($product, [
+            'name' => 'Community Survey',
+            'slug' => 'community-survey',
+            'template_family' => 'data_collection_basic',
+            'success_message' => 'Stored successfully.',
+            'field_definitions' => $this->fieldDefinitions(),
+            'allowed_origins' => ['https://widgets.example.test'],
+        ]);
+
+        $this->getJson(route('product-forms.public.schema', ['form' => $form->slug]))
+            ->assertOk()
+            ->assertJsonPath('slug', 'community-survey')
+            ->assertJsonPath('mode', 'data_collection')
+            ->assertJsonPath('form_scope', 'product')
+            ->assertJsonPath('submit_url', 'https://join.policy.example.test/forms/community-survey')
+            ->assertJsonPath('fields.0.handle', 'full_name')
+            ->assertJsonPath('allowed_origins.1', 'https://widgets.example.test');
+    }
+
+    public function test_application_submissions_start_pending_review_and_can_be_reviewed_in_cp(): void
+    {
+        $this->withoutMiddleware(CountUsers::class);
+
+        $product = $this->createProduct();
+
+        /** @var ProductFormService $service */
+        $service = app(ProductFormService::class);
+        $form = $service->create($product, [
+            'name' => 'Application Review',
+            'slug' => 'application-review',
+            'template_family' => 'application_basic',
+            'field_definitions' => $this->fieldDefinitions(),
+        ]);
+
+        $this->postJson(route('product-forms.public.submit', ['form' => $form->slug]), [
+            'full_name' => 'Review Candidate',
+            'email' => 'review@example.test',
+            'location' => 'lagos',
+        ])->assertCreated();
+
+        $submission = ProductFormSubmission::query()->sole();
+        $this->assertSame('pending_review', $submission->status);
+
+        $user = StatamicUser::findByEmail('admin@mailserver.test');
+        $this->assertNotNull($user);
+        $this->scopeStatamicUserToProduct($user, $product);
+
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'))
+            ->post(cp_route('product-forms.submissions.status', [$form, $submission]), [
+                'status' => 'approved',
+            ])
+            ->assertRedirect();
+
+        $submission->refresh();
+
+        $this->assertSame('approved', $submission->status);
+        $this->assertNotEmpty($submission->metadata['reviewed_at'] ?? null);
+    }
+
     public function test_cp_listing_and_export_expose_stored_submissions(): void
     {
         $product = $this->createProduct();

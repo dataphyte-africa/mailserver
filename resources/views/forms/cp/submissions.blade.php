@@ -18,6 +18,12 @@
     </div>
 
     <div class="form-platform-card-flush">
+        @if(session('success'))
+            <div class="form-platform-alert form-platform-alert-success">
+                {{ session('success') }}
+            </div>
+        @endif
+
         <table class="data-table">
             <thead>
                 <tr>
@@ -28,6 +34,7 @@
                     @foreach($form->field_definitions ?? [] as $field)
                         <th>{{ $field['label'] }}</th>
                     @endforeach
+                    <th>Review</th>
                 </tr>
             </thead>
             <tbody>
@@ -40,10 +47,23 @@
                         @foreach($form->field_definitions ?? [] as $field)
                             <td>{{ data_get($submission->payload, $field['handle']) }}</td>
                         @endforeach
+                        <td>
+                            <form method="POST" action="{{ cp_route('product-forms.submissions.status', [$form, $submission]) }}" class="form-platform-inline-form">
+                                @csrf
+                                <select name="status" class="form-platform-control form-platform-control-sm">
+                                    @foreach(['submitted', 'pending_review', 'under_review', 'approved', 'rejected'] as $status)
+                                        <option value="{{ $status }}" @selected($submission->status === $status)>
+                                            {{ str_replace('_', ' ', ucfirst($status)) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="form-platform-button form-platform-button-sm">Update</button>
+                            </form>
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ 4 + count($form->field_definitions ?? []) }}">
+                        <td colspan="{{ 5 + count($form->field_definitions ?? []) }}">
                             No submissions stored yet.
                         </td>
                     </tr>

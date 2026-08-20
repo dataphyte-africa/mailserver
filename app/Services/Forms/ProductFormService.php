@@ -289,12 +289,13 @@ class ProductFormService
 
         $validator = Validator::make($payload, $this->submissionRules($form));
         $validated = $validator->validate();
+        $status = $form->requires_review ? 'pending_review' : 'submitted';
 
         return ProductFormSubmission::query()->create([
             'product_form_id' => $form->getKey(),
             'organisation_id' => $form->organisation_id,
             'product_id' => $this->resolveSubmissionProduct($form, $validated)->getKey(),
-            'status' => 'submitted',
+            'status' => $status,
             'payload' => $this->submissionPayload($form, $validated),
             'submission_origin' => $this->normalizeOrigin($request->headers->get('Origin')),
             'submitted_at' => now(),
@@ -306,6 +307,66 @@ class ProductFormService
                 'requires_review' => $form->requires_review,
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function publicSchema(ProductForm $form): array
+    {
+        return [
+            'id' => $form->getKey(),
+            'name' => $form->name,
+            'slug' => $form->slug,
+            'mode' => $form->mode,
+            'form_scope' => $form->form_scope,
+            'requires_review' => (bool) $form->requires_review,
+            'product_selection_field' => $form->product_selection_field,
+            'allowed_product_ids' => $form->allowed_product_ids ?? [],
+            'fields' => $form->field_definitions ?? [],
+            'hosted_page_url' => $this->hostedPageUrl($form),
+            'submit_url' => $this->submitUrl($form),
+            'allowed_origins' => $this->allowedOrigins($form),
+            'success_message' => $form->success_message,
+        ];
+    }
+
+    public function transitionSubmission(ProductForm $form, ProductFormSubmission $submission, string $status): ProductFormSubmission
+    {
+        if ((int) $submission->product_form_id !== (int) $form->getKey()) {
+            throw ValidationException::withMessages([
+                'submission' => ['This submission does not belong to the selected form.'],
+            ]);
+        }
+
+        if (! in_array($status, $this->submissionStatuses(), true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Unsupported submission review status.'],
+            ]);
+        }
+
+        $submission->forceFill([
+            'status' => $status,
+            'metadata' => array_merge($submission->metadata ?? [], [
+                'reviewed_at' => now()->toIso8601String(),
+            ]),
+        ])->save();
+
+        return $submission->refresh();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function submissionStatuses(): array
+    {
+        return [
+            'submitted',
+            'pending_review',
+            'under_review',
+            'approved',
+            'rejected',
+        ];
     }
 
     public function submissions(ProductForm $form, int $perPage = 25): LengthAwarePaginator

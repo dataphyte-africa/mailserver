@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\CP\Forms;
 
 use App\Models\ProductForm;
+use App\Models\ProductFormSubmission;
 use App\Services\Forms\ProductFormService;
 use App\Services\Forms\ScopedProductFormProductSelector;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -35,5 +37,20 @@ class ProductFormSubmissionController
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => sprintf('attachment; filename="%s-submissions.csv"', $productForm->slug),
         ]);
+    }
+
+    public function transition(Request $request, ProductForm $productForm, ProductFormSubmission $submission): RedirectResponse
+    {
+        abort_if(! $this->products->canAccessForm($request->user(), $productForm), 403, 'Hosted form is outside your active form scope.');
+
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:submitted,pending_review,under_review,approved,rejected'],
+        ]);
+
+        $this->forms->transitionSubmission($productForm, $submission, $validated['status']);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Submission status updated.');
     }
 }
