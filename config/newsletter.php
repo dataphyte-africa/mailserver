@@ -94,6 +94,40 @@ return [
             ],
         ],
 
+        'academy_newsletters' => [
+            'label'       => 'Dataphyte Academy',
+            'short_label' => 'Academy',
+            'group_name'  => 'Dataphyte Academy',
+            'group_slug'  => 'dataphyte-academy',
+            'from_email'  => env('NEWSLETTER_ACADEMY_FROM_EMAIL', 'academy@dataphyte.com'),
+            'from_name'   => env('NEWSLETTER_ACADEMY_FROM_NAME', 'Dataphyte Academy'),
+            'reply_to'    => env('NEWSLETTER_ACADEMY_REPLY_TO', ''),
+            'brand_color' => '#0f766e',
+            'footer'      => [
+                'website_url' => 'https://academy.dataphyte.com',
+                'social_links' => [
+                    'twitter' => 'https://x.com/DataphytAcademy',
+                    'youtube' => 'https://www.youtube.com/@DataphyteAcademy/videos',
+                    'linkedin' => 'https://www.linkedin.com/company/dataphyte-academy',
+                    'instagram' => 'https://www.instagram.com/dataphyteacademy/',
+                ],
+                'offices' => [
+                    [
+                        'label' => 'Nigeria',
+                        'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria.',
+                    ],
+                    [
+                        'label' => 'Address',
+                        'address' => '1007 N Orange St. 4th Floor, Wilmington, Delaware, United States.',
+                    ],
+                    [
+                        'label' => 'United Kingdom',
+                        'address' => 'Chalice House Bromley Road, Elmstead, Colchester, England, CO7 7BY.',
+                    ],
+                ],
+            ],
+        ],
+
         'policy_point_newsletters' => [
             'label'       => 'Policy Point',
             'short_label' => 'Policy Point',

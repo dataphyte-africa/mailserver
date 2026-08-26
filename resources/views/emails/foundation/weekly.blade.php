@@ -16,6 +16,8 @@
     @php
         $brandColor = $headerColor ?? ($newsletterSettings['foundation_brand_color'] ?? '#1b4332');
         $displayDate = $sentDate ?? now()->format('F j, Y');
+        $ctaText = filled($foundationCtaText ?? null) ? trim((string) $foundationCtaText) : 'Visit Dataphyte Foundation';
+        $ctaUrl = filled($foundationCtaUrl ?? null) ? trim((string) $foundationCtaUrl) : 'https://dataphyte.org';
         $weeklyContent = preg_replace(
             '/<ul\b([^>]*)style="([^"]*)"([^>]*)>/i',
             '<ul$1style="margin:0 0 18px;padding-left:22px;font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.45;color:#1f2937;"$3>',
@@ -88,11 +90,11 @@
     {{-- CTA --}}
     <tr>
         <td style="padding:0 40px 40px;text-align:center;">
-            <a href="{{ $foundationCtaUrl ?? 'https://dataphyte.org' }}" target="_blank" rel="noopener noreferrer"
+            <a href="{{ $ctaUrl }}" target="_blank" rel="noopener noreferrer"
                style="display:inline-block;background-color:{{ $brandColor }};color:#ffffff;
                       font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;
                       font-weight:600;text-decoration:none;padding:12px 28px;border-radius:3px;">
-                {{ $foundationCtaText ?? 'Visit Dataphyte Foundation' }} &rarr;
+                {{ $ctaText }} &rarr;
             </a>
         </td>
     </tr>

@@ -454,6 +454,8 @@ class CampaignController extends Controller
             'headerColor'         => $headerColor,
             'footerConfig'        => $collectionConfig['footer'] ?? [],
             'footerPartial'       => $footerPartial,
+            'ctaText'             => $entry?->get('cta_text') ?? null,
+            'ctaUrl'              => $entry?->get('cta_url') ?? null,
             'foundationCtaText'   => $entry?->get('cta_text') ?? null,
             'foundationCtaUrl'    => $entry?->get('cta_url') ?? null,
             'unsubscribeUrl'      => '#',

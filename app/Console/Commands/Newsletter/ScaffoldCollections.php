@@ -2,7 +2,10 @@
 
 namespace App\Console\Commands\Newsletter;
 
+use App\Models\SubscriberGroup;
+use App\Models\SubscriberSubGroup;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
 use Statamic\Facades\AssetContainer;
 use Statamic\Facades\Blueprint;
 use Statamic\Facades\Collection;
@@ -33,6 +36,7 @@ class ScaffoldCollections extends Command
         $this->scaffoldNewsletterSettings();
         $this->scaffoldCollection('insight_newsletters',    'Insight Newsletters',    '/newsletters/insight/{slug}');
         $this->scaffoldCollection('foundation_newsletters', 'Foundation Newsletters', '/newsletters/foundation/{slug}');
+        $this->scaffoldCollection('academy_newsletters', 'Academy Newsletters', '/newsletters/academy/{slug}');
         $this->scaffoldCollection('policy_point_newsletters', 'Policy Point Newsletters', '/newsletters/policy-point/{slug}');
 
         $this->newLine();
@@ -54,6 +58,11 @@ class ScaffoldCollections extends Command
                 array_map(fn ($b) => ['Blueprint', "foundation_newsletters.{$b['handle']}", $b['title']],
                     $this->blueprintDefinitions('foundation_newsletters')),
                 [
+                    ['Collection', 'academy_newsletters', 'Academy Newsletters'],
+                ],
+                array_map(fn ($b) => ['Blueprint', "academy_newsletters.{$b['handle']}", $b['title']],
+                    $this->blueprintDefinitions('academy_newsletters')),
+                [
                     ['Collection', 'policy_point_newsletters', 'Policy Point Newsletters'],
                 ],
                 array_map(fn ($b) => ['Blueprint', "policy_point_newsletters.{$b['handle']}", $b['title']],
@@ -68,7 +77,7 @@ class ScaffoldCollections extends Command
 
     private function dropExisting(): void
     {
-        foreach (['insight_newsletters', 'foundation_newsletters', 'policy_point_newsletters'] as $handle) {
+        foreach (['insight_newsletters', 'foundation_newsletters', 'academy_newsletters', 'policy_point_newsletters'] as $handle) {
             if ($col = Collection::findByHandle($handle)) {
                 // Delete all blueprints in the namespace first
                 $namespace = "collections.{$handle}";
@@ -136,6 +145,7 @@ class ScaffoldCollections extends Command
             ['slug' => 'senorrita',      'title' => 'SenorRita'],
             ['slug' => 'weekly',         'title' => 'Weekly'],
             ['slug' => 'activities',     'title' => 'Activities'],
+            ['slug' => 'datalab',        'title' => 'DataLab'],
             ['slug' => 'as-frequently',  'title' => 'As Frequently'],
             ['slug' => 'monthly',        'title' => 'Monthly'],
         ];
@@ -241,6 +251,34 @@ class ScaffoldCollections extends Command
                                 ],
                             ],
                         ],
+                        'academy' => [
+                            'display' => 'Academy Newsletter',
+                            'fields'  => [
+                                [
+                                    'handle' => 'academy_logo',
+                                    'field'  => [
+                                        'type'          => 'assets',
+                                        'display'       => 'Academy Collection Logo',
+                                        'instructions'  => 'Appears in the header of every Academy newsletter email.',
+                                        'container'     => 'assets',
+                                        'max_files'     => 1,
+                                        'allow_uploads' => true,
+                                        'restrict'      => false,
+                                        'width'         => 50,
+                                    ],
+                                ],
+                                [
+                                    'handle' => 'academy_brand_color',
+                                    'field'  => [
+                                        'type'         => 'color',
+                                        'display'      => 'Academy Brand Color',
+                                        'instructions' => 'Header background color for Academy emails.',
+                                        'default'      => '#0f766e',
+                                        'width'        => 50,
+                                    ],
+                                ],
+                            ],
+                        ],
                         'policy_point' => [
                             'display' => 'Policy Point Newsletter',
                             'fields'  => [
@@ -293,6 +331,7 @@ class ScaffoldCollections extends Command
         $variables->data([
             'insight_brand_color'    => '#0d1b2a',
             'foundation_brand_color' => '#1b4332',
+            'academy_brand_color' => '#0f766e',
             'policy_point_brand_color' => '#3d405b',
         ]);
         $variables->save();
@@ -320,6 +359,7 @@ class ScaffoldCollections extends Command
         }
 
         $this->scaffoldBlueprints($handle);
+        $this->scaffoldSubscriberAudience($handle);
     }
 
     /* ------------------------------------------------------------------ */
@@ -366,6 +406,9 @@ class ScaffoldCollections extends Command
                 ['handle' => 'weekly',          'title' => 'Weekly Update',   'template' => 'emails.foundation.weekly'],
                 ['handle' => 'activities',      'title' => 'Activities',      'template' => 'emails.foundation.activities'],
                 ['handle' => 'project_update',  'title' => 'Project Update',  'template' => 'emails.foundation.project-update'],
+            ],
+            'academy_newsletters' => [
+                ['handle' => 'datalab', 'title' => 'DataLab', 'template' => 'emails.academy.datalab'],
             ],
             'policy_point_newsletters' => [
                 ['handle' => 'policy_point', 'title' => 'Policy Point', 'template' => 'emails.policy_point.policy-point'],
@@ -434,6 +477,27 @@ class ScaffoldCollections extends Command
                                 ],
                                 'save_html' => true,
                                 'width'     => 100,
+                            ],
+                        ],
+
+                        [
+                            'handle' => 'cta_text',
+                            'field'  => [
+                                'type'         => 'text',
+                                'display'      => 'CTA Text',
+                                'instructions' => 'Button label shown at the bottom of the email.',
+                                'width'        => 100,
+                            ],
+                        ],
+
+                        [
+                            'handle' => 'cta_url',
+                            'field'  => [
+                                'type'         => 'text',
+                                'display'      => 'CTA URL',
+                                'instructions' => 'Destination URL used by the CTA button.',
+                                'input_type'   => 'url',
+                                'width'        => 100,
                             ],
                         ],
 
@@ -627,5 +691,38 @@ class ScaffoldCollections extends Command
 
             ],
         ];
+    }
+
+    private function scaffoldSubscriberAudience(string $collectionHandle): void
+    {
+        if (
+            ! Schema::hasTable('subscriber_groups')
+            || ! Schema::hasTable('subscriber_sub_groups')
+            || ! Schema::hasColumn('subscriber_groups', 'collection_handle')
+        ) {
+            $this->line("Subscriber tables unavailable: {$collectionHandle} audience skipped");
+            return;
+        }
+
+        $config = config("newsletter.collections.{$collectionHandle}", []);
+        $group = SubscriberGroup::query()->updateOrCreate(
+            ['slug' => $config['group_slug'] ?? str_replace('_newsletters', '', $collectionHandle)],
+            [
+                'name' => $config['group_name'] ?? $config['label'] ?? $collectionHandle,
+                'collection_handle' => $collectionHandle,
+            ],
+        );
+
+        foreach ($this->blueprintDefinitions($collectionHandle) as $definition) {
+            SubscriberSubGroup::query()->updateOrCreate(
+                [
+                    'subscriber_group_id' => $group->id,
+                    'slug' => str_replace('_', '-', $definition['handle']),
+                ],
+                ['name' => $definition['title']],
+            );
+        }
+
+        $this->line("Created/updated subscriber audience: {$group->name}");
     }
 }

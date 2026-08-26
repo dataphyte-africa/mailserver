@@ -8,7 +8,7 @@ use Statamic\Entries\Entry;
  * Resolves the Blade view key for a given Statamic entry.
  *
  * Priority order:
- *  1. Stored `template` field on the entry  (set by blueprint hidden-field default on save)
+ *  1. Stored `template` or `email_template` field on the entry
  *  2. Convention: emails.{collection}.{blueprint_handle}
  *  3. Collection fallback: emails.{collection}.default
  *  4. Hard fallback: emails.layout
@@ -21,8 +21,10 @@ class TemplateResolver
             return 'emails.layout';
         }
 
-        // 1. Stored field — set automatically by blueprint default on first save
-        $stored = $entry->get('template');
+        // 1. Stored field — set automatically by blueprint default or selected in the CP
+        $stored = $entry->get('template') ?: $entry->get('email_template');
+        $stored = is_string($stored) ? str_replace('/', '.', $stored) : $stored;
+
         if ($stored && view()->exists($stored)) {
             return $stored;
         }

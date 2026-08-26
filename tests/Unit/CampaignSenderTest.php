@@ -3,6 +3,8 @@
 namespace Tests\Unit;
 
 use App\Models\Campaign;
+use App\Models\Subscriber;
+use App\Mail\NewsletterMailable;
 use Tests\TestCase;
 
 class CampaignSenderTest extends TestCase
@@ -35,6 +37,32 @@ class CampaignSenderTest extends TestCase
 
         $this->assertEquals('newsletter@dataphyte.com', $sender['from_email']);
         $this->assertEquals('Policy Point',             $sender['from_name']);
+    }
+
+    public function test_sender_uses_collection_config_for_academy(): void
+    {
+        $campaign = Campaign::factory()->academy()->make();
+
+        $sender = $campaign->sender();
+
+        $this->assertEquals('academy@dataphyte.com', $sender['from_email']);
+        $this->assertEquals('Dataphyte Academy',     $sender['from_name']);
+    }
+
+    public function test_academy_first_name_merge_tags_fall_back_to_reader(): void
+    {
+        $campaign = Campaign::factory()->academy()->create();
+        $subscriber = Subscriber::factory()->create([
+            'email' => 'reader@example.com',
+            'first_name' => null,
+            'last_name' => null,
+        ]);
+
+        $content = (new NewsletterMailable($campaign, $subscriber, 'test'))
+            ->prepareCampaignContent('<p>Dear {{first_name}},</p><p>Hello {{firstname}}</p>', []);
+
+        $this->assertStringContainsString('Dear Reader,', $content);
+        $this->assertStringContainsString('Hello Reader', $content);
     }
 
     public function test_per_campaign_override_takes_precedence(): void

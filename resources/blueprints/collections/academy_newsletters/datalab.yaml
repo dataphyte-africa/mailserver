@@ -18,7 +18,7 @@ tabs:
               type: text
               width: 100
               display: Preheader
-              instructions: 'Short preview text shown after the subject in most inboxes (50–90 chars).'
+              instructions: 'Short preview text after the subject in most inboxes (50-90 chars).'
             handle: preheader
           -
             field:
@@ -64,23 +64,20 @@ tabs:
               instructions: 'Destination URL used by the CTA button.'
               input_type: url
             handle: cta_url
+          -
+            field:
+              type: text
+              width: 100
+              default: emails.academy.datalab
+              display: 'Email Template'
+              listable: false
+              visibility: hidden
+            handle: template
   sidebar:
     display: Settings
     sections:
       -
         fields:
-          -
-            field:
-              type: select
-              width: 100
-              display: 'Email Template'
-              options:
-                emails/foundation/weekly: 'Weekly Update — General weekly digest'
-                emails/foundation/activities: 'Activities — Events & programmes'
-                emails/foundation/project-update: 'Project Update — Milestone & impact'
-              validate: required
-              instructions: 'Choose the layout for this newsletter.'
-            handle: email_template
           -
             field:
               mode: select
@@ -113,4 +110,4 @@ tabs:
               input_type: email
               instructions: 'Leave blank to use the collection default.'
             handle: reply_to
-title: 'Foundation Newsletter'
+title: DataLab

@@ -16,18 +16,23 @@ class TemplateResolverTest extends TestCase
     }
 
     /** Build a minimal stub that mimics a Statamic Entry */
-    private function entryStub(?string $template, string $collection, string $blueprint): object
+    private function entryStub(?string $template, string $collection, string $blueprint, ?string $emailTemplate = null): object
     {
-        return new class($template, $collection, $blueprint) {
+        return new class($template, $collection, $blueprint, $emailTemplate) {
             public function __construct(
                 private ?string $tpl,
                 private string $col,
                 private string $bp,
+                private ?string $emailTemplate,
             ) {}
 
             public function get(string $key): mixed
             {
-                return $key === 'template' ? $this->tpl : null;
+                return match ($key) {
+                    'template' => $this->tpl,
+                    'email_template' => $this->emailTemplate,
+                    default => null,
+                };
             }
 
             public function collectionHandle(): string { return $this->col; }
@@ -126,5 +131,32 @@ class TemplateResolverTest extends TestCase
         $result = $this->resolver->resolve($entry);
 
         $this->assertEquals('emails.foundation.weekly', $result);
+    }
+
+    public function test_resolves_foundation_weekly_via_email_template_field(): void
+    {
+        $entry = $this->entryStub(
+            null,
+            'foundation_newsletters',
+            'foundation_newsletters',
+            'emails/foundation/weekly',
+        );
+
+        $result = $this->resolver->resolve($entry);
+
+        $this->assertEquals('emails.foundation.weekly', $result);
+    }
+
+    public function test_resolves_academy_datalab_via_stored_field(): void
+    {
+        $entry = $this->entryStub(
+            'emails.academy.datalab',
+            'academy_newsletters',
+            'datalab',
+        );
+
+        $result = $this->resolver->resolve($entry);
+
+        $this->assertEquals('emails.academy.datalab', $result);
     }
 }

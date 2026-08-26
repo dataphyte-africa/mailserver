@@ -150,6 +150,8 @@ class NewsletterMailable extends Mailable
                 'footerConfig'       => $collectionConfig['footer'] ?? [],
                 'footerPartial'      => $footerPartial,
                 'newsletterSettings' => $settings,
+                'ctaText'            => $entry?->get('cta_text') ?? null,
+                'ctaUrl'             => $entry?->get('cta_url') ?? null,
                 'foundationCtaText'  => $entry?->get('cta_text') ?? null,
                 'foundationCtaUrl'   => $entry?->get('cta_url') ?? null,
                 'unsubscribeUrl'     => $this->buildSignedUrl('newsletter.unsubscribe.show'),
@@ -426,7 +428,7 @@ class NewsletterMailable extends Mailable
             : 'Reader';
 
         $map = [
-            '{{first_name}}' => $firstName,
+            '{{first_name}}' => $firstName !== '' ? $firstName : $firstNameFallback,
             '{{last_name}}'  => $lastName,
             '{{full_name}}'  => $fullName,
             '{{email}}'      => $email,

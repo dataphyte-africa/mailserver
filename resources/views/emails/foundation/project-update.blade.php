@@ -10,6 +10,11 @@
 @endsection
 
 @section('content')
+    @php
+        $brandColor = $headerColor ?? ($newsletterSettings['foundation_brand_color'] ?? '#1b4332');
+        $ctaText = filled($foundationCtaText ?? null) ? trim((string) $foundationCtaText) : 'View All Projects';
+        $ctaUrl = filled($foundationCtaUrl ?? null) ? trim((string) $foundationCtaUrl) : 'https://foundation.dataphyte.org/projects';
+    @endphp
 
     {{-- Hero image --}}
     @if(!empty($heroImageUrl))
@@ -26,7 +31,7 @@
         <td style="padding:28px 40px 0;">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                    <td style="background-color:#1b4332;padding:5px 14px;border-radius:2px;">
+                    <td style="background-color:{{ $brandColor }};padding:5px 14px;border-radius:2px;">
                         <span style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
                                      font-size:10px;font-weight:700;letter-spacing:2px;
                                      text-transform:uppercase;color:#ffffff;">
@@ -42,7 +47,7 @@
     <tr>
         <td style="padding:14px 40px 8px;">
             <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:26px;
-                        font-weight:700;line-height:1.35;color:#1b4332;">
+                        font-weight:700;line-height:1.35;color:{{ $brandColor }};">
                 {{ $subject }}
             </h1>
             @if(!empty($author))
@@ -82,9 +87,9 @@
                                border-radius:3px;padding:18px 20px;">
                         <p style="margin:0 0 4px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
                                    font-size:10px;font-weight:700;text-transform:uppercase;
-                                   letter-spacing:1.5px;color:#1b4332;">Impact Highlight</p>
+                                   letter-spacing:1.5px;color:{{ $brandColor }};">Impact Highlight</p>
                         <p style="margin:0;font-family:Georgia,'Times New Roman',serif;
-                                   font-size:15px;line-height:1.6;color:#1b4332;">
+                                   font-size:15px;line-height:1.6;color:{{ $brandColor }};">
                             {{ $impactHighlight }}
                         </p>
                     </td>
@@ -97,11 +102,11 @@
     {{-- CTA --}}
     <tr>
         <td style="padding:0 40px 36px;text-align:center;">
-            <a href="{{ $foundationUrl ?? 'https://foundation.dataphyte.org/projects' }}" target="_blank" rel="noopener noreferrer"
-               style="display:inline-block;background-color:#1b4332;color:#ffffff;
+            <a href="{{ $ctaUrl }}" target="_blank" rel="noopener noreferrer"
+               style="display:inline-block;background-color:{{ $brandColor }};color:#ffffff;
                       font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;
                       font-weight:600;text-decoration:none;padding:12px 28px;border-radius:3px;">
-                View All Projects &rarr;
+                {{ $ctaText }} &rarr;
             </a>
         </td>
     </tr>
