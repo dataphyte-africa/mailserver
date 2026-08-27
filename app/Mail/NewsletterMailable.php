@@ -435,6 +435,13 @@ class NewsletterMailable extends Mailable
             '{{firstname}}'  => $firstName !== '' ? $firstName : $firstNameFallback,
             '{{lastname}}'   => $lastName,
             '{{fullname}}'   => $fullName,
+            '{first_name}'   => $firstName !== '' ? $firstName : $firstNameFallback,
+            '{last_name}'    => $lastName,
+            '{full_name}'    => $fullName,
+            '{email}'        => $email,
+            '{firstname}'    => $firstName !== '' ? $firstName : $firstNameFallback,
+            '{lastname}'     => $lastName,
+            '{fullname}'     => $fullName,
         ];
 
         return str_replace(array_keys($map), array_values($map), $content);

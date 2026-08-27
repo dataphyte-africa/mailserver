@@ -401,6 +401,7 @@ class ScaffoldCollections extends Command
                 ['handle' => 'senorrita', 'title' => 'SenorRita', 'template' => 'emails.insight.senorrita'],
                 ['handle' => 'marina_maitama', 'title' => 'Marina and Maitama', 'template' => 'emails.insight.marina-maitama'],
                 ['handle' => 'data_dive', 'title' => 'Data Dive', 'template' => 'emails.insight.data-dive'],
+                ['handle' => 'insight_updates', 'title' => 'Insight Updates', 'template' => 'emails.insight.insight-update'],
             ],
             'foundation_newsletters' => [
                 ['handle' => 'weekly',          'title' => 'Weekly Update',   'template' => 'emails.foundation.weekly'],

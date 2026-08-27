@@ -19,6 +19,8 @@ preferences:
     policy_point_newsletters:
       view: list
       after_save: continue_editing
+    academy_newsletters:
+      view: list
   forms:
     policy_point_subscribe:
       columns:
@@ -48,3 +50,6 @@ preferences:
         - phone_number
         - available_for_training
         - available_for_election_day
+  assets:
+    assets:
+      mode: grid

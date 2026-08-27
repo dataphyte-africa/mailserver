@@ -65,6 +65,42 @@ class CampaignSenderTest extends TestCase
         $this->assertStringContainsString('Hello Reader', $content);
     }
 
+    public function test_single_brace_first_name_merge_tags_are_supported(): void
+    {
+        $campaign = Campaign::factory()->insight()->create();
+        $subscriber = Subscriber::factory()->create([
+            'first_name' => 'Ada',
+        ]);
+
+        $content = (new NewsletterMailable($campaign, $subscriber, 'test'))
+            ->prepareCampaignContent('<p>Dear {first_name},</p><p>Hello {firstname}</p>', []);
+
+        $this->assertStringContainsString('Dear Ada,', $content);
+        $this->assertStringContainsString('Hello Ada', $content);
+    }
+
+    public function test_insight_update_template_removes_leading_subject_line_from_body(): void
+    {
+        $html = view('emails.insight.insight-update', [
+            'subject' => 'Recap: Dashboard Session',
+            'preheader' => '',
+            'heroImageUrl' => null,
+            'content' => '<p style="margin:0"><strong>Subject: Recap: Dashboard Session</strong></p><p style="margin:0">Dear Reader,</p>',
+            'ctaText' => 'Read more',
+            'ctaUrl' => 'https://www.dataphyte.com',
+            'headerColor' => '#0d1b2a',
+            'newsletterSettings' => [],
+            'footerConfig' => [],
+            'footerPartial' => 'emails.partials.shared.footer-base',
+            'fromName' => 'Dataphyte Insight',
+            'unsubscribeUrl' => '#',
+            'preferencesUrl' => '#',
+        ])->render();
+
+        $this->assertStringNotContainsString('Subject: Recap: Dashboard Session', $html);
+        $this->assertStringContainsString('Dear Reader,', $html);
+    }
+
     public function test_per_campaign_override_takes_precedence(): void
     {
         $campaign = Campaign::factory()->insight()->make([

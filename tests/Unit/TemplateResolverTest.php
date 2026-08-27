@@ -69,10 +69,9 @@ class TemplateResolverTest extends TestCase
             'pocket_science'
         );
 
-        // Falls through to hard fallback
         $result = $this->resolver->resolve($entry);
 
-        $this->assertEquals('emails.layout', $result);
+        $this->assertEquals('emails.insight.pocket-science', $result);
     }
 
     public function test_convention_uses_collection_and_blueprint_handle(): void
@@ -81,10 +80,7 @@ class TemplateResolverTest extends TestCase
 
         $result = $this->resolver->resolve($entry);
 
-        // Either convention path or fallback 'emails.layout' — either is valid since we can't guarantee
-        // the view path in the test environment. The key test is it doesn't throw.
-        $this->assertIsString($result);
-        $this->assertStringStartsWith('emails.', $result);
+        $this->assertEquals('emails.insight.pocket-science', $result);
     }
 
     public function test_returns_layout_fallback_when_entry_is_null(): void
@@ -158,5 +154,31 @@ class TemplateResolverTest extends TestCase
         $result = $this->resolver->resolve($entry);
 
         $this->assertEquals('emails.academy.datalab', $result);
+    }
+
+    public function test_resolves_insight_updates_via_stored_field(): void
+    {
+        $entry = $this->entryStub(
+            'emails.insight.insight-update',
+            'insight_newsletters',
+            'insight_updates',
+        );
+
+        $result = $this->resolver->resolve($entry);
+
+        $this->assertEquals('emails.insight.insight-update', $result);
+    }
+
+    public function test_resolves_insight_updates_by_convention_when_template_field_is_empty(): void
+    {
+        $entry = $this->entryStub(
+            null,
+            'insight_newsletters',
+            'insight_updates',
+        );
+
+        $result = $this->resolver->resolve($entry);
+
+        $this->assertEquals('emails.insight.insight-update', $result);
     }
 }

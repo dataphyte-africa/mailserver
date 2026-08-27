@@ -32,6 +32,7 @@ return [
             'reply_to'    => env('NEWSLETTER_INSIGHT_REPLY_TO', ''),
             'brand_color' => '#0d1b2a',
             'footer'      => [
+                'website_url' => 'https://www.dataphyte.com',
                 'social_links' => [
                     'facebook' => 'https://web.facebook.com/dataphyte',
                     'twitter' => 'https://x.com/Dataphyte',

@@ -34,9 +34,19 @@ class TemplateResolver
         $blueprint = $entry->blueprint()?->handle();
 
         if ($col && $blueprint) {
-            $convention = "emails.{$col}.{$blueprint}";
-            // Normalise underscores to hyphens so blueprint handles match file names
-            $convention = str_replace('_', '-', $convention);
+            $viewCollection = match ($col) {
+                'insight_newsletters' => 'insight',
+                'foundation_newsletters' => 'foundation',
+                'academy_newsletters' => 'academy',
+                'policy_point_newsletters' => 'policy_point',
+                default => str_replace('_newsletters', '', $col),
+            };
+            $viewBlueprint = match ($blueprint) {
+                'insight_updates' => 'insight-update',
+                default => str_replace('_', '-', $blueprint),
+            };
+            $convention = "emails.{$viewCollection}.{$viewBlueprint}";
+
             if (view()->exists($convention)) {
                 return $convention;
             }
