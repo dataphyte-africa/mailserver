@@ -3903,3 +3903,30 @@ Implemented the approved organisation-domain model for `version/2`: operators en
 - DNS verification depends on the operator creating the displayed DNS record outside the app
 - product-specific verified domains still override the organisation newsletter domain when configured
 - organisation source/newsletter origins are automatic for hosted forms, but any unrelated third-party embed origin must still be configured explicitly on the form
+
+## Coordinator Correction - 2026-08-27 - Super Admin Legacy Campaign Ownership Repair
+
+### Scope
+
+Audited the CP `Campaign is outside your active product scope` error on `/cp/newsletter/campaigns/17/edit`.
+
+Campaign `17` was not failing because the logged-in user lacked `super` authority. It was failing because the campaign is a legacy row with `product_id = null` and `organisation_id = null`. In the v2 model, campaign editing requires explicit product and organisation ownership so audience, sender, workflow, and analytics scope cannot drift.
+
+### Implementation Added
+
+- updated [app/Services/Newsletter/ScopedCampaignProductSelector.php](/Users/dataphytefoundation/Herd/mailserver/app/Services/Newsletter/ScopedCampaignProductSelector.php) so Statamic super admins can resolve active campaign products without relational scope rows
+- updated [app/Http/Controllers/CP/Newsletter/CampaignController.php](/Users/dataphytefoundation/Herd/mailserver/app/Http/Controllers/CP/Newsletter/CampaignController.php) so super admins opening an unowned legacy campaign edit page are routed to a repair screen instead of a bare 403
+- added [resources/views/newsletter/cp/campaigns/assign-product.blade.php](/Users/dataphytefoundation/Herd/mailserver/resources/views/newsletter/cp/campaigns/assign-product.blade.php) for assigning a legacy campaign to one active product in the campaign collection
+- added pure CSS `campaign-ownership-*` rules to [public/vendor/dataphyte/mailserver/css/cp.css](/Users/dataphytefoundation/Herd/mailserver/public/vendor/dataphyte/mailserver/css/cp.css)
+- added [tests/Feature/CampaignOwnershipRepairTest.php](/Users/dataphytefoundation/Herd/mailserver/tests/Feature/CampaignOwnershipRepairTest.php) and extended [tests/Unit/ScopedCampaignProductSelectorTest.php](/Users/dataphytefoundation/Herd/mailserver/tests/Unit/ScopedCampaignProductSelectorTest.php)
+
+### Verification
+
+- `php artisan newsletter:backfill-historical-ownership --json`
+  - result: campaign `17` remains skipped as `ambiguous_or_missing_product_signal`, so it requires manual product assignment
+- `php artisan test tests/Feature/CampaignOwnershipRepairTest.php tests/Unit/ScopedCampaignProductSelectorTest.php tests/Unit/ScopedSubscriberGroupProductSelectorTest.php tests/Unit/CampaignWorkflowServiceTest.php`
+  - result: `PASS`, `31 tests`, `109 assertions`
+
+### Guardrail
+
+This does not allow editing unowned campaigns directly. It lets a super admin repair ownership first, then the normal v2 edit and workflow guards continue to apply.

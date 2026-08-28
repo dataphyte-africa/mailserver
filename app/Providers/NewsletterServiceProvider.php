@@ -275,6 +275,8 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::get('/',                 [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'index'])->name('index');
                     \Route::get('/create',           [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'create'])->name('create');
                     \Route::post('/',                [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'store'])->name('store');
+                    \Route::get('/{campaign}/assign-product', [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'assignProductForm'])->name('assign-product');
+                    \Route::post('/{campaign}/assign-product', [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'assignProduct'])->name('assign-product.store');
                     \Route::get('/{campaign}',       [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'show'])->name('show');
                     \Route::get('/{campaign}/edit',  [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'edit'])->name('edit');
                     \Route::put('/{campaign}',       [\App\Http\Controllers\CP\Newsletter\CampaignController::class, 'update'])->name('update');

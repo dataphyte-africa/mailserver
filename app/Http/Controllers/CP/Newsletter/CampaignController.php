@@ -253,6 +253,10 @@ class CampaignController extends Controller
     {
         $product = $products->resolveCampaign($request->user(), $campaign);
 
+        if ($product === null && $this->isSuper($request) && $this->campaignNeedsOwnership($campaign)) {
+            return $this->assignProductForm($request, $campaign, $products);
+        }
+
         abort_if($product === null, 403, 'Campaign is outside your active product scope.');
         abort_if(! in_array($campaign->status, ['draft', 'scheduled']), 403, 'Only draft or scheduled campaigns can be edited.');
 
@@ -281,6 +285,55 @@ class CampaignController extends Controller
             'selectedSubGroupIds' => $audience->subGroups->modelKeys(),
             'sendToAll'           => $audience->sendsToAll(),
         ]);
+    }
+
+    public function assignProductForm(
+        Request $request,
+        Campaign $campaign,
+        ScopedCampaignProductSelector $products,
+    ) {
+        abort_unless($this->isSuper($request), 403, 'Only a super admin can repair legacy campaign ownership.');
+        abort_unless($this->campaignNeedsOwnership($campaign), 403, 'Campaign already has product ownership.');
+
+        $eligibleProducts = $products->productsFor($request->user())
+            ->filter(fn ($product) => $product->primary_collection_handle === $campaign->collection)
+            ->values();
+
+        return view('newsletter.cp.campaigns.assign-product', [
+            'campaign' => $campaign,
+            'products' => $eligibleProducts,
+        ]);
+    }
+
+    public function assignProduct(
+        Request $request,
+        Campaign $campaign,
+        ScopedCampaignProductSelector $products,
+        CampaignOwnershipWriter $campaigns,
+    ) {
+        abort_unless($this->isSuper($request), 403, 'Only a super admin can repair legacy campaign ownership.');
+        abort_unless($this->campaignNeedsOwnership($campaign), 403, 'Campaign already has product ownership.');
+
+        $data = $request->validate([
+            'product_id' => 'required|integer',
+        ]);
+
+        $product = $products->resolve(
+            $request->user(),
+            (int) $data['product_id'],
+            (string) $campaign->collection,
+        );
+
+        if ($product === null) {
+            throw ValidationException::withMessages([
+                'product_id' => 'Select an active product that owns this campaign collection.',
+            ]);
+        }
+
+        $campaigns->updateForProduct($product, $campaign, []);
+
+        return redirect(cp_route('newsletter.campaigns.edit', $campaign))
+            ->with('success', 'Campaign product ownership assigned. You can now edit the campaign.');
     }
 
     public function update(
@@ -811,6 +864,18 @@ class CampaignController extends Controller
     private function normalizeSubjectText(?string $value): string
     {
         return html_entity_decode((string) ($value ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    private function isSuper(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user !== null && method_exists($user, 'isSuper') && $user->isSuper();
+    }
+
+    private function campaignNeedsOwnership(Campaign $campaign): bool
+    {
+        return $campaign->product_id === null || $campaign->organisation_id === null;
     }
 
     /** Fetch newsletter_settings GlobalSet, cached 1 hour (mirrors Mailable). */

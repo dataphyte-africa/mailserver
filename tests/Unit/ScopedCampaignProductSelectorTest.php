@@ -133,6 +133,19 @@ class ScopedCampaignProductSelectorTest extends TestCase
         $this->assertSame($product->organisation_id, $resolved?->organisation?->getKey());
     }
 
+    public function test_super_user_can_resolve_active_product_without_relational_scope_rows(): void
+    {
+        $product = $this->createProduct('Allowed', 'allowed', 'allowed_newsletters');
+
+        $resolved = $this->selector->resolve(
+            $this->statamicUser('super-user', true),
+            $product->getKey(),
+            'allowed_newsletters',
+        );
+
+        $this->assertSame($product->getKey(), $resolved?->getKey());
+    }
+
     public function test_fails_closed_when_operator_identity_is_missing(): void
     {
         $product = $this->createProduct('Allowed', 'allowed', 'allowed_newsletters');
@@ -166,6 +179,19 @@ class ScopedCampaignProductSelectorTest extends TestCase
 
         $resolved = $this->selector->resolveCampaign(
             $this->statamicUser('statamic-123'),
+            $campaign,
+        );
+
+        $this->assertSame($product->getKey(), $resolved?->getKey());
+    }
+
+    public function test_super_user_can_resolve_owned_campaign_without_relational_scope_rows(): void
+    {
+        $product = $this->createProduct('Allowed', 'allowed', 'allowed_newsletters');
+        $campaign = $this->createCampaign($product);
+
+        $resolved = $this->selector->resolveCampaign(
+            $this->statamicUser('super-user', true),
             $campaign,
         );
 

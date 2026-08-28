@@ -49,6 +49,14 @@ class ScopedCampaignProductSelector
         string $collectionHandle,
     ): ?Product {
         $collectionHandle = trim($collectionHandle);
+
+        if ($operator instanceof StatamicUser && $operator->isSuper()) {
+            return $this->activeNewsletterProductsQuery()
+                ->whereKey($productId)
+                ->where('primary_collection_handle', $collectionHandle)
+                ->first();
+        }
+
         $user = $this->identityBridge->resolve($operator);
 
         if ($user === null || $productId <= 0 || $collectionHandle === '') {
