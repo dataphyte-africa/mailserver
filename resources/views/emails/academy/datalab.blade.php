@@ -41,16 +41,12 @@
         );
     @endphp
 
-    @if(!empty($heroImageUrl))
-    <tr>
-        <td class="hero-image" style="padding:0;">
-            <img src="{{ $heroImageUrl }}"
-                 alt="{{ $subject }}"
-                 width="600"
-                 style="width:100%;height:auto;display:block;">
-        </td>
-    </tr>
-    @endif
+    @include('emails.partials.hero-image', [
+        'heroImageAlt' => $subject,
+        'heroImageWidth' => 600,
+        'heroImageTdClass' => 'hero-image',
+        'heroImageStyle' => 'width:100%;height:auto;display:block;',
+    ])
 
     <tr>
         <td class="content-padding"

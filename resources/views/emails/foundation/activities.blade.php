@@ -17,14 +17,11 @@
     @endphp
 
     {{-- Hero image --}}
-    @if(!empty($heroImageUrl))
-    <tr>
-        <td class="hero-image" style="padding:0;">
-            <img src="{{ $heroImageUrl }}" alt="" width="600"
-                 style="width:100%;max-width:600px;height:auto;display:block;">
-        </td>
-    </tr>
-    @endif
+    @include('emails.partials.hero-image', [
+        'heroImageWidth' => 600,
+        'heroImageTdClass' => 'hero-image',
+        'heroImageStyle' => 'width:100%;max-width:600px;height:auto;display:block;',
+    ])
 
     {{-- Activities header band --}}
     <tr>

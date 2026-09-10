@@ -19,13 +19,9 @@
         </tr>
     @endif
 
-    @if($heroImageUrl)
-        <tr>
-            <td>
-                <img src="{{ $heroImageUrl }}" alt="" style="width:100%;height:auto;display:block;border:0;">
-            </td>
-        </tr>
-    @endif
+    @include('emails.partials.hero-image', [
+        'heroImageTdStyle' => '',
+    ])
 
     <tr>
         <td class="content-padding" style="padding:30px 32px 18px;">

@@ -202,6 +202,16 @@ class InsightProvisioner
                             ],
                         ],
                         [
+                            'handle' => 'hero_image_link_url',
+                            'field' => [
+                                'type' => 'text',
+                                'display' => 'Hero Image Link URL',
+                                'instructions' => 'Optional. When filled, the hero image becomes a clickable link.',
+                                'input_type' => 'url',
+                                'width' => 100,
+                            ],
+                        ],
+                        [
                             'handle' => 'content',
                             'field' => [
                                 'type' => 'bard',

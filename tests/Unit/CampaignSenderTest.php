@@ -79,6 +79,86 @@ class CampaignSenderTest extends TestCase
         $this->assertStringContainsString('Hello Ada', $content);
     }
 
+    public function test_structured_linked_image_content_renders_clickable_email_image(): void
+    {
+        $campaign = Campaign::factory()->insight()->create();
+        $subscriber = Subscriber::factory()->create();
+        $content = [
+            [
+                'type' => 'paragraph',
+                'content' => [
+                    ['type' => 'text', 'text' => 'Before the image'],
+                ],
+            ],
+            [
+                'type' => 'set',
+                'attrs' => [
+                    'values' => [
+                        'type' => 'linked_image',
+                        'image' => ['https://mail.dataphyte.com/storage/feedback-banner.png'],
+                        'link_url' => 'https://forms.dataphyte.com/feedback',
+                        'alt_text' => 'Audience and product feedback survey',
+                    ],
+                ],
+            ],
+        ];
+
+        $html = (new NewsletterMailable($campaign, $subscriber, 'test'))
+            ->prepareCampaignContent($content, [
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'campaign-test',
+            ]);
+
+        $this->assertStringContainsString('Before the image', $html);
+        $this->assertStringContainsString('<a href="https://forms.dataphyte.com/feedback?utm_source=newsletter&amp;utm_medium=email&amp;utm_campaign=campaign-test"', $html);
+        $this->assertStringContainsString('<img src="https://mail.dataphyte.com/storage/feedback-banner.png"', $html);
+        $this->assertStringContainsString('alt="Audience and product feedback survey"', $html);
+    }
+
+    public function test_hero_image_partial_wraps_image_when_link_url_is_present(): void
+    {
+        $html = view('emails.partials.hero-image', [
+            'heroImageUrl' => 'https://mail.dataphyte.com/storage/survey.gif',
+            'heroImageLinkUrl' => 'https://forms.dataphyte.com/feedback?utm_source=newsletter',
+            'heroImageAlt' => 'Feedback survey',
+        ])->render();
+
+        $this->assertStringContainsString('<a href="https://forms.dataphyte.com/feedback?utm_source=newsletter"', $html);
+        $this->assertStringContainsString('<img src="https://mail.dataphyte.com/storage/survey.gif"', $html);
+        $this->assertStringContainsString('alt="Feedback survey"', $html);
+    }
+
+    public function test_hero_image_partial_leaves_image_unlinked_when_link_url_is_empty(): void
+    {
+        $html = view('emails.partials.hero-image', [
+            'heroImageUrl' => 'https://mail.dataphyte.com/storage/survey.gif',
+            'heroImageLinkUrl' => '',
+            'heroImageAlt' => 'Feedback survey',
+        ])->render();
+
+        $this->assertStringNotContainsString('<a href=', $html);
+        $this->assertStringContainsString('<img src="https://mail.dataphyte.com/storage/survey.gif"', $html);
+    }
+
+    public function test_campaign_link_url_adds_tracking_parameters(): void
+    {
+        $campaign = Campaign::factory()->insight()->create();
+        $subscriber = Subscriber::factory()->create();
+
+        $url = (new NewsletterMailable($campaign, $subscriber, 'test'))
+            ->prepareCampaignLinkUrl('https://forms.dataphyte.com/feedback?existing=1', [
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'campaign-test',
+            ]);
+
+        $this->assertSame(
+            'https://forms.dataphyte.com/feedback?existing=1&utm_source=newsletter&utm_medium=email&utm_campaign=campaign-test',
+            $url,
+        );
+    }
+
     public function test_insight_update_template_removes_leading_subject_line_from_body(): void
     {
         $html = view('emails.insight.insight-update', [

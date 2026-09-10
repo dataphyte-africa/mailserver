@@ -382,14 +382,17 @@ class CampaignController extends Controller
 
         $template = app(TemplateResolver::class)->resolve($entry, $collection);
 
-        $heroUrl    = $this->campaignAssetUrl($entry?->get('hero_image'));
-
         $rawContent = $entry?->get('content') ?? '<p><em>(No content yet — link an entry to this campaign.)</em></p>';
         $previewMailable = new NewsletterMailable($campaign, $previewSubscriber, 'preview');
+        $previewUtmParams = [
+            'utm_source' => 'newsletter',
+            'utm_medium' => 'email',
+            'utm_campaign' => 'preview',
+        ];
+        $heroUrl = $this->campaignAssetUrl($entry?->get('hero_image'));
+        $heroLinkUrl = $previewMailable->prepareCampaignLinkUrl($entry?->get('hero_image_link_url'), $previewUtmParams);
         $content = $previewMailable->prepareCampaignContent($rawContent, [
-                'utm_source' => 'newsletter',
-                'utm_medium' => 'email',
-                'utm_campaign' => 'preview',
+                ...$previewUtmParams,
             ]);
         $marinaMaitamaSections = $previewMailable->extractDualPerspectiveSections($content);
         $rssFeedUrl = $entry?->get('rss_feed_url');
@@ -428,6 +431,7 @@ class CampaignController extends Controller
             'subject'             => $this->normalizeSubjectText($campaign->subject ?? '(No subject)'),
             'preheader'           => $entry?->get('preheader') ?? '',
             'heroImageUrl'        => $heroUrl,
+            'heroImageLinkUrl'    => $heroLinkUrl,
             'content'             => $content,
             'introContent'        => $marinaMaitamaSections['intro_html'],
             'marinaContent'       => $marinaMaitamaSections['marina_html'],

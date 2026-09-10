@@ -37,6 +37,14 @@ tabs:
             handle: hero_image
           -
             field:
+              type: text
+              width: 100
+              display: 'Hero Image Link URL'
+              instructions: 'Optional. When filled, the hero image becomes a clickable link.'
+              input_type: url
+            handle: hero_image_link_url
+          -
+            field:
               type: bard
               width: 100
               buttons:

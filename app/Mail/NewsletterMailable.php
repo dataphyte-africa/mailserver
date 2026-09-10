@@ -72,14 +72,15 @@ class NewsletterMailable extends Mailable
 
         // Hero image
         $heroUrl = $this->resolveAssetUrl($entry?->get('hero_image'));
-
-        // Inject UTM into bard content, then replace subscriber merge tags
-        $rawContent = $entry?->get('content') ?? '';
         $utmParams  = [
             'utm_source'   => 'newsletter',
             'utm_medium'   => 'email',
             'utm_campaign' => 'campaign-' . $this->campaign->id,
         ];
+        $heroLinkUrl = $this->prepareCampaignLinkUrl($entry?->get('hero_image_link_url'), $utmParams);
+
+        // Inject UTM into bard content, then replace subscriber merge tags
+        $rawContent = $entry?->get('content') ?? '';
         $content = $this->prepareCampaignContent($rawContent, $utmParams);
         $rssFeedUrl = $entry?->get('rss_feed_url');
         $rssItemLimit = (int) ($entry?->get('rss_item_limit') ?: 6);
@@ -123,6 +124,7 @@ class NewsletterMailable extends Mailable
                 'subject'            => $this->envelope()->subject,
                 'preheader'          => $entry?->get('preheader') ?? '',
                 'heroImageUrl'       => $heroUrl,
+                'heroImageLinkUrl'   => $heroLinkUrl,
                 'content'            => $content,
                 'introContent'       => $marinaMaitamaSections['intro_html'],
                 'marinaContent'      => $marinaMaitamaSections['marina_html'],
@@ -181,12 +183,49 @@ class NewsletterMailable extends Mailable
 
     /* ------------------------------------------------------------------ */
 
-    public function prepareCampaignContent(string $rawContent, array $utmParams): string
+    public function prepareCampaignContent(mixed $rawContent, array $utmParams): string
     {
-        $content = UtmInjector::inject($rawContent, $utmParams);
+        $content = $this->structuredContentToHtml($rawContent);
+        $content = UtmInjector::inject($content, $utmParams);
         $content = $this->applyMergeTags($content);
 
         return $this->renderEmailContentHtml($content);
+    }
+
+    public function prepareCampaignLinkUrl(mixed $url, array $utmParams): ?string
+    {
+        $href = $this->normalizeContentLinkUrl($url);
+
+        if (! $href || empty($utmParams)) {
+            return $href;
+        }
+
+        if (str_starts_with($href, '#') || str_starts_with($href, 'mailto:') || str_starts_with($href, 'tel:')) {
+            return $href;
+        }
+
+        $parsed = parse_url($href);
+
+        if (! is_array($parsed) || empty($parsed['host'])) {
+            return $href;
+        }
+
+        $query = [];
+        if (! empty($parsed['query'])) {
+            parse_str($parsed['query'], $query);
+        }
+
+        $query = array_merge($query, $utmParams);
+
+        return ($parsed['scheme'] ?? 'https') . '://'
+            . ($parsed['user'] ?? '')
+            . (isset($parsed['pass']) ? ':' . $parsed['pass'] : '')
+            . (isset($parsed['user']) ? '@' : '')
+            . $parsed['host']
+            . (isset($parsed['port']) ? ':' . $parsed['port'] : '')
+            . ($parsed['path'] ?? '')
+            . ($query ? '?' . http_build_query($query) : '')
+            . (isset($parsed['fragment']) ? '#' . $parsed['fragment'] : '');
     }
 
     public function extractDualPerspectiveSections(string $content): array
@@ -340,6 +379,14 @@ class NewsletterMailable extends Mailable
                 }
             }
 
+            if (str_starts_with($value, 'asset::')) {
+                $resolved = $this->resolveStatamicAssetUrl('statamic://asset::' . substr($value, strlen('asset::')));
+
+                if ($resolved) {
+                    return $resolved;
+                }
+            }
+
             if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://') || str_starts_with($value, '//')) {
                 return $this->normalizeAssetUrl($value);
             }
@@ -485,6 +532,173 @@ class NewsletterMailable extends Mailable
         return $rendered;
     }
 
+    private function structuredContentToHtml(mixed $content): string
+    {
+        if (is_object($content) && method_exists($content, 'value')) {
+            return $this->structuredContentToHtml($content->value());
+        }
+
+        if (is_string($content)) {
+            return $content;
+        }
+
+        if (! is_array($content)) {
+            return '';
+        }
+
+        if (! array_is_list($content)) {
+            return $this->renderStructuredContentNode($content);
+        }
+
+        return collect($content)
+            ->map(fn ($node) => $this->renderStructuredContentNode($node))
+            ->implode('');
+    }
+
+    private function renderStructuredContentNode(mixed $node): string
+    {
+        if (is_object($node) && method_exists($node, 'all')) {
+            $node = $node->all();
+        } elseif (is_object($node) && method_exists($node, 'value')) {
+            $node = $node->value();
+        }
+
+        if (is_string($node)) {
+            return $node;
+        }
+
+        if (! is_array($node)) {
+            return '';
+        }
+
+        $type = (string) ($node['type'] ?? '');
+
+        if ($type === 'set') {
+            return $this->renderBardSet($node['attrs']['values'] ?? []);
+        }
+
+        if ($type === 'linked_image') {
+            return $this->renderLinkedImageSet($node);
+        }
+
+        if ($type === 'text') {
+            return $this->renderStructuredTextNode($node);
+        }
+
+        $children = collect($node['content'] ?? [])
+            ->map(fn ($child) => $this->renderStructuredContentNode($child))
+            ->implode('');
+
+        return match ($type) {
+            'paragraph' => "<p>{$children}</p>",
+            'heading' => $this->renderStructuredHeadingNode($node, $children),
+            'bulletList' => "<ul>{$children}</ul>",
+            'orderedList' => "<ol>{$children}</ol>",
+            'listItem' => "<li>{$children}</li>",
+            'blockquote' => "<blockquote>{$children}</blockquote>",
+            'hardBreak' => '<br>',
+            'horizontalRule' => '<hr>',
+            'image' => $this->renderStructuredImageNode($node),
+            default => $children,
+        };
+    }
+
+    private function renderBardSet(mixed $values): string
+    {
+        if (is_object($values) && method_exists($values, 'all')) {
+            $values = $values->all();
+        } elseif (is_object($values) && method_exists($values, 'value')) {
+            $values = $values->value();
+        }
+
+        if (! is_array($values)) {
+            return '';
+        }
+
+        return match ((string) ($values['type'] ?? '')) {
+            'linked_image' => $this->renderLinkedImageSet($values),
+            default => '',
+        };
+    }
+
+    private function renderLinkedImageSet(array $values): string
+    {
+        $src = $this->resolveAssetUrl($values['image'] ?? null);
+
+        if (! $src) {
+            return '';
+        }
+
+        $alt = $this->escapeHtml((string) ($values['alt_text'] ?? ''));
+        $caption = trim((string) ($values['caption'] ?? ''));
+        $href = $this->normalizeContentLinkUrl($values['link_url'] ?? null);
+        $image = '<img src="' . $this->escapeHtml($src) . '" alt="' . $alt . '">';
+
+        if ($href) {
+            $image = '<a href="' . $this->escapeHtml($href) . '">' . $image . '</a>';
+        }
+
+        if ($caption !== '') {
+            $image .= '<figcaption>' . $this->escapeHtml($caption) . '</figcaption>';
+        }
+
+        return '<figure>' . $image . '</figure>';
+    }
+
+    private function renderStructuredImageNode(array $node): string
+    {
+        $attrs = $node['attrs'] ?? [];
+        $src = $this->resolveAssetUrl($attrs['src'] ?? null);
+
+        if (! $src) {
+            return '';
+        }
+
+        $alt = $this->escapeHtml((string) ($attrs['alt'] ?? ''));
+
+        return '<img src="' . $this->escapeHtml($src) . '" alt="' . $alt . '">';
+    }
+
+    private function renderStructuredHeadingNode(array $node, string $children): string
+    {
+        $level = (int) ($node['attrs']['level'] ?? 2);
+        $level = max(2, min(3, $level));
+
+        return "<h{$level}>{$children}</h{$level}>";
+    }
+
+    private function renderStructuredTextNode(array $node): string
+    {
+        $html = $this->escapeHtml((string) ($node['text'] ?? ''));
+
+        foreach ($node['marks'] ?? [] as $mark) {
+            if (! is_array($mark)) {
+                continue;
+            }
+
+            $html = match ((string) ($mark['type'] ?? '')) {
+                'bold' => "<strong>{$html}</strong>",
+                'italic' => "<em>{$html}</em>",
+                'underline' => "<u>{$html}</u>",
+                'link' => $this->renderStructuredLinkMark($mark, $html),
+                default => $html,
+            };
+        }
+
+        return $html;
+    }
+
+    private function renderStructuredLinkMark(array $mark, string $html): string
+    {
+        $href = $this->normalizeContentLinkUrl($mark['attrs']['href'] ?? null);
+
+        if (! $href) {
+            return $html;
+        }
+
+        return '<a href="' . $this->escapeHtml($href) . '">' . $html . '</a>';
+    }
+
     private function styleRichTextNodes(\DOMNode $container): void
     {
         if (! $container instanceof \DOMElement) {
@@ -525,22 +739,9 @@ class NewsletterMailable extends Mailable
 
                 if ($tag === 'a') {
                     $href = trim((string) $node->getAttribute('href'));
-                    if (
-                        $href !== ''
-                        && ! str_starts_with($href, '#')
-                        && ! str_starts_with($href, 'mailto:')
-                        && ! str_starts_with($href, 'tel:')
-                        && (
-                            str_starts_with($href, 'http://')
-                            || str_starts_with($href, 'https://')
-                            || str_starts_with($href, '//')
-                            || str_starts_with($href, '/')
-                        )
-                    ) {
-                        $resolved = $this->resolveAssetUrl($href);
-                        if ($resolved) {
-                            $node->setAttribute('href', $resolved);
-                        }
+                    $resolved = $this->normalizeContentLinkUrl($href);
+                    if ($resolved) {
+                        $node->setAttribute('href', $resolved);
                     }
                 }
 
@@ -796,6 +997,39 @@ class NewsletterMailable extends Mailable
         }
 
         $node->setAttribute('style', trim($merged));
+    }
+
+    private function normalizeContentLinkUrl(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $href = trim($value);
+
+        if ($href === '') {
+            return null;
+        }
+
+        if (str_starts_with($href, '#') || str_starts_with($href, 'mailto:') || str_starts_with($href, 'tel:')) {
+            return $href;
+        }
+
+        if (
+            str_starts_with($href, 'http://')
+            || str_starts_with($href, 'https://')
+            || str_starts_with($href, '//')
+            || str_starts_with($href, '/')
+        ) {
+            return $this->resolveAssetUrl($href) ?: $href;
+        }
+
+        return null;
+    }
+
+    private function escapeHtml(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     private function buildSignedUrl(string $routeName): string

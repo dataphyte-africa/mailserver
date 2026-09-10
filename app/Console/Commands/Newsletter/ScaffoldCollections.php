@@ -13,6 +13,7 @@ use Statamic\Facades\GlobalSet;
 use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Facades\Term;
+use Statamic\Facades\YAML;
 
 class ScaffoldCollections extends Command
 {
@@ -372,19 +373,36 @@ class ScaffoldCollections extends Command
 
         foreach ($this->blueprintDefinitions($collectionHandle) as $def) {
             $key = "{$namespace}.{$def['handle']}";
-
-            // Remove stale copy so we always get a clean definition
-            if ($existing = Blueprint::find($key)) {
-                $existing->delete();
-            }
+            [$contents, $source] = $this->blueprintContentsForDefinition($collectionHandle, $def);
 
             Blueprint::make($def['handle'])
                 ->setNamespace($namespace)
-                ->setContents($this->blueprintContents($def))
+                ->setContents($contents)
                 ->save();
 
-            $this->line("Created blueprint: {$key}");
+            $this->line("Saved blueprint: {$key} ({$source})");
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    private function blueprintContentsForDefinition(string $collectionHandle, array $def): array
+    {
+        $path = resource_path("blueprints/collections/{$collectionHandle}/{$def['handle']}.yaml");
+
+        if (! is_file($path)) {
+            return [$this->blueprintContents($def), 'generated fallback'];
+        }
+
+        $contents = YAML::file($path)->parse();
+
+        if (! is_array($contents)) {
+            $this->warn("Blueprint YAML is empty or invalid for {$def['handle']}; using generated fallback.");
+
+            return [$this->blueprintContents($def), 'generated fallback'];
+        }
+
+        return [$contents, 'YAML'];
     }
 
     /* ------------------------------------------------------------------ */
@@ -462,6 +480,17 @@ class ScaffoldCollections extends Command
                                 'restrict'      => false,
                                 'allow_uploads' => true,
                                 'width'         => 100,
+                            ],
+                        ],
+
+                        [
+                            'handle' => 'hero_image_link_url',
+                            'field'  => [
+                                'type'         => 'text',
+                                'display'      => 'Hero Image Link URL',
+                                'instructions' => 'Optional. When filled, the hero image becomes a clickable link.',
+                                'input_type'   => 'url',
+                                'width'        => 100,
                             ],
                         ],
 

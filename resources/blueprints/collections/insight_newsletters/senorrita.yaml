@@ -45,6 +45,14 @@ tabs:
               max_files: 1
               allow_uploads: true
             handle: hero_image
+          -
+            field:
+              type: text
+              width: 100
+              display: 'Hero Image Link URL'
+              instructions: 'Optional. When filled, the hero image becomes a clickable link.'
+              input_type: url
+            handle: hero_image_link_url
   editorial:
     display: Editorial
     sections:
@@ -69,6 +77,43 @@ tabs:
               display: Content
               validate: required
               save_html: true
+              sets:
+                linked_image:
+                  display: 'Linked Image'
+                  instructions: 'Use this for clickable email banners or images that should send readers to a form or landing page.'
+                  fields:
+                    -
+                      handle: image
+                      field:
+                        type: assets
+                        display: Image
+                        container: assets
+                        max_files: 1
+                        allow_uploads: true
+                        restrict: false
+                        width: 100
+                    -
+                      handle: link_url
+                      field:
+                        type: text
+                        display: 'Link URL'
+                        instructions: 'Where readers should go after clicking the image.'
+                        input_type: url
+                        width: 100
+                    -
+                      handle: alt_text
+                      field:
+                        type: text
+                        display: 'Alt Text'
+                        instructions: 'Short accessible description of the image.'
+                        width: 100
+                    -
+                      handle: caption
+                      field:
+                        type: text
+                        display: Caption
+                        instructions: 'Optional caption shown below the image.'
+                        width: 100
             handle: content
       -
         display: Navigation

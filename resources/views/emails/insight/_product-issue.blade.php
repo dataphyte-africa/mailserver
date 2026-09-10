@@ -18,14 +18,10 @@
 
 @section('content')
 
-    @if(!empty($heroImageUrl))
-    <tr>
-        <td style="padding:0;">
-            <img src="{{ $heroImageUrl }}" alt="" width="600"
-                 style="width:100%;max-width:600px;height:auto;display:block;">
-        </td>
-    </tr>
-    @endif
+    @include('emails.partials.hero-image', [
+        'heroImageWidth' => 600,
+        'heroImageStyle' => 'width:100%;max-width:600px;height:auto;display:block;',
+    ])
 
     <tr>
         <td style="padding:28px 32px 10px;">
