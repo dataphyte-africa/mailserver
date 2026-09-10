@@ -118,7 +118,7 @@ return [
                         'address' => 'Plot 404, Marcus Garvey Street, 5th Avenue, Gwarimpa, Abuja, Nigeria.',
                     ],
                     [
-                        'label' => 'Address',
+                        'label' => 'US',
                         'address' => '1007 N Orange St. 4th Floor, Wilmington, Delaware, United States.',
                     ],
                     [
