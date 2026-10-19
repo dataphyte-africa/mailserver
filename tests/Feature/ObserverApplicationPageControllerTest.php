@@ -26,6 +26,20 @@ class ObserverApplicationPageControllerTest extends TestCase
             ->assertViewHas('wardsEndpointTemplate', 'https://join.policy.example.test/subscribe/osun-election-observers/locations/lgas/__LGA__/wards');
     }
 
+    public function test_legacy_application_shows_closed_page_after_its_deadline(): void
+    {
+        $this->makeObserverApplicationForm();
+        $form = Form::find('osun-election-observers');
+        $form->merge([
+            'newsletter_closed_at' => now()->subDay()->toDateTimeString(),
+            'newsletter_closed_message' => 'This call has ended.',
+        ])->save();
+
+        $this->get(route('newsletter.forms.show', ['form' => 'osun-election-observers']))
+            ->assertOk()->assertSee('Applications are closed.')
+            ->assertSee('This call has ended.');
+    }
+
     private function makeObserverApplicationForm(): void
     {
         $group = SubscriberGroup::factory()->policyPoint()->create();

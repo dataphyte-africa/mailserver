@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\Organisation;
 use App\Services\Foundation\ElectionLocationService;
 use App\Services\Newsletter\SubscriptionFormService;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 
 class ObserverApplicationPageController extends Controller
 {
@@ -19,12 +21,34 @@ class ObserverApplicationPageController extends Controller
         $resolved = $this->forms->resolveForm($form);
 
         abort_unless($resolved, 404);
-        abort_unless($this->forms->submissionMode($resolved) === 'application', 404);
+        if ($this->forms->submissionMode($resolved) === 'subscription') {
+            $organisation = Organisation::query()
+                ->where('primary_collection_handle', $this->forms->collectionHandle($resolved))
+                ->first();
+
+            return response()->view('newsletter.public.legacy-subscribe', [
+                'form' => $resolved,
+                'schema' => $this->forms->schema($resolved),
+                'organisation' => $organisation,
+                'displayName' => $organisation?->name ?: Str::headline($resolved->title()),
+                'submitEndpoint' => route('newsletter.forms.submit', ['form' => $this->forms->endpointSlug($resolved)]),
+            ])->header('Cache-Control', 'no-store');
+        }
 
         $publicLinks = $this->forms->publicFormLinks($resolved);
         $osun = $this->locations->findStateByName('Osun') ?: ['id' => 31, 'name' => 'Osun'];
         $foundationLogoUrl = $this->logoUrl(config('statamic.cp.custom_logo_url'));
         $closedAt = $this->forms->closedAt($resolved);
+
+        if ($closedAt && now()->greaterThan($closedAt)) {
+            return response()->view('forms.public.closed', [
+                'title' => $resolved->title(),
+                'brandName' => 'Dataphyte Foundation',
+                'logoUrl' => $foundationLogoUrl,
+                'closesAt' => $closedAt,
+                'message' => $this->forms->closedMessage($resolved),
+            ])->header('Cache-Control', 'no-store');
+        }
 
         return response()->view('newsletter.public.observer-application', [
             'form' => $resolved,
@@ -42,7 +66,7 @@ class ObserverApplicationPageController extends Controller
             'successMessage' => $this->forms->successMessage($resolved),
             'osunState' => $osun,
             'foundationLogoUrl' => $foundationLogoUrl,
-        ])->header('Cache-Control', 'public, max-age=300, s-maxage=600, stale-while-revalidate=60, no-transform')
+        ])->header('Cache-Control', 'no-store')
             ->header('Vary', 'Accept-Encoding');
     }
 
