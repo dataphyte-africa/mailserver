@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\FocalPointApplicationReceivedMail;
 use App\Models\FocalPointApplication;
 use App\Services\Foundation\FocalPointApplicationContent;
 use App\Services\Foundation\FocalPointApplicationService;
@@ -11,6 +12,7 @@ use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Mockery;
 use Statamic\Facades\GlobalSet;
@@ -27,6 +29,7 @@ class FocalPointApplicationTest extends TestCase
 
         $this->travelTo(now()->setDate(2026, 10, 20)->setTime(12, 0));
         Cache::flush();
+        Mail::fake();
         config()->set('focal_point_applications.google_drive', [
             'client_id' => 'test-client', 'client_secret' => 'test-secret',
             'refresh_token' => 'test-refresh', 'cv_folder_id' => 'cv-folder',
@@ -102,6 +105,14 @@ class FocalPointApplicationTest extends TestCase
         $this->assertSame(app(FocalPointApplicationContent::class)->torVersion(), $application->tor_version);
         $this->assertStringContainsString('Role of State Focal Points', $application->tor_html);
         $this->assertNotNull($application->tor_accepted_at);
+        $this->assertSame('pending', $application->confirmation_email_status);
+        Mail::assertQueued(FocalPointApplicationReceivedMail::class, function (FocalPointApplicationReceivedMail $mail) use ($application): bool {
+            return $mail->hasTo($application->email)
+                && $mail->fullName === $application->full_name
+                && $mail->reference === $application->uuid
+                && $mail->headers()->text['X-Focal-Point-Application-Id'] === $application->uuid
+                && str_contains($mail->render(), $application->uuid);
+        });
 
         $this->withoutMiddleware(CountUsers::class);
         $this->withoutMiddleware(Authorize::class);
@@ -115,12 +126,13 @@ class FocalPointApplicationTest extends TestCase
             $admin = StatamicUser::findByEmail('admin@mailserver.test');
             $this->assertNotNull($admin);
             $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
-            $this->get(cp_route('focal-point-applications.index'))->assertOk()->assertSee('Ada Observer');
-            $this->get(cp_route('focal-point-applications.show', $application))->assertOk()->assertSee('View CV');
+            $this->get(cp_route('focal-point-applications.index'))->assertOk()->assertSee('Ada Observer')->assertSee('Email status')->assertSee('Pending');
+            $this->get(cp_route('focal-point-applications.show', $application))->assertOk()->assertSee('View CV')->assertSee('Email status');
             $csv = $this->get(cp_route('focal-point-applications.export'))->assertOk()->streamedContent();
             $this->assertStringContainsString('https://drive.google.com/file/d/cv-id/view', $csv);
             $this->assertStringContainsString('https://drive.google.com/file/d/cert-id/view', $csv);
             $this->assertStringContainsString('tor_accepted_at', $csv);
+            $this->assertStringContainsString('confirmation_email_status', $csv);
 
             $this->post(cp_route('focal-point-applications.status', $application), [
                 'status' => 'under_review',
@@ -129,6 +141,53 @@ class FocalPointApplicationTest extends TestCase
         } finally {
             $operator->delete();
         }
+    }
+
+    public function test_delivery_and_open_webhooks_update_only_the_matching_application(): void
+    {
+        config()->set('newsletter.webhook_secret', 'test-webhook-secret');
+        config()->set('queue.default', 'sync');
+
+        $application = FocalPointApplication::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'email' => 'applicant@example.test',
+            'full_name' => 'Test Applicant',
+            'answers' => [],
+            'cv_drive_id' => 'cv-id',
+            'cv_drive_url' => 'https://drive.google.com/file/d/cv-id/view',
+            'cv_filename' => 'cv.pdf',
+            'certificate_drive_id' => 'cert-id',
+            'certificate_drive_url' => 'https://drive.google.com/file/d/cert-id/view',
+            'certificate_filename' => 'certificate.pdf',
+        ]);
+
+        $url = route('newsletter.webhook.elastic-email').'?secret=test-webhook-secret';
+        $payload = [
+            'to' => $application->email,
+            'lifecycle_email' => 'focal_point_application_receipt',
+            'focal_point_application_id' => $application->uuid,
+            'date' => '2026-10-20T13:00:00Z',
+        ];
+
+        $this->postJson($url, [...$payload, 'eventtype' => 'Bounce'])->assertOk();
+        $this->assertSame('failed', $application->fresh()->confirmation_email_status);
+
+        $this->postJson($url, [...$payload, 'eventtype' => 'Delivery'])->assertOk();
+        $this->assertSame('delivered', $application->fresh()->confirmation_email_status);
+        $this->assertNotNull($application->fresh()->confirmation_email_delivered_at);
+
+        $this->postJson($url, [...$payload, 'eventtype' => 'Open', 'date' => '2026-10-20T13:05:00Z'])->assertOk();
+        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
+        $this->assertNotNull($application->fresh()->confirmation_email_opened_at);
+
+        $this->postJson($url, [...$payload, 'eventtype' => 'Delivery'])->assertOk();
+        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
+
+        $this->postJson($url, [...$payload, 'to' => 'someone-else@example.test', 'eventtype' => 'Bounce'])->assertOk();
+        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
+
+        $this->postJson(route('newsletter.webhook.elastic-email'), [...$payload, 'eventtype' => 'Bounce'])->assertUnauthorized();
+        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
     }
 
     public function test_drive_failure_does_not_store_a_submission(): void
@@ -145,6 +204,7 @@ class FocalPointApplicationTest extends TestCase
         $this->post(route('focal-points.applications.store'), $this->payload())
             ->assertRedirect()->assertSessionHasErrors('documents');
         $this->assertDatabaseCount('focal_point_applications', 0);
+        Mail::assertNothingOutgoing();
     }
 
     public function test_google_drive_upload_uses_the_configured_folder_and_oauth_token(): void

@@ -1,3 +1,6 @@
-super: true
+super: false
+name: 'Academy admin'
+roles:
+  - scoped_operator
 id: 5bf43dd5-cb95-488e-a589-b842c82d30da
 password_hash: $2y$04$kAcXn0eH5IcCfdNfylXdq.uC0gZ6fnRZlJfq3zF7ZmfXVHZVJUkIu

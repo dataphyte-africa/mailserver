@@ -64,7 +64,9 @@ class FocalPointApplicationController
         $this->assertSuper();
 
         $headers = [
-            'application_id', 'status', 'submitted_at', 'reviewed_at', 'reviewed_by', 'tor_version', 'tor_accepted_at',
+            'application_id', 'status', 'confirmation_email_status', 'confirmation_email_delivered_at',
+            'confirmation_email_opened_at', 'confirmation_email_failed_at',
+            'submitted_at', 'reviewed_at', 'reviewed_by', 'tor_version', 'tor_accepted_at',
             'full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age',
             'has_disability', 'education', 'linkedin_url', 'state', 'lga', 'ward',
             'residential_address', 'resident_in_state', 'residence_length', 'party_member',
@@ -84,6 +86,10 @@ class FocalPointApplicationController
                         $value = match ($header) {
                             'application_id' => $application->uuid,
                             'status' => $application->status,
+                            'confirmation_email_status' => $application->confirmation_email_status,
+                            'confirmation_email_delivered_at' => $application->confirmation_email_delivered_at?->toIso8601String(),
+                            'confirmation_email_opened_at' => $application->confirmation_email_opened_at?->toIso8601String(),
+                            'confirmation_email_failed_at' => $application->confirmation_email_failed_at?->toIso8601String(),
                             'submitted_at' => $application->created_at?->toIso8601String(),
                             'reviewed_at' => $application->reviewed_at?->toIso8601String(),
                             'reviewed_by' => $application->reviewed_by,

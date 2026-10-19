@@ -13,6 +13,14 @@ This is a Foundation-owned recruitment form, separate from newsletter subscripti
 - The application receives `pending_review` only after **both** uploads succeed in Google Drive. If the second upload or database write fails, the app attempts to delete any file already uploaded. A failed delete needs manual orphan cleanup from the Drive folders.
 - The CV is written to folder `13syUofa223-tCfO_gCWP4gcCe8XZVaf6`; the certificate to `1ti9A02QxtSBFzpregUK2uaXNa9Iw0F9k`. These IDs can be overridden by environment variables. Files inherit the folders' Google sharing policy; do not enable “Anyone with the link.”
 - Only a Statamic super admin can access `/cp/focal-point-applications`, change review status, or export CSV. The CSV includes separate stable Google Drive links. Google independently checks the viewer's Google account and folder permissions when a link is opened. CSV values are escaped against spreadsheet formula execution.
+- An applicant receipt is queued after the application is saved. Its separate email status starts as `pending`, becomes `delivered` on an Elastic Email delivery webhook, and becomes `confirmed` on an open or click webhook. Bounces and send failures show `failed`. Existing applications from before this tracking was added are marked `not_sent`, not retroactively emailed. An open event can be triggered by mail software and does not prove a person read the message.
+
+## Email status setup
+
+1. Production must use the Elastic Email mailer and process the `webhooks` queue. The local Mailtrap sandbox does not generate Elastic Email delivery/open webhooks or deliver to applicants' normal inboxes.
+2. Configure `ELASTIC_EMAIL_WEBHOOK_SECRET` and include the same secret in the existing Elastic Email webhook URL or `X-Webhook-Secret` header. Without a configured secret, focal-point delivery/open events are intentionally ignored.
+3. Enable Elastic Email delivery and open notifications for the existing `/webhooks/elastic-email` endpoint. The app correlates each event by the receipt's application reference and recipient email; it does not infer a focal-point result from newsletter campaign events.
+4. Test with a non-sensitive address on production-like infrastructure. Confirm the email status moves from pending to delivered, then to confirmed after an open event. Delivery and open detection depend on the provider emitting those events.
 
 ## Google Workspace setup
 

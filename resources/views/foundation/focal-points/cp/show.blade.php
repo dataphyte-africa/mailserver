@@ -11,7 +11,19 @@
     <div class="form-platform-stack">
         <div class="form-platform-card">
             <h2>Review</h2>
-            <p class="form-platform-meta">Status: <strong>{{ str_replace('_', ' ', ucfirst($application->status)) }}</strong> · Submitted {{ $application->created_at?->format('d M Y, H:i') }}</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:16px 0">
+                <div><span class="form-platform-meta">Review status</span><br><strong>{{ str_replace('_', ' ', ucfirst($application->status)) }}</strong></div>
+                <div><span class="form-platform-meta">Email status</span><br><strong>{{ str_replace('_', ' ', ucfirst($application->confirmation_email_status)) }}</strong></div>
+                <div><span class="form-platform-meta">Submitted</span><br><strong>{{ $application->created_at?->format('d M Y, H:i') }}</strong></div>
+            </div>
+            @if($application->confirmation_email_delivered_at || $application->confirmation_email_opened_at || $application->confirmation_email_failed_at)
+                <p class="form-platform-meta">
+                    @if($application->confirmation_email_delivered_at) Delivered {{ $application->confirmation_email_delivered_at->format('d M Y, H:i') }} · @endif
+                    @if($application->confirmation_email_opened_at) Open detected {{ $application->confirmation_email_opened_at->format('d M Y, H:i') }} · @endif
+                    @if($application->confirmation_email_failed_at) Failed {{ $application->confirmation_email_failed_at->format('d M Y, H:i') }} @endif
+                </p>
+            @endif
+            <p class="form-platform-help">Confirmed means an email-open event was detected; it does not prove the message was read.</p>
             <p class="form-platform-meta">Terms accepted: {{ $application->tor_accepted_at?->format('d M Y, H:i') ?? 'Not recorded' }} · Version: {{ $application->tor_version ?? 'Unknown' }}</p>
             @if(!in_array($application->status, ['approved', 'rejected']))
                 <form method="post" action="{{ cp_route('focal-point-applications.status', $application) }}" class="form-platform-actions" style="margin-top:18px">

@@ -51,6 +51,8 @@ class ElasticEmailTransport extends AbstractTransport
             ?->getBodyAsString();
         $subscriptionStatus = $email->getHeaders()->get('X-Subscription-Status')
             ?->getBodyAsString();
+        $focalPointApplicationId = $email->getHeaders()->get('X-Focal-Point-Application-Id')
+            ?->getBodyAsString();
 
         // Build recipients
         $recipients = [];
@@ -78,6 +80,9 @@ class ElasticEmailTransport extends AbstractTransport
             }
             if ($subscriptionStatus) {
                 $fields['subscription_status'] = $subscriptionStatus;
+            }
+            if ($focalPointApplicationId) {
+                $fields['focal_point_application_id'] = $focalPointApplicationId;
             }
             if ($fields !== []) {
                 $recipient->setFields($fields);

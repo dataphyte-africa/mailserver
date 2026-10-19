@@ -1,0 +1,9 @@
+name: Chinenye
+roles:
+  - scoped_operator
+id: ce3efe3c-86d4-4575-a99f-4ca59e3cb228
+password_hash: $2y$12$XDXphP9dxqGv2aPuvIwKlevxA.dc8e7zeOFL/tMjEBdBPtGkUg21m
+preferences:
+  collections:
+    insight_newsletters:
+      view: list

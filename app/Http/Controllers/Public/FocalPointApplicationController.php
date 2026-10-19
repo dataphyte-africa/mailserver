@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Mail\FocalPointApplicationReceivedMail;
 use App\Services\Foundation\FocalPointApplicationContent;
 use App\Services\Foundation\FocalPointApplicationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 
 class FocalPointApplicationController extends Controller
@@ -59,6 +61,18 @@ class FocalPointApplicationController extends Controller
         } catch (RuntimeException) {
             return back()->withInput($request->except(['cv', 'certificate']))
                 ->withErrors(['documents' => 'We could not save your documents. Please try again.']);
+        }
+
+        try {
+            Mail::to($application->email, $application->full_name)->queue(
+                new FocalPointApplicationReceivedMail($application->full_name, $application->uuid)
+            );
+        } catch (\Throwable $exception) {
+            $application->forceFill([
+                'confirmation_email_status' => 'failed',
+                'confirmation_email_failed_at' => now(),
+            ])->save();
+            report($exception);
         }
 
         return redirect()->route('focal-points.applications.show')

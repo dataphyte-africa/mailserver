@@ -6,6 +6,7 @@ use App\Models\CampaignLinkClick;
 use App\Models\CampaignSend;
 use App\Models\Subscriber;
 use App\Models\WebhookLog;
+use App\Services\Foundation\FocalPointApplicationEmailTracking;
 use App\Services\Newsletter\ApplicationSubmissionTrackingService;
 use App\Services\Newsletter\SubscriberEngagementService;
 use Illuminate\Bus\Queueable;
@@ -105,6 +106,10 @@ class ProcessWebhookJob implements ShouldQueue
 
         if (! $event) {
             Log::debug("ProcessWebhookJob: unknown event '{$log->event_type}' — skipping");
+            return;
+        }
+
+        if (app(FocalPointApplicationEmailTracking::class)->apply($log, $event)) {
             return;
         }
 
