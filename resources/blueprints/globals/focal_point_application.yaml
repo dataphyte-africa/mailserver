@@ -1,0 +1,72 @@
+title: 'State Focal Point Application'
+tabs:
+  introduction:
+    display: Introduction
+    sections:
+      -
+        fields:
+          -
+            handle: hero_intro
+            field:
+              type: textarea
+              display: 'Hero introduction'
+              instructions: 'Short text below the page title.'
+          -
+            handle: intro
+            field:
+              type: textarea
+              display: 'Role introduction'
+          -
+            handle: selection_note
+            field:
+              type: textarea
+              display: 'Selection notice'
+          -
+            handle: preparation_note
+            field:
+              type: textarea
+              display: 'Before you begin'
+  window:
+    display: 'Submission Window'
+    sections:
+      -
+        fields:
+          -
+            handle: accepting_submissions
+            field:
+              type: toggle
+              display: 'Accepting submissions'
+              default: true
+              instructions: 'Turn off to close immediately. Turn on and set a future deadline to reopen.'
+          -
+            handle: closes_at
+            field:
+              type: date
+              display: 'Closes at'
+              validate: required
+              time_enabled: true
+              time_seconds_enabled: false
+              instructions: 'Africa/Lagos time. Extend this date to keep the form open longer.'
+  terms:
+    display: 'Terms of Reference'
+    sections:
+      -
+        fields:
+          -
+            handle: tor_html
+            field:
+              type: bard
+              display: 'Terms of Reference'
+              validate: required
+              instructions: 'Use headings, lists and formatting. Saving changed terms pauses submissions until the new version is approved from Application Forms.'
+              buttons:
+                - h2
+                - h3
+                - bold
+                - italic
+                - underline
+                - unorderedlist
+                - orderedlist
+                - quote
+                - anchor
+              save_html: true
