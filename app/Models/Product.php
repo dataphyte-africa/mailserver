@@ -27,6 +27,7 @@ class Product extends Model
         'blueprint_handle',
         'default_sender_profile',
         'default_template_family',
+        'banner_path',
         'fallback_to_platform_domain',
     ];
 

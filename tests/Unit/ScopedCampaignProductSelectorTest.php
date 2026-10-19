@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductUserScope;
 use App\Models\User;
 use App\Services\Newsletter\ScopedCampaignProductSelector;
+use App\Services\Platform\CpOperatorScope;
 use App\Support\Platform\Authorization\ScopeResolver;
 use App\Support\Platform\Authorization\StatamicUserIdentityBridge;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -80,9 +81,17 @@ class ScopedCampaignProductSelectorTest extends TestCase
             $table->timestamps();
         });
 
+        Capsule::schema()->create('organisation_user_scope', function ($table) {
+            $table->id();
+            $table->foreignId('user_id');
+            $table->foreignId('organisation_id');
+            $table->string('scope_role');
+            $table->string('status')->default('active');
+            $table->timestamps();
+        });
+
         $this->selector = new ScopedCampaignProductSelector(
-            new StatamicUserIdentityBridge,
-            new ScopeResolver('active'),
+            new CpOperatorScope(new StatamicUserIdentityBridge, new ScopeResolver('active')),
         );
     }
 

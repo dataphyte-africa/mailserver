@@ -14,7 +14,7 @@ class StatamicNewsletterProductSyncService
     /**
      * @return array<string, mixed>
      */
-    public function sync(bool $dryRun = false): array
+    public function sync(bool $dryRun = false, ?string $onlyCollection = null): array
     {
         $results = [
             'dry_run' => $dryRun,
@@ -22,18 +22,29 @@ class StatamicNewsletterProductSyncService
             'products' => [],
         ];
 
-        foreach ($this->configuredNewsletterCollections() as $collectionHandle => $collectionConfig) {
+        $collections = $this->configuredNewsletterCollections();
+        if ($onlyCollection !== null && ! $collections->has($onlyCollection)) {
+            throw new \InvalidArgumentException("Unknown newsletter collection: {$onlyCollection}");
+        }
+
+        foreach ($collections as $collectionHandle => $collectionConfig) {
+            if ($onlyCollection !== null && $collectionHandle !== $onlyCollection) {
+                continue;
+            }
             $organisationAttributes = $this->organisationAttributes($collectionHandle, $collectionConfig);
             $organisation = Organisation::query()->where('slug', $organisationAttributes['slug'])->first();
+            if ($organisation && $organisation->primary_collection_handle !== $collectionHandle) {
+                throw new \LogicException("Organisation slug already belongs to another collection: {$organisationAttributes['slug']}");
+            }
 
             $results['organisations'][] = [
                 'handle' => $collectionHandle,
                 'name' => $organisationAttributes['name'],
-                'action' => $organisation ? 'update' : 'create',
+                'action' => $organisation ? 'existing' : 'create',
             ];
 
             if (! $dryRun) {
-                $organisation = Organisation::query()->updateOrCreate(
+                $organisation = Organisation::query()->firstOrCreate(
                     ['slug' => $organisationAttributes['slug']],
                     $organisationAttributes,
                 );
@@ -48,15 +59,20 @@ class StatamicNewsletterProductSyncService
                 );
 
                 $existingProduct = Product::query()->where('slug', $productAttributes['slug'])->first();
+                if ($existingProduct && ($existingProduct->primary_collection_handle !== $collectionHandle
+                    || $existingProduct->blueprint_handle !== $blueprint['handle']
+                    || ($organisation && (int) $existingProduct->organisation_id !== (int) $organisation->getKey()))) {
+                    throw new \LogicException("Product slug already belongs to another blueprint or organisation: {$productAttributes['slug']}");
+                }
                 $results['products'][] = [
                     'collection_handle' => $collectionHandle,
                     'blueprint_handle' => $blueprint['handle'],
                     'name' => $productAttributes['name'],
-                    'action' => $existingProduct ? 'update' : 'create',
+                    'action' => $existingProduct ? 'existing' : 'create',
                 ];
 
                 if (! $dryRun && $organisation) {
-                    Product::query()->updateOrCreate(
+                    Product::query()->firstOrCreate(
                         ['slug' => $productAttributes['slug']],
                         $productAttributes,
                     );

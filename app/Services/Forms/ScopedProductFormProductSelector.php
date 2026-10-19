@@ -2,20 +2,17 @@
 
 namespace App\Services\Forms;
 
-use App\Contracts\Authorization\ScopeResolverInterface;
-use App\Contracts\Authorization\StatamicUserIdentityBridgeInterface;
 use App\Models\Organisation;
 use App\Models\Product;
 use App\Models\ProductForm;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
-use Statamic\Contracts\Auth\User as StatamicUser;
 
 class ScopedProductFormProductSelector
 {
     public function __construct(
-        private readonly StatamicUserIdentityBridgeInterface $identityBridge,
-        private readonly ScopeResolverInterface $scopes,
+        private readonly CpOperatorScope $scope,
     ) {}
 
     /**
@@ -23,17 +20,7 @@ class ScopedProductFormProductSelector
      */
     public function productsFor(?Authenticatable $operator): Collection
     {
-        if ($operator instanceof StatamicUser && $operator->isSuper()) {
-            return $this->activeProductsQuery()->get();
-        }
-
-        $user = $this->identityBridge->resolve($operator);
-
-        if ($user === null) {
-            return new Collection;
-        }
-
-        $productIds = $this->scopes->productIds($user);
+        $productIds = $this->scope->productIds($operator);
 
         if ($productIds === []) {
             return new Collection;
@@ -59,15 +46,9 @@ class ScopedProductFormProductSelector
      */
     public function organisationsFor(?Authenticatable $operator): Collection
     {
-        $products = $this->productsFor($operator)->loadMissing('organisation');
-
-        return new Collection($products
-            ->pluck('organisation')
-            ->filter()
-            ->unique('id')
-            ->sortBy('name')
-            ->values()
-            ->all());
+        return Organisation::query()->when(! $this->scope->isSuper($operator), fn ($q) => $q->where('status', 'active'))
+            ->whereKey($this->scope->organisationIds($operator))
+            ->orderBy('name')->get();
     }
 
     public function resolveOrganisation(?Authenticatable $operator, int $organisationId): ?Organisation

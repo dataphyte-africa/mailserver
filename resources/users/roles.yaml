@@ -1,4 +1,13 @@
-# admin:
-#   title: Administrator
-#   permissions:
-#     - super
+scoped_operator:
+  title: Scoped Operator
+  permissions:
+    - access cp
+    - view insight_newsletters entries
+    - view foundation_newsletters entries
+    - view policy_point_newsletters entries
+    - create insight_newsletters entries
+    - create foundation_newsletters entries
+    - create policy_point_newsletters entries
+    - edit insight_newsletters entries
+    - edit foundation_newsletters entries
+    - edit policy_point_newsletters entries

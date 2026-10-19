@@ -2,19 +2,16 @@
 
 namespace App\Services\Newsletter;
 
-use App\Contracts\Authorization\ScopeResolverInterface;
-use App\Contracts\Authorization\StatamicUserIdentityBridgeInterface;
 use App\Models\Campaign;
 use App\Models\Product;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
-use Statamic\Contracts\Auth\User as StatamicUser;
 
 class ScopedCampaignProductSelector
 {
     public function __construct(
-        private readonly StatamicUserIdentityBridgeInterface $identityBridge,
-        private readonly ScopeResolverInterface $scopes,
+        private readonly CpOperatorScope $scope,
     ) {}
 
     /**
@@ -22,17 +19,7 @@ class ScopedCampaignProductSelector
      */
     public function productsFor(?Authenticatable $operator): Collection
     {
-        if ($operator instanceof StatamicUser && $operator->isSuper()) {
-            return $this->activeNewsletterProductsQuery()->get();
-        }
-
-        $user = $this->identityBridge->resolve($operator);
-
-        if ($user === null) {
-            return new Collection;
-        }
-
-        $productIds = $this->scopes->productIds($user);
+        $productIds = $this->scope->productIds($operator);
 
         if ($productIds === []) {
             return new Collection;
@@ -50,27 +37,11 @@ class ScopedCampaignProductSelector
     ): ?Product {
         $collectionHandle = trim($collectionHandle);
 
-        if ($operator instanceof StatamicUser && $operator->isSuper()) {
-            return $this->activeNewsletterProductsQuery()
-                ->whereKey($productId)
-                ->where('primary_collection_handle', $collectionHandle)
-                ->first();
-        }
-
-        $user = $this->identityBridge->resolve($operator);
-
-        if ($user === null || $productId <= 0 || $collectionHandle === '') {
+        if ($productId <= 0 || $collectionHandle === '' || ! in_array($productId, $this->scope->productIds($operator), true)) {
             return null;
         }
-
-        if (! $this->scopes->hasProductScope($user, $productId)) {
-            return null;
-        }
-
-        return Product::query()
-            ->with('organisation')
+        return $this->activeNewsletterProductsQuery()
             ->whereKey($productId)
-            ->where('status', 'active')
             ->where('primary_collection_handle', $collectionHandle)
             ->first();
     }

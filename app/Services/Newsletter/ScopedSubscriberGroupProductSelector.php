@@ -8,6 +8,7 @@ use App\Models\SubscriberSubGroup;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Statamic\Contracts\Auth\User as StatamicUser;
 
 class ScopedSubscriberGroupProductSelector
 {
@@ -40,6 +41,10 @@ class ScopedSubscriberGroupProductSelector
      */
     public function groupsFor(?Authenticatable $operator): Collection
     {
+        if ($operator instanceof StatamicUser && $operator->isSuper()) {
+            return SubscriberGroup::query()->orderBy('name')->get();
+        }
+
         $productIds = $this->productsFor($operator)->modelKeys();
 
         if ($productIds === []) {

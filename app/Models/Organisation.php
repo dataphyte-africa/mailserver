@@ -28,12 +28,34 @@ class Organisation extends Model
         'default_reply_to',
         'compliance_profile',
         'support_contact',
+        'postal_address',
+        'addresses',
+        'website_url',
+        'social_links',
+        'logo_path',
+        'banner_path',
+        'brand_primary_color',
+        'brand_secondary_color',
+        'unsubscribe_message',
     ];
 
     protected $casts = [
         'compliance_profile' => 'array',
+        'social_links' => 'array',
+        'addresses' => 'array',
         'newsletter_domain_verified_at' => 'datetime',
     ];
+
+    public function publicAddresses(): array
+    {
+        if ($this->addresses !== null) {
+            return $this->addresses;
+        }
+
+        return $this->postal_address
+            ? [['label' => 'Main office', 'address' => $this->postal_address]]
+            : [];
+    }
 
     public function products(): HasMany
     {

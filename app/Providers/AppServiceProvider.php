@@ -13,6 +13,12 @@ use App\Contracts\Domain\DomainResolverInterface;
 use App\Contracts\Domain\ProductUrlGeneratorInterface;
 use App\Contracts\Domain\RequestContextResolverInterface;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
+use Statamic\Hooks\CP\EntriesIndexQuery;
+use Statamic\Events\EntrySaving;
+use Statamic\Facades\CP\Nav;
+use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +36,45 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Route::pushMiddlewareToGroup('statamic.cp.authenticated', \App\Http\Middleware\EnforceCpCollectionOwnership::class);
+        Gate::policy(\Statamic\Contracts\Entries\Collection::class, \App\Policies\ScopedCollectionPolicy::class);
+        Gate::policy(\Statamic\Contracts\Entries\Entry::class, \App\Policies\ScopedEntryPolicy::class);
+
+        EntriesIndexQuery::hook('query', function ($payload, $next) {
+            $scope = app(\App\Services\Platform\CpOperatorScope::class);
+            $handles = $scope->blueprintHandlesForCollection(request()->user(), $payload->collection->handle());
+            if ($handles !== null) {
+                $payload->query->whereIn('blueprint', $handles);
+            }
+            return $next($payload);
+        });
+
+        Event::listen(EntrySaving::class, function (EntrySaving $event): void {
+            if (! request()->is('cp/*')) {
+                return;
+            }
+            abort_unless(app(\App\Services\Platform\CpOperatorScope::class)->canEntry(
+                request()->user(), $event->entry->collectionHandle(), $event->entry->blueprint()?->handle(),
+            ), 403);
+        });
+
+        Nav::extend(function ($nav): void {
+            if (\Statamic\Facades\User::current()?->isSuper()) {
+                return;
+            }
+            foreach ([
+                'Content' => ['Collections', 'Navigation', 'Taxonomies', 'Assets', 'Globals'],
+                'Fields' => ['Blueprints', 'Fieldsets'],
+                'Tools' => ['Forms', 'Updates', 'Addons', 'Utilities'],
+                'Settings' => ['Site'],
+                'Users' => ['Users', 'Groups', 'Permissions'],
+            ] as $section => $items) {
+                foreach ($items as $item) {
+                    $nav->remove($section, $item);
+                }
+            }
+        });
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ProvisionStatamicUser::class,
