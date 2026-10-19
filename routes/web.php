@@ -1,7 +1,11 @@
 <?php
 
 use App\Http\Controllers\Public\ElectionLocationController;
+use App\Http\Controllers\Public\FocalPointApplicationController;
 use App\Http\Controllers\Public\ObserverApplicationPageController;
+use App\Http\Controllers\Public\ObserverViolationReportController;
+use App\Http\Controllers\Public\ObserverViolationTestPageController;
+use App\Http\Controllers\Public\OsunPollingUnitController;
 use App\Http\Controllers\Public\PreferencesController;
 use App\Http\Controllers\Public\SubscriptionFormController;
 use App\Http\Controllers\Public\UnsubscribeController;
@@ -40,6 +44,18 @@ Route::get('/', function () {
 
     return view('landing.index', compact('siteLogo'));
 })->name('landing');
+
+Route::prefix('applications/2027-state-focal-points')->name('focal-points.applications.')->group(function () {
+    Route::get('/', [FocalPointApplicationController::class, 'show'])->name('show');
+    Route::post('/', [FocalPointApplicationController::class, 'store'])
+        ->middleware('throttle:5,1')->name('store');
+    Route::get('/locations/states', [FocalPointApplicationController::class, 'states'])
+        ->middleware('throttle:60,1')->name('locations.states');
+    Route::get('/locations/states/{state}/lgas', [FocalPointApplicationController::class, 'lgas'])
+        ->whereNumber('state')->middleware('throttle:60,1')->name('locations.lgas');
+    Route::get('/locations/states/{state}/lgas/{lga}/wards', [FocalPointApplicationController::class, 'wards'])
+        ->whereNumber('state')->whereNumber('lga')->middleware('throttle:60,1')->name('locations.wards');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -84,6 +100,22 @@ Route::post('/subscribe/{form}', [SubscriptionFormController::class, 'submit'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->middleware('throttle:10,1')
     ->name('newsletter.forms.submit');
+
+Route::prefix('observer-violations')->name('observer-violations.')->group(function () {
+    Route::get('/', ObserverViolationTestPageController::class)->name('index');
+    Route::get('/test', ObserverViolationTestPageController::class)->name('test');
+
+    Route::get('/osun/lgas', [OsunPollingUnitController::class, 'lgas'])
+        ->middleware('throttle:60,1')->name('locations.lgas');
+    Route::get('/osun/wards', [OsunPollingUnitController::class, 'wards'])
+        ->middleware('throttle:60,1')->name('locations.wards');
+    Route::get('/osun/polling-units', [OsunPollingUnitController::class, 'pollingUnits'])
+        ->middleware('throttle:60,1')->name('locations.polling-units');
+
+    Route::post('/reports', [ObserverViolationReportController::class, 'store'])
+        ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+        ->middleware('throttle:10,1')->name('reports.store');
+});
 
 // Elastic Email webhook endpoints — public, no CSRF.
 // Some provider configurations send real webhook events as GET query params,

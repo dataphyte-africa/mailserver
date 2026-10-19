@@ -14,12 +14,19 @@ use Illuminate\Support\ServiceProvider;
 use Statamic\Facades\CP\Nav;
 use Statamic\Facades\Form;
 use Statamic\Facades\GlobalSet;
+use Statamic\Facades\Collection as StatamicCollection;
+use Statamic\Events\EntryBlueprintFound;
 use Statamic\Events\EntrySaving;
 use Statamic\Events\FormSaved;
 use Statamic\Statamic;
 
 class NewsletterServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->singleton(\App\Services\Newsletter\NewsletterEntryProduct::class);
+    }
+
     public function boot(): void
     {
         $this->registerMorphMap();
@@ -27,9 +34,44 @@ class NewsletterServiceProvider extends ServiceProvider
         $this->registerFormConfig();
         $this->registerFormSyncListener();
         $this->registerEntryFeedSyncListener();
+        $this->registerNewsletterProductColumn();
         $this->registerCpNav();
         $this->registerRoutes();
         $this->registerCpStyles();
+    }
+
+    protected function registerNewsletterProductColumn(): void
+    {
+        $handles = app(CollectionRegistry::class)->handles();
+
+        StatamicCollection::computed($handles, 'newsletter_product_label', function ($entry) {
+            return app(\App\Services\Newsletter\NewsletterEntryProduct::class)
+                ->find($entry->collectionHandle(), $entry->blueprint()?->handle())?->name ?? 'Unmapped';
+        });
+
+        Event::listen(EntryBlueprintFound::class, function (EntryBlueprintFound $event) use ($handles): void {
+            $namespace = $event->blueprint->namespace();
+            if (! str_starts_with((string) $namespace, 'collections.')) {
+                return;
+            }
+
+            $collection = substr($namespace, strlen('collections.'));
+            if (! in_array($collection, $handles, true)) {
+                return;
+            }
+
+            $event->blueprint->ensureField('newsletter_product_label', [
+                'type' => 'text',
+                'display' => 'Product',
+                'listable' => true,
+                'visibility' => 'hidden',
+            ], 'main');
+            $event->blueprint->ensureField('hero_image_override_url', [
+                'type' => 'text',
+                'display' => 'One-time Hero Image URL',
+                'instructions' => 'Upload a replacement above, or enter an HTTPS image URL for this issue only.',
+            ], 'main');
+        });
     }
 
     /**
@@ -208,6 +250,18 @@ class NewsletterServiceProvider extends ServiceProvider
     protected function registerCpNav(): void
     {
         Nav::extend(function ($nav) {
+            if (! \Statamic\Facades\User::current()?->isSuper()) {
+                $nav->content('Create Newsletter')
+                    ->section('Newsletter')
+                    ->url(cp_route('newsletter.entries.create'))
+                    ->icon('add-circle');
+
+                $nav->content('All Newsletters')
+                    ->section('Newsletter')
+                    ->url(cp_route('newsletter.entries.index'))
+                    ->icon('collections');
+            }
+
             $nav->content('Campaigns')
                 ->section('Newsletter')
                 ->url(cp_route('newsletter.campaigns.index'))
@@ -238,7 +292,10 @@ class NewsletterServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         Statamic::pushCpRoutes(function () {
-            \Route::name('newsletter.')->prefix('newsletter')->group(function () {
+            \Route::name('newsletter.')->prefix('newsletter')->middleware(\App\Http\Middleware\EnforceCpOwnership::class)->group(function () {
+
+                \Route::get('/create', [\App\Http\Controllers\CP\Newsletter\NewsletterEntryController::class, 'create'])->name('entries.create');
+                \Route::get('/all', [\App\Http\Controllers\CP\Newsletter\NewsletterEntryController::class, 'index'])->name('entries.index');
 
                 // Subscribers
                 \Route::prefix('subscribers')->name('subscribers.')->group(function () {

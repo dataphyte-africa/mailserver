@@ -3930,3 +3930,22 @@ Campaign `17` was not failing because the logged-in user lacked `super` authorit
 ### Guardrail
 
 This does not allow editing unowned campaigns directly. It lets a super admin repair ownership first, then the normal v2 edit and workflow guards continue to apply.
+
+## Coordinator Implementation - 2026-10-16 - CP Organisation And Product Isolation
+
+- Added one relational CP scope service: active organisation assignments include their active products; direct product assignments remain product-specific; only Statamic super admins bypass scope.
+- Added a super-admin Operator Access CP page to assign and revoke organisation/product scope for Statamic users while keeping roles responsible for capabilities.
+- Scoped custom CP campaign, group, subscriber, analytics, dashboard widget, hosted form, and organisation-domain lists; guarded direct detail, action, export, and submission routes.
+- Restricted native Statamic collection/entry policy and collection routes to product-owned collection handles for non-super users.
+- Filtered native entry indexes and campaign entry choices by product blueprint. Product-only users cannot use Statamic's collection-wide entry creation chooser; global native areas without ownership are super-admin-only.
+- Limited provider webhook logs and global subscriber erase/export/delete to super admins because those records are not safely product-owned. Shared subscriber profiles cannot be edited by a product operator.
+- Verification: `tests/Feature/CpOperatorIsolationTest.php` covers two organisations, cross-scope direct routes, super-admin scope reassignment, and access revocation. The full suite passed locally: `php artisan test --compact --no-ansi` (`245 tests`, `810 assertions`). Legacy direct-controller tests now declare a super-admin request context instead of relying on implicit global access.
+- Remaining acceptance: verify one real non-super Statamic CP login with an organisation assignment and one with only a product assignment, including native collection entry lists; production role/capability configuration remains separate from these ownership grants.
+
+### Operator Access UI And CP Login Follow-up
+
+- Separated inherited organisation products from additional direct product grants in the CP UI. Selecting an organisation now hides and clears its product checkboxes; saving also deactivates redundant same-organisation direct grants server-side and displays success feedback.
+- Added the non-super `scoped_operator` Statamic role with `access cp` and native newsletter collection view/create/edit capabilities. Assigned it to Chinenye after confirming the unauthorized CP page was caused by missing `access cp`.
+- Normalized Chinenye's four redundant direct Insight product grants to inactive. Read-only verification confirmed her effective access remains Dataphyte Insight's four active products, with no other organisation or direct product grant.
+- Browser acceptance remains: sign out and sign in as Chinenye, then check the CP dashboard, native Insight collection, and scoped custom pages. The role does not yet implement the full action-level permission matrix for every custom CP operation.
+- Verification: `php artisan test --compact --no-ansi` passed with `246 tests` and `815 assertions`; a direct role check confirms Chinenye can `access cp` without Super Admin and has only Dataphyte Insight's four active products in effective scope.
