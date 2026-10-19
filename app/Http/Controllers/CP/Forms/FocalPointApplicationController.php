@@ -16,7 +16,7 @@ class FocalPointApplicationController
     public function approveTerms(FocalPointApplicationContent $content): RedirectResponse
     {
         $this->assertSuper();
-        abort_unless($content->canApprove(), 422, 'Replace the draft payment placeholder before approving terms.');
+        abort_unless($content->canApprove(), 422, 'Add Terms of Reference before approving them.');
 
         $variables = GlobalSet::findByHandle('focal_point_application')?->inDefaultSite();
         abort_unless($variables, 404);

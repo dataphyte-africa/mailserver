@@ -61,7 +61,8 @@ class FocalPointApplicationTest extends TestCase
             ->assertSee('Personal information')
             ->assertSee('Experience')
             ->assertSee('Coordination')
-            ->assertSee('Terms');
+            ->assertSee('Terms')
+            ->assertDontSee('Applications are reviewed by authorised staff only.');
 
         $this->getJson(route('focal-points.applications.locations.states'))
             ->assertOk()->assertJsonCount(2, 'data')
@@ -323,6 +324,12 @@ class FocalPointApplicationTest extends TestCase
         $this->withoutMiddleware(Authorize::class);
         $admin = StatamicUser::findByEmail('admin@mailserver.test');
         $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
+        $this->post(cp_route('focal-point-applications.approve-terms'))->assertRedirect();
+        $this->assertTrue(app(FocalPointApplicationContent::class)->torApproved());
+
+        $variables->data([...$variables->data()->toArray(), 'tor_html' => '<p>The payment amount and breakdown will be inserted only after confirmation.</p>']);
+        $variables->save();
+        $this->assertTrue(app(FocalPointApplicationContent::class)->canApprove());
         $this->post(cp_route('focal-point-applications.approve-terms'))->assertRedirect();
         $this->assertTrue(app(FocalPointApplicationContent::class)->torApproved());
 

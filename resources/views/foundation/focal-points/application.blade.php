@@ -133,7 +133,6 @@
             <div class="actions"><button type="button" class="secondary" id="back-button" hidden>Back</button><button type="button" id="next-button">Continue</button><button type="submit" id="submit-button" @disabled(! $isReady) hidden>Submit application</button></div>
         </form>
     @endif
-    <p class="foot">Dataphyte Foundation · Applications are reviewed by authorised staff only.</p>
 </main>
 @if($isOpen && !session('application_received'))
 <script>

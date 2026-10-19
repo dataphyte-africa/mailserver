@@ -71,6 +71,6 @@ class FocalPointApplicationContent
     {
         $html = $this->torHtml();
 
-        return filled(strip_tags($html)) && ! str_contains($html, 'will be inserted only after confirmation');
+        return filled(strip_tags($html));
     }
 }
