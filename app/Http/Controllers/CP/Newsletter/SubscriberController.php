@@ -9,6 +9,7 @@ use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\PendingSubscriberLifecycleService;
 use App\Services\Newsletter\SubscriberEngagementService;
 use App\Services\Newsletter\SubscriptionFormService;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -25,13 +26,16 @@ class SubscriberController extends Controller
 
     public function index(Request $request)
     {
-        $query = Subscriber::with('subGroups.group')
+        $scope = app(CpOperatorScope::class);
+        $productIds = $scope->productIds($request->user());
+        $query = $scope->subscriberQuery($request->user())
+            ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))), 'subGroups.group'])
             ->withCount([
-                'campaignSends as campaigns_count',
-                'campaignSends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
-                'campaignSends as failed_count' => fn ($q) => $q->whereIn('status', ['failed', 'bounced']),
-                'campaignSends as opened_count' => fn ($q) => $q->whereNotNull('opened_at'),
-                'campaignSends as clicked_count' => fn ($q) => $q->whereNotNull('clicked_at'),
+                'campaignSends as campaigns_count' => fn ($q) => $this->scopeSends($q, $request),
+                'campaignSends as delivered_count' => fn ($q) => $this->scopeSends($q, $request)->whereIn('status', ['delivered', 'opened', 'clicked']),
+                'campaignSends as failed_count' => fn ($q) => $this->scopeSends($q, $request)->whereIn('status', ['failed', 'bounced']),
+                'campaignSends as opened_count' => fn ($q) => $this->scopeSends($q, $request)->whereNotNull('opened_at'),
+                'campaignSends as clicked_count' => fn ($q) => $this->scopeSends($q, $request)->whereNotNull('clicked_at'),
             ]);
 
         // Filters
@@ -41,7 +45,7 @@ class SubscriberController extends Controller
 
         if ($request->filled('sub_group')) {
             $query->whereHas('subGroups', fn ($q) =>
-                $q->where('subscriber_sub_groups.id', $request->sub_group)
+                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))
             );
         }
 
@@ -55,6 +59,9 @@ class SubscriberController extends Controller
         }
 
         $sort = $request->string('sort')->value() ?: 'created_at';
+        if (! $scope->isSuper($request->user()) && in_array($sort, ['engagement_rating', 'engagement_score'], true)) {
+            $sort = 'created_at';
+        }
         $direction = strtolower($request->string('direction')->value() ?: 'desc');
         $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
 
@@ -90,11 +97,23 @@ class SubscriberController extends Controller
         }
 
         $subscribers = $query->paginate(50)->withQueryString();
+        if (! $scope->isSuper($request->user())) {
+            foreach ($subscribers as $item) {
+                $item->setAttribute('engagement_rating', null);
+                $item->setAttribute('engagement_score', null);
+                $item->setAttribute('last_engaged_at', null);
+            }
+        }
+        $isSuper = $scope->isSuper($request->user());
+        $sharedIds = $isSuper ? [] : Subscriber::query()
+            ->whereIn('id', collect($subscribers->items())->pluck('id')->all())
+            ->whereHas('allSubGroups.group', fn ($q) => $q->whereNotIn('product_id', $productIds))
+            ->pluck('id')->all();
         $subGroups   = $this->assignableSubGroups();
         $statuses = self::STATUSES;
         $pendingLifecycles = $this->pendingLifecycleSnapshots(collect($subscribers->items()));
 
-        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction', 'statuses', 'pendingLifecycles'));
+        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction', 'statuses', 'pendingLifecycles', 'isSuper', 'sharedIds'));
     }
 
     public function create()
@@ -142,30 +161,33 @@ class SubscriberController extends Controller
 
     public function show(Subscriber $subscriber)
     {
+        $scope = app(CpOperatorScope::class);
+        $productIds = $scope->productIds(request()->user());
         $this->pendingLifecycles()->syncState($subscriber);
-        $subscriber->load('subGroups.group')
+        $subscriber->load(['subGroups' => fn ($q) => $q->when(! $scope->isSuper(request()->user()), fn ($q) => $q->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))), 'subGroups.group'])
             ->loadCount([
-                'campaignSends as campaigns_count',
-                'campaignSends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
-                'campaignSends as failed_count' => fn ($q) => $q->whereIn('status', ['failed', 'bounced']),
-                'campaignSends as opened_count' => fn ($q) => $q->whereNotNull('opened_at'),
-                'campaignSends as clicked_count' => fn ($q) => $q->whereNotNull('clicked_at'),
+                'campaignSends as campaigns_count' => fn ($q) => $this->scopeSends($q, request()),
+                'campaignSends as delivered_count' => fn ($q) => $this->scopeSends($q, request())->whereIn('status', ['delivered', 'opened', 'clicked']),
+                'campaignSends as failed_count' => fn ($q) => $this->scopeSends($q, request())->whereIn('status', ['failed', 'bounced']),
+                'campaignSends as opened_count' => fn ($q) => $this->scopeSends($q, request())->whereNotNull('opened_at'),
+                'campaignSends as clicked_count' => fn ($q) => $this->scopeSends($q, request())->whereNotNull('clicked_at'),
             ]);
 
         $sendHistory = $subscriber->campaignSends()
+            ->when(! $scope->isSuper(request()->user()), fn ($q) => $q->whereHas('campaign', fn ($c) => $scope->restrictCampaigns($c, request()->user())))
             ->with('campaign')
             ->orderByRaw('COALESCE(clicked_at, opened_at, sent_at, created_at) desc')
             ->paginate(20);
 
         $recentLinkClicks = CampaignLinkClick::query()
-            ->whereHas('campaignSend', fn ($q) => $q->where('subscriber_id', $subscriber->id))
+            ->whereHas('campaignSend', fn ($q) => $this->scopeSends($q->where('subscriber_id', $subscriber->id), request()))
             ->with(['campaignSend.campaign'])
             ->latest('clicked_at')
             ->limit(20)
             ->get();
 
         $totalLinkClicks = CampaignLinkClick::query()
-            ->whereHas('campaignSend', fn ($q) => $q->where('subscriber_id', $subscriber->id))
+            ->whereHas('campaignSend', fn ($q) => $this->scopeSends($q->where('subscriber_id', $subscriber->id), request()))
             ->count();
 
         $stats = [
@@ -176,16 +198,26 @@ class SubscriberController extends Controller
             'total_clicked' => (int) $subscriber->clicked_count,
             'total_link_clicks' => (int) $totalLinkClicks,
             'last_engaged_at' => $subscriber->campaignSends()
+                ->when(! $scope->isSuper(request()->user()), fn ($q) => $q->whereHas('campaign', fn ($c) => $scope->restrictCampaigns($c, request()->user())))
                 ->selectRaw('MAX(COALESCE(clicked_at, opened_at)) as last_engaged_at')
                 ->value('last_engaged_at'),
         ];
         $pendingLifecycle = $this->pendingLifecycles()->snapshot($subscriber);
+        $isSuper = $scope->isSuper(request()->user());
+        $canEdit = $isSuper || ! $subscriber->allSubGroups()
+            ->whereHas('group', fn ($q) => $q->whereNotIn('product_id', $productIds))->exists();
+        if (! $isSuper) {
+            $subscriber->setAttribute('engagement_rating', null);
+            $subscriber->setAttribute('engagement_score', null);
+            $subscriber->setAttribute('last_engaged_at', null);
+        }
 
-        return view('newsletter.cp.subscribers.show', compact('subscriber', 'sendHistory', 'stats', 'recentLinkClicks', 'pendingLifecycle'));
+        return view('newsletter.cp.subscribers.show', compact('subscriber', 'sendHistory', 'stats', 'recentLinkClicks', 'pendingLifecycle', 'isSuper', 'canEdit'));
     }
 
     public function edit(Subscriber $subscriber)
     {
+        $this->assertExclusiveSubscriber($subscriber);
         $this->pendingLifecycles()->syncState($subscriber);
         $subscriber->load('subGroups');
         $subGroups = $this->assignableSubGroups();
@@ -197,6 +229,7 @@ class SubscriberController extends Controller
 
     public function update(Request $request, Subscriber $subscriber)
     {
+        $this->assertExclusiveSubscriber($subscriber);
         $statuses = $this->editableStatuses($subscriber);
         $validated = $request->validate([
             'email'      => 'required|email|unique:subscribers,email,' . $subscriber->id,
@@ -250,6 +283,7 @@ class SubscriberController extends Controller
 
     public function resendConfirmation(Subscriber $subscriber)
     {
+        $this->assertExclusiveSubscriber($subscriber);
         $decision = $this->pendingLifecycles()->resendDecision($subscriber);
 
         if (! ($decision['eligible'] ?? false)) {
@@ -273,6 +307,7 @@ class SubscriberController extends Controller
 
     public function destroy(Subscriber $subscriber)
     {
+        abort_unless(app(CpOperatorScope::class)->isSuper(request()->user()), 403);
         $subscriber->delete();
 
         return redirect()
@@ -285,10 +320,13 @@ class SubscriberController extends Controller
      */
     private function assignableSubGroups(): Collection
     {
+        $scope = app(CpOperatorScope::class);
+        $isSuper = $scope->isSuper(request()->user());
+        $productIds = $scope->productIds(request()->user());
         return SubscriberSubGroup::query()
             ->with('group')
             ->whereNull('archived_at')
-            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at')->when(! $isSuper, fn ($q) => $q->whereIn('product_id', $productIds)))
             ->orderBy('subscriber_group_id')
             ->get();
     }
@@ -303,10 +341,13 @@ class SubscriberController extends Controller
             ->unique()
             ->values();
 
+        $scope = app(CpOperatorScope::class);
+        $isSuper = $scope->isSuper(request()->user());
+        $productIds = $scope->productIds(request()->user());
         $assignableCount = SubscriberSubGroup::query()
             ->whereIn('id', $ids->all())
             ->whereNull('archived_at')
-            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at')->when(! $isSuper, fn ($q) => $q->whereIn('product_id', $productIds)))
             ->count();
 
         if ($assignableCount !== $ids->count()) {
@@ -346,5 +387,22 @@ class SubscriberController extends Controller
     private function pendingLifecycles(): PendingSubscriberLifecycleService
     {
         return app(PendingSubscriberLifecycleService::class);
+    }
+
+    private function scopeSends($query, Request $request)
+    {
+        $scope = app(CpOperatorScope::class);
+        return $scope->isSuper($request->user()) ? $query : $query->whereHas('campaign', fn ($campaign) => $scope->restrictCampaigns($campaign, $request->user()));
+    }
+
+    private function assertExclusiveSubscriber(Subscriber $subscriber): void
+    {
+        $scope = app(CpOperatorScope::class);
+        if ($scope->isSuper(request()->user())) {
+            return;
+        }
+        $productIds = $scope->productIds(request()->user());
+        abort_if($subscriber->allSubGroups()->whereHas('group', fn ($q) => $q->whereNotIn('product_id', $productIds))->exists(), 403,
+            'This subscriber also belongs to another product. Ask a super admin to update the shared profile.');
     }
 }

@@ -63,4 +63,28 @@ tabs:
               display: 'Foundation Brand Color'
               instructions: 'Header background color for Foundation emails.'
             handle: foundation_brand_color
+  academy:
+    display: 'Academy Newsletter'
+    sections:
+      -
+        fields:
+          -
+            field:
+              type: assets
+              width: 50
+              display: 'Academy Collection Logo'
+              restrict: false
+              container: assets
+              max_files: 1
+              instructions: 'Appears in the header of every Academy newsletter email.'
+              allow_uploads: true
+            handle: academy_logo
+          -
+            field:
+              type: color
+              width: 50
+              default: '#0f766e'
+              display: 'Academy Brand Color'
+              instructions: 'Header background color for Academy emails.'
+            handle: academy_brand_color
 title: 'Newsletter Settings'

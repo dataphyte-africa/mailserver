@@ -10,12 +10,20 @@ class BackfillHistoricalOwnership extends Command
 {
     protected $signature = 'newsletter:backfill-historical-ownership
         {--apply : Persist deterministic ownership updates}
+        {--collection= : Restrict the backfill to one configured collection handle}
         {--json : Emit JSON report}';
 
     protected $description = 'Backfill deterministic newsletter ownership without guessing ambiguous historical records.';
 
     public function handle(): int
     {
+        $collection = $this->option('collection');
+        if ($collection !== null && ! array_key_exists($collection, config('newsletter.collections', []))) {
+            $this->error("Unknown newsletter collection: {$collection}");
+
+            return self::FAILURE;
+        }
+
         $apply = (bool) $this->option('apply');
         $report = $apply
             ? DB::transaction(fn () => $this->buildReport(true))
@@ -68,7 +76,11 @@ class BackfillHistoricalOwnership extends Command
         $products = DB::table('products as p')
             ->join('organisations as o', 'o.id', '=', 'p.organisation_id')
             ->where('p.status', 'active')
-            ->where('o.status', 'active')
+            ->where('o.status', 'active');
+        if ($this->option('collection')) {
+            $products->where('p.primary_collection_handle', $this->option('collection'));
+        }
+        $products = $products
             ->get([
                 'p.id',
                 'p.name',
@@ -104,10 +116,14 @@ class BackfillHistoricalOwnership extends Command
         $updated = [];
         $skipped = [];
 
-        DB::table('subscriber_groups')
+        $query = DB::table('subscriber_groups')
             ->where(function ($query) {
                 $query->whereNull('organisation_id')->orWhereNull('product_id');
-            })
+            });
+        if ($this->option('collection')) {
+            $query->where('collection_handle', $this->option('collection'));
+        }
+        $query
             ->orderBy('id')
             ->get()
             ->each(function ($group) use ($products, $apply, &$updated, &$skipped) {
@@ -155,10 +171,14 @@ class BackfillHistoricalOwnership extends Command
         $updated = [];
         $skipped = [];
 
-        DB::table('campaigns')
+        $query = DB::table('campaigns')
             ->where(function ($query) {
                 $query->whereNull('organisation_id')->orWhereNull('product_id');
-            })
+            });
+        if ($this->option('collection')) {
+            $query->where('collection', $this->option('collection'));
+        }
+        $query
             ->orderBy('id')
             ->get()
             ->each(function ($campaign) use ($products, $apply, &$updated, &$skipped) {

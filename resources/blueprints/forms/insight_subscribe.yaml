@@ -24,6 +24,25 @@ tabs:
             handle: email
           -
             field:
+              type: text
+              display: Country
+            handle: country
+          -
+            field:
+              type: text
+              display: Profession
+            handle: profession
+          -
+            field:
+              type: select
+              display: Gender
+              options:
+                male: Male
+                female: Female
+                other: Other
+            handle: gender
+          -
+            field:
               type: select
               default: 'pocket-science,senorrita,marina-maitama,data-dive'
               display: Preference

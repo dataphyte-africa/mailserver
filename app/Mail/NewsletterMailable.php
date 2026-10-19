@@ -8,6 +8,7 @@ use App\Services\Newsletter\NewsletterPublicUrlService;
 use App\Services\Newsletter\CuratedRssStoriesService;
 use App\Services\Newsletter\RssFeedService;
 use App\Services\Newsletter\TemplateResolver;
+use App\Services\Newsletter\NewsletterBanner;
 use App\Services\Newsletter\UtmInjector;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -15,6 +16,7 @@ use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Queue\SerializesModels;
 use Statamic\Facades\AssetContainer;
 use Statamic\Facades\Entry;
@@ -58,6 +60,7 @@ class NewsletterMailable extends Mailable
         $entry    = $this->resolveEntry();
         $sender   = $this->campaign->sender();
         $settings = $this->newsletterSettings();
+        $organisation = $this->campaign->organisation;
 
         // Resolve which Blade template to render
         $template = app(TemplateResolver::class)->resolve($entry, $this->campaign->collection);
@@ -67,12 +70,29 @@ class NewsletterMailable extends Mailable
         $collectionKey   = str_replace('_newsletters', '', $collection); // insight | foundation
         $footerPartial   = 'emails.partials.' . str_replace('_', '-', $collectionKey) . '.footer';
         $collectionConfig = config("newsletter.collections.{$collection}", []);
-        $collectionLogo  = $this->resolveAssetUrl($settings["{$collectionKey}_logo"] ?? null);
+        $collectionLogo  = $this->resolveAssetUrl($settings["{$collectionKey}_logo"] ?? null)
+            ?: ($organisation?->logo_path ? url(Storage::disk('public')->url($organisation->logo_path)) : null);
         $headerColor     = $settings["{$collectionKey}_brand_color"]
+                            ?? $organisation?->brand_primary_color
                             ?? config("newsletter.collections.{$collection}.brand_color", '#1a1a2e');
+        $footerConfig = $collectionConfig['footer'] ?? [];
+        if ($organisation?->social_links) {
+            $footerConfig['social_links'] = $organisation->social_links;
+        }
+        if ($organisation && ($organisation->addresses !== null || $organisation->postal_address)) {
+            $footerConfig['offices'] = $organisation->publicAddresses();
+        }
+        if ($organisation?->website_url) {
+            $footerConfig['website_url'] = $organisation->website_url;
+        }
+        if ($organisation?->brand_secondary_color) {
+            $footerConfig['secondary_color'] = $organisation->brand_secondary_color;
+        }
 
         // Hero image
-        $heroUrl = $this->resolveAssetUrl($entry?->get('hero_image'));
+        $heroUrl = app(NewsletterBanner::class)->imageUrl($entry?->get('hero_image_override_url'))
+            ?: $this->resolveAssetUrl($entry?->get('hero_image'))
+            ?: app(NewsletterBanner::class)->defaultUrl($this->campaign->product, $organisation);
 
         // Inject UTM into bard content, then replace subscriber merge tags
         $rawContent = $entry?->get('content') ?? '';
@@ -124,6 +144,7 @@ class NewsletterMailable extends Mailable
                 'subject'            => $this->envelope()->subject,
                 'preheader'          => $entry?->get('preheader') ?? '',
                 'heroImageUrl'       => $heroUrl,
+                'heroImageLinkUrl'   => app(NewsletterBanner::class)->linkUrl($entry?->get('hero_image_link_url')),
                 'content'            => $content,
                 'introContent'       => $marinaMaitamaSections['intro_html'],
                 'marinaContent'      => $marinaMaitamaSections['marina_html'],
@@ -148,9 +169,11 @@ class NewsletterMailable extends Mailable
                 'sentDate'           => $this->campaign->sent_at?->format('F j, Y') ?? now()->format('F j, Y'),
                 'collectionLogo'     => $collectionLogo,
                 'headerColor'        => $headerColor,
-                'footerConfig'       => $collectionConfig['footer'] ?? [],
+                'footerConfig'       => $footerConfig,
                 'footerPartial'      => $footerPartial,
                 'newsletterSettings' => $settings,
+                'ctaText'            => $entry?->get('cta_text') ?? null,
+                'ctaUrl'             => app(NewsletterBanner::class)->linkUrl($entry?->get('cta_url')),
                 'foundationCtaText'  => $entry?->get('cta_text') ?? null,
                 'foundationCtaUrl'   => $entry?->get('cta_url') ?? null,
                 'unsubscribeUrl'     => $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign),

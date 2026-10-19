@@ -20,6 +20,7 @@ class ProductFormSubmissionController
 
     public function index(Request $request, ProductForm $productForm): View
     {
+        $this->assertWorkspaceAccess($request, $productForm);
         abort_if(! $this->products->canAccessForm($request->user(), $productForm), 403, 'Hosted form is outside your active form scope.');
 
         $submissions = $this->forms->submissions($productForm);
@@ -29,6 +30,7 @@ class ProductFormSubmissionController
 
     public function export(Request $request, ProductForm $productForm): Response
     {
+        $this->assertWorkspaceAccess($request, $productForm);
         abort_if(! $this->products->canAccessForm($request->user(), $productForm), 403, 'Hosted form is outside your active form scope.');
 
         $content = $this->forms->csvContent($productForm);
@@ -41,6 +43,7 @@ class ProductFormSubmissionController
 
     public function transition(Request $request, ProductForm $productForm, ProductFormSubmission $submission): RedirectResponse
     {
+        $this->assertWorkspaceAccess($request, $productForm);
         abort_if(! $this->products->canAccessForm($request->user(), $productForm), 403, 'Hosted form is outside your active form scope.');
 
         $validated = $request->validate([
@@ -52,5 +55,12 @@ class ProductFormSubmissionController
         return redirect()
             ->back()
             ->with('success', 'Submission status updated.');
+    }
+
+    private function assertWorkspaceAccess(Request $request, ProductForm $form): void
+    {
+        $isSubscription = str_contains((string) $request->route()?->getName(), '.subscription-forms.');
+        abort_if(($form->mode === 'subscription') !== $isSubscription, 403);
+        abort_if(! $isSubscription && ! app(\App\Services\Platform\CpOperatorScope::class)->isSuper($request->user()), 403);
     }
 }

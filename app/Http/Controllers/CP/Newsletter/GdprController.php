@@ -5,6 +5,7 @@ namespace App\Http\Controllers\CP\Newsletter;
 use App\Http\Controllers\Controller;
 use App\Models\CampaignLinkClick;
 use App\Models\Subscriber;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,6 +26,7 @@ class GdprController extends Controller
 
     public function export(Subscriber $subscriber)
     {
+        $this->assertSuper();
         $totalLinkClicks = CampaignLinkClick::query()
             ->whereHas('campaignSend', fn ($q) => $q->where('subscriber_id', $subscriber->id))
             ->count();
@@ -102,6 +104,7 @@ class GdprController extends Controller
 
     public function eraseForm(Subscriber $subscriber)
     {
+        $this->assertSuper();
         abort_if($subscriber->status === 'erased', 404);
 
         return view('newsletter.cp.subscribers.gdpr-erase', compact('subscriber'));
@@ -113,6 +116,7 @@ class GdprController extends Controller
 
     public function erase(Request $request, Subscriber $subscriber)
     {
+        $this->assertSuper();
         $request->validate([
             'confirm' => 'required|in:ERASE',
         ], [
@@ -140,5 +144,10 @@ class GdprController extends Controller
 
         return redirect(cp_route('newsletter.subscribers.index'))
             ->with('success', "Subscriber #{$subscriber->id} data has been erased.");
+    }
+
+    private function assertSuper(): void
+    {
+        abort_unless(app(CpOperatorScope::class)->isSuper(request()->user()), 403);
     }
 }

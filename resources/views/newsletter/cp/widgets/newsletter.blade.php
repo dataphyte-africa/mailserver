@@ -327,6 +327,8 @@
     <div class="newsletter-widget-footer">
         <a href="{{ cp_route('newsletter.campaigns.index') }}" class="newsletter-widget-link">All campaigns</a>
         <a href="{{ cp_route('newsletter.subscribers.index') }}" class="newsletter-widget-link">Subscribers</a>
-        <a href="{{ cp_route('newsletter.analytics.webhooks') }}" class="newsletter-widget-link">Webhook log</a>
+        @if(app(\App\Services\Platform\CpOperatorScope::class)->isSuper(request()->user()))
+            <a href="{{ cp_route('newsletter.analytics.webhooks') }}" class="newsletter-widget-link">Webhook log</a>
+        @endif
     </div>
 </div>

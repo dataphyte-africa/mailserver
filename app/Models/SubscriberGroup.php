@@ -19,12 +19,14 @@ class SubscriberGroup extends Model
         'slug',
         'collection_handle',
         'description',
+        'is_public_preference',
         'archived_at',
         'archived_by',
     ];
 
     protected $casts = [
         'archived_at' => 'datetime',
+        'is_public_preference' => 'boolean',
     ];
 
     public function organisation(): BelongsTo

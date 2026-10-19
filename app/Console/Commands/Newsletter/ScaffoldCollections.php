@@ -10,6 +10,7 @@ use Statamic\Facades\GlobalSet;
 use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Facades\Term;
+use Symfony\Component\Yaml\Yaml;
 
 class ScaffoldCollections extends Command
 {
@@ -33,6 +34,7 @@ class ScaffoldCollections extends Command
         $this->scaffoldNewsletterSettings();
         $this->scaffoldCollection('insight_newsletters',    'Insight Newsletters',    '/newsletters/insight/{slug}');
         $this->scaffoldCollection('foundation_newsletters', 'Foundation Newsletters', '/newsletters/foundation/{slug}');
+        $this->scaffoldCollection('academy_newsletters',    'Academy Newsletters',    '/newsletters/academy/{slug}');
         $this->scaffoldCollection('policy_point_newsletters', 'Policy Point Newsletters', '/newsletters/policy-point/{slug}');
 
         $this->newLine();
@@ -54,6 +56,11 @@ class ScaffoldCollections extends Command
                 array_map(fn ($b) => ['Blueprint', "foundation_newsletters.{$b['handle']}", $b['title']],
                     $this->blueprintDefinitions('foundation_newsletters')),
                 [
+                    ['Collection', 'academy_newsletters', 'Academy Newsletters'],
+                ],
+                array_map(fn ($b) => ['Blueprint', "academy_newsletters.{$b['handle']}", $b['title']],
+                    $this->blueprintDefinitions('academy_newsletters')),
+                [
                     ['Collection', 'policy_point_newsletters', 'Policy Point Newsletters'],
                 ],
                 array_map(fn ($b) => ['Blueprint', "policy_point_newsletters.{$b['handle']}", $b['title']],
@@ -68,7 +75,7 @@ class ScaffoldCollections extends Command
 
     private function dropExisting(): void
     {
-        foreach (['insight_newsletters', 'foundation_newsletters', 'policy_point_newsletters'] as $handle) {
+        foreach (['insight_newsletters', 'foundation_newsletters', 'academy_newsletters', 'policy_point_newsletters'] as $handle) {
             if ($col = Collection::findByHandle($handle)) {
                 // Delete all blueprints in the namespace first
                 $namespace = "collections.{$handle}";
@@ -241,6 +248,34 @@ class ScaffoldCollections extends Command
                                 ],
                             ],
                         ],
+                        'academy' => [
+                            'display' => 'Academy Newsletter',
+                            'fields' => [
+                                [
+                                    'handle' => 'academy_logo',
+                                    'field' => [
+                                        'type' => 'assets',
+                                        'display' => 'Academy Collection Logo',
+                                        'instructions' => 'Appears in the header of every Academy newsletter email.',
+                                        'container' => 'assets',
+                                        'max_files' => 1,
+                                        'allow_uploads' => true,
+                                        'restrict' => false,
+                                        'width' => 50,
+                                    ],
+                                ],
+                                [
+                                    'handle' => 'academy_brand_color',
+                                    'field' => [
+                                        'type' => 'color',
+                                        'display' => 'Academy Brand Color',
+                                        'instructions' => 'Header background color for Academy emails.',
+                                        'default' => '#0f766e',
+                                        'width' => 50,
+                                    ],
+                                ],
+                            ],
+                        ],
                         'policy_point' => [
                             'display' => 'Policy Point Newsletter',
                             'fields'  => [
@@ -293,6 +328,7 @@ class ScaffoldCollections extends Command
         $variables->data([
             'insight_brand_color'    => '#0d1b2a',
             'foundation_brand_color' => '#1b4332',
+            'academy_brand_color' => '#0f766e',
             'policy_point_brand_color' => '#3d405b',
         ]);
         $variables->save();
@@ -332,15 +368,17 @@ class ScaffoldCollections extends Command
 
         foreach ($this->blueprintDefinitions($collectionHandle) as $def) {
             $key = "{$namespace}.{$def['handle']}";
+            $source = resource_path("blueprints/collections/{$collectionHandle}/{$def['handle']}.yaml");
+            $contents = is_file($source) ? Yaml::parseFile($source) : $this->blueprintContents($def);
 
-            // Remove stale copy so we always get a clean definition
+            // Preserve the checked-in blueprint when the Statamic repository is database-backed.
             if ($existing = Blueprint::find($key)) {
                 $existing->delete();
             }
 
             Blueprint::make($def['handle'])
                 ->setNamespace($namespace)
-                ->setContents($this->blueprintContents($def))
+                ->setContents($contents)
                 ->save();
 
             $this->line("Created blueprint: {$key}");
@@ -361,11 +399,15 @@ class ScaffoldCollections extends Command
                 ['handle' => 'senorrita', 'title' => 'SenorRita', 'template' => 'emails.insight.senorrita'],
                 ['handle' => 'marina_maitama', 'title' => 'Marina and Maitama', 'template' => 'emails.insight.marina-maitama'],
                 ['handle' => 'data_dive', 'title' => 'Data Dive', 'template' => 'emails.insight.data-dive'],
+                ['handle' => 'insight_updates', 'title' => 'Insight Updates', 'template' => 'emails.insight.insight-update'],
             ],
             'foundation_newsletters' => [
                 ['handle' => 'weekly',          'title' => 'Weekly Update',   'template' => 'emails.foundation.weekly'],
                 ['handle' => 'activities',      'title' => 'Activities',      'template' => 'emails.foundation.activities'],
                 ['handle' => 'project_update',  'title' => 'Project Update',  'template' => 'emails.foundation.project-update'],
+            ],
+            'academy_newsletters' => [
+                ['handle' => 'datalab', 'title' => 'DataLab', 'template' => 'emails.academy.datalab'],
             ],
             'policy_point_newsletters' => [
                 ['handle' => 'policy_point', 'title' => 'Policy Point', 'template' => 'emails.policy_point.policy-point'],
@@ -418,6 +460,24 @@ class ScaffoldCollections extends Command
                                 'restrict'      => false,
                                 'allow_uploads' => true,
                                 'width'         => 100,
+                            ],
+                        ],
+                        [
+                            'handle' => 'hero_image_override_url',
+                            'field' => [
+                                'type' => 'text',
+                                'display' => 'One-time Hero Image URL',
+                                'instructions' => 'Upload a replacement above, or enter an HTTPS image URL for this issue only.',
+                                'width' => 100,
+                            ],
+                        ],
+                        [
+                            'handle' => 'hero_image_link_url',
+                            'field' => [
+                                'type' => 'text',
+                                'display' => 'Hero Image Link URL',
+                                'instructions' => 'Optional HTTPS link used when the hero image is clicked.',
+                                'width' => 100,
                             ],
                         ],
 

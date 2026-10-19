@@ -1,0 +1,141 @@
+tabs:
+  main:
+    display: Main
+    sections:
+      -
+        fields:
+          -
+            handle: title
+            field:
+              type: text
+              required: true
+          -
+            handle: belongs_to
+            field:
+              type: text
+              display: 'Belongs To'
+              default: DataLab
+              instructions: 'Derived from the blueprint/template mapping for editor clarity.'
+              read_only: true
+              listable: false
+          -
+            handle: subject
+            field:
+              type: text
+              width: 100
+              display: 'Subject Line'
+              listable: true
+              validate: required
+              instructions: 'The email subject line shown in the inbox.'
+          -
+            handle: preheader
+            field:
+              type: text
+              width: 100
+              display: Preheader
+              instructions: 'Short preview text after the subject in most inboxes (50-90 chars).'
+          -
+            handle: hero_image
+            field:
+              type: assets
+              width: 100
+              display: 'Hero Image'
+              restrict: false
+              container: assets
+              max_files: 1
+              allow_uploads: true
+          -
+            handle: hero_image_override_url
+            field:
+              type: text
+              display: One-time Hero Image URL
+              instructions: 'Upload a replacement above, or enter an HTTPS image URL for this issue only.'
+              width: 100
+          -
+            handle: hero_image_link_url
+            field:
+              type: text
+              width: 100
+              display: 'Hero Image Link URL'
+              instructions: 'Optional HTTPS link used when the hero image is clicked.'
+          -
+            handle: content
+            field:
+              type: bard
+              width: 100
+              buttons:
+                - h2
+                - h3
+                - bold
+                - italic
+                - underline
+                - unorderedlist
+                - orderedlist
+                - quote
+                - anchor
+                - image
+              display: Content
+              validate: required
+              save_html: true
+          -
+            handle: cta_text
+            field:
+              type: text
+              width: 100
+              display: 'CTA Text'
+              instructions: 'Button label shown at the bottom of the email.'
+          -
+            handle: cta_url
+            field:
+              type: text
+              width: 100
+              display: 'CTA URL'
+              instructions: 'Destination URL used by the CTA button.'
+              input_type: url
+          -
+            handle: template
+            field:
+              type: text
+              width: 100
+              default: emails.academy.datalab
+              display: 'Email Template'
+              listable: false
+              visibility: hidden
+  sidebar:
+    display: Settings
+    sections:
+      -
+        fields:
+          -
+            handle: audiences
+            field:
+              mode: select
+              type: terms
+              width: 100
+              display: 'Send To (Audiences)'
+              taxonomies:
+                - newsletter_audiences
+              instructions: 'Select the sub-groups that will receive this newsletter.'
+          -
+            handle: send_to_all
+            field:
+              type: toggle
+              width: 100
+              default: false
+              display: 'Send to All'
+              instructions: 'Override audience selection and send to every subscriber in this group.'
+          -
+            handle: author
+            field:
+              type: text
+              width: 100
+              display: 'Author / Byline'
+          -
+            handle: reply_to
+            field:
+              type: text
+              width: 100
+              display: 'Reply-To (override)'
+              input_type: email
+              instructions: 'Leave blank to use the collection default.'
+title: DataLab

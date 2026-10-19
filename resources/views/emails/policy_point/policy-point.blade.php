@@ -22,7 +22,9 @@
     @if($heroImageUrl)
         <tr>
             <td>
+                @if(!empty($heroImageLinkUrl))<a href="{{ $heroImageLinkUrl }}">@endif
                 <img src="{{ $heroImageUrl }}" alt="" style="width:100%;height:auto;display:block;border:0;">
+                @if(!empty($heroImageLinkUrl))</a>@endif
             </td>
         </tr>
     @endif

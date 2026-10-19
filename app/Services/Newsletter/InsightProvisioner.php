@@ -22,6 +22,7 @@ class InsightProvisioner
         ['handle' => 'senorrita', 'title' => 'SenorRita', 'template' => 'emails.insight.senorrita', 'feed_label' => 'SenorRita'],
         ['handle' => 'marina_maitama', 'title' => 'Marina and Maitama', 'template' => 'emails.insight.marina-maitama', 'feed_label' => 'Marina and Maitama'],
         ['handle' => 'data_dive', 'title' => 'Data Dive', 'template' => 'emails.insight.data-dive', 'feed_label' => 'Data Dive'],
+        ['handle' => 'insight_updates', 'title' => 'Insight Updates', 'template' => 'emails.insight.insight-update', 'feed_label' => 'Insight Updates'],
     ];
 
     private const PREFERENCES = [
@@ -66,24 +67,17 @@ class InsightProvisioner
     private function ensureCollectionBlueprints(): array
     {
         $namespace = 'collections.' . self::COLLECTION;
-        $expected = collect(self::BLUEPRINTS)->pluck('handle')->all();
-
-        foreach (Blueprint::in($namespace)->all() as $existing) {
-            if (! in_array($existing->handle(), $expected, true)) {
-                $existing->delete();
-            }
-        }
 
         $keys = [];
 
         foreach (self::BLUEPRINTS as $definition) {
             $key = $namespace . '.' . $definition['handle'];
-            $blueprint = Blueprint::find($key)
-                ?? Blueprint::make($definition['handle'])->setNamespace($namespace);
-
-            $blueprint
-                ->setContents($this->collectionBlueprintContents($definition))
-                ->save();
+            if (! Blueprint::find($key)) {
+                Blueprint::make($definition['handle'])
+                    ->setNamespace($namespace)
+                    ->setContents($this->collectionBlueprintContents($definition))
+                    ->save();
+            }
 
             $keys[] = $key;
         }
@@ -157,13 +151,13 @@ class InsightProvisioner
                 'newsletter_logo_url' => null,
                 'newsletter_brand_color' => null,
                 'newsletter_privacy_url' => null,
-                'newsletter_success_message' => 'Thanks for subscribing to Dataphyte Insight.',
-                'newsletter_send_confirmation_email' => true,
-                'newsletter_send_update_email' => false,
-                'newsletter_confirmation_subject' => 'Thank you! You are subscribed to receive Dataphyte Insight updates.',
-                'newsletter_resubscribe_subject' => 'Welcome Back! You have re-subscribed to Dataphyte Insight updates.',
-                'newsletter_confirmation_body' => "Thank you for subscribing to receive Dataphyte Insight updates.\n\nYou will now receive our latest newsletters based on the preference you selected.\n\nIf you ever want to change how often you hear from us or unsubscribe, you can use the links in the footer of any email we send.\n\nBest regards,\nDataphyte Insight",
-                'newsletter_resubscribe_body' => "Welcome back, and thank you for re-subscribing to Dataphyte Insight updates.\n\nYou will start receiving our latest newsletters again based on the preference you selected.\n\nIf you would like to manage your preferences or unsubscribe at any time, you can use the links in the footer of any email we send.\n\nBest regards,\nDataphyte Insight",
+                'newsletter_success_message' => $form->get('newsletter_success_message') ?? 'Thanks for subscribing to Dataphyte Insight.',
+                'newsletter_send_confirmation_email' => $form->get('newsletter_send_confirmation_email') ?? true,
+                'newsletter_send_update_email' => $form->get('newsletter_send_update_email') ?? false,
+                'newsletter_confirmation_subject' => $form->get('newsletter_confirmation_subject') ?? 'Thank you! You are subscribed to receive Dataphyte Insight updates.',
+                'newsletter_resubscribe_subject' => $form->get('newsletter_resubscribe_subject') ?? 'Welcome Back! You have re-subscribed to Dataphyte Insight updates.',
+                'newsletter_confirmation_body' => $form->get('newsletter_confirmation_body') ?? "Thank you for subscribing to receive Dataphyte Insight updates.\n\nYou will now receive our latest newsletters based on the preference you selected.\n\nIf you ever want to change how often you hear from us or unsubscribe, you can use the links in the footer of any email we send.\n\nBest regards,\nDataphyte Insight",
+                'newsletter_resubscribe_body' => $form->get('newsletter_resubscribe_body') ?? "Welcome back, and thank you for re-subscribing to Dataphyte Insight updates.\n\nYou will start receiving our latest newsletters again based on the preference you selected.\n\nIf you would like to manage your preferences or unsubscribe at any time, you can use the links in the footer of any email we send.\n\nBest regards,\nDataphyte Insight",
             ])
             ->save();
 
@@ -207,6 +201,24 @@ class InsightProvisioner
                                 'max_files' => 1,
                                 'restrict' => false,
                                 'allow_uploads' => true,
+                                'width' => 100,
+                            ],
+                        ],
+                        [
+                            'handle' => 'hero_image_override_url',
+                            'field' => [
+                                'type' => 'text',
+                                'display' => 'One-time Hero Image URL',
+                                'instructions' => 'Upload a replacement above, or enter an HTTPS image URL for this issue only.',
+                                'width' => 100,
+                            ],
+                        ],
+                        [
+                            'handle' => 'hero_image_link_url',
+                            'field' => [
+                                'type' => 'text',
+                                'display' => 'Hero Image Link URL',
+                                'instructions' => 'Optional HTTPS link used when the hero image is clicked.',
                                 'width' => 100,
                             ],
                         ],
@@ -457,6 +469,12 @@ class InsightProvisioner
                                         'input_type' => 'email',
                                     ],
                                 ],
+                                ['handle' => 'country', 'field' => ['type' => 'text', 'display' => 'Country']],
+                                ['handle' => 'profession', 'field' => ['type' => 'text', 'display' => 'Profession']],
+                                ['handle' => 'gender', 'field' => [
+                                    'type' => 'select', 'display' => 'Gender',
+                                    'options' => ['male' => 'Male', 'female' => 'Female', 'other' => 'Other'],
+                                ]],
                                 [
                                     'handle' => 'preference',
                                     'field' => [

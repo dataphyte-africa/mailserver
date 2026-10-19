@@ -10,6 +10,7 @@ use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Statamic\Facades\User as StatamicUser;
 use Tests\TestCase;
 
 /**
@@ -25,6 +26,9 @@ class GdprTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $user = StatamicUser::findByEmail('admin@mailserver.test');
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'));
+        $this->app['request']->setUserResolver(fn () => $user);
         $this->controller = new GdprController();
     }
 
@@ -84,6 +88,7 @@ class GdprTest extends TestCase
         $subscriber = Subscriber::factory()->create(['status' => 'active']);
 
         $request = Request::create('/gdpr/erase', 'DELETE', ['confirm' => 'WRONG']);
+        $request->setUserResolver(fn () => auth()->user());
 
         $this->expectException(ValidationException::class);
 
@@ -195,6 +200,7 @@ class GdprTest extends TestCase
     private function callErase(Subscriber $subscriber): void
     {
         $request = Request::create('/gdpr/erase', 'DELETE', ['confirm' => 'ERASE']);
+        $request->setUserResolver(fn () => auth()->user());
 
         try {
             $this->controller->erase($request, $subscriber);

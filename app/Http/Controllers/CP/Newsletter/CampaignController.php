@@ -19,6 +19,7 @@ use App\Services\Newsletter\CuratedRssStoriesService;
 use App\Services\Newsletter\RssFeedService;
 use App\Services\Newsletter\ScopedCampaignProductSelector;
 use App\Services\Newsletter\TemplateResolver;
+use App\Services\Platform\CpOperatorScope;
 use App\Support\Platform\Ownership\CampaignOwnershipWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,9 +35,9 @@ class CampaignController extends Controller
     /* Index                                                                */
     /* ------------------------------------------------------------------ */
 
-    public function index(Request $request)
+    public function index(Request $request, CpOperatorScope $scope)
     {
-        $query = Campaign::query()->latest();
+        $query = $scope->campaignQuery($request->user())->latest();
 
         if ($status = $request->input('status')) {
             $query->where('status', $status);
@@ -50,7 +51,11 @@ class CampaignController extends Controller
 
         return view('newsletter.cp.campaigns.index', [
             'campaigns'   => $campaigns,
-            'collections' => $this->collectionOptions(),
+            'collections' => $scope->isSuper($request->user())
+                ? $this->collectionOptions()
+                : array_intersect_key($this->collectionOptions(), array_flip(
+                    \App\Models\Product::query()->whereKey($scope->productIds($request->user()))->pluck('primary_collection_handle')->all()
+                )),
             'statuses'    => $this->statusOptions(),
         ]);
     }
@@ -78,7 +83,7 @@ class CampaignController extends Controller
             'collections' => array_intersect_key($collectionOptions, array_flip($scopedCollectionHandles)),
             'collectionMeta' => $this->collectionMeta(),
             'subGroups'   => $this->subGroupTree($scopedProducts->modelKeys()),
-            'entries'     => $this->allEntries(),
+            'entries'     => $this->allEntries($scopedCollectionHandles),
         ]);
     }
 
@@ -116,6 +121,8 @@ class CampaignController extends Controller
                 'product_id' => 'Select an active product in your scope that owns the chosen collection.',
             ]);
         }
+
+        $this->validateEntryForProduct($data['entry_id'] ?? null, $product);
 
         try {
             $audience = $audiences->validateForProduct(
@@ -376,6 +383,8 @@ class CampaignController extends Controller
             ]);
         }
 
+        $this->validateEntryForProduct($data['entry_id'] ?? null, $product);
+
         try {
             $audience = $audiences->validateForProduct(
                 $product,
@@ -542,16 +551,34 @@ class CampaignController extends Controller
         ]);
 
         $collection      = $campaign->collection ?? '';
+        $organisation    = $campaign->organisation;
         $collectionKey   = str_replace('_newsletters', '', $collection);
         $footerPartial   = 'emails.partials.' . str_replace('_', '-', $collectionKey) . '.footer';
         $collectionConfig = config("newsletter.collections.{$collection}", []);
-        $collectionLogo  = $this->campaignAssetUrl($settings["{$collectionKey}_logo"] ?? null);
+        $collectionLogo  = $this->campaignAssetUrl($settings["{$collectionKey}_logo"] ?? null)
+            ?: ($organisation?->logo_path ? url(\Illuminate\Support\Facades\Storage::disk('public')->url($organisation->logo_path)) : null);
         $headerColor     = $settings["{$collectionKey}_brand_color"]
+                            ?? $organisation?->brand_primary_color
                             ?? config("newsletter.collections.{$collection}.brand_color", '#1a1a2e');
+        $footerConfig = $collectionConfig['footer'] ?? [];
+        if ($organisation?->social_links) {
+            $footerConfig['social_links'] = $organisation->social_links;
+        }
+        if ($organisation && ($organisation->addresses !== null || $organisation->postal_address)) {
+            $footerConfig['offices'] = $organisation->publicAddresses();
+        }
+        if ($organisation?->website_url) {
+            $footerConfig['website_url'] = $organisation->website_url;
+        }
+        if ($organisation?->brand_secondary_color) {
+            $footerConfig['secondary_color'] = $organisation->brand_secondary_color;
+        }
 
         $template = app(TemplateResolver::class)->resolve($entry, $collection);
 
-        $heroUrl    = $this->campaignAssetUrl($entry?->get('hero_image'));
+        $heroUrl    = app(\App\Services\Newsletter\NewsletterBanner::class)->imageUrl($entry?->get('hero_image_override_url'))
+            ?: $this->campaignAssetUrl($entry?->get('hero_image'))
+            ?: app(\App\Services\Newsletter\NewsletterBanner::class)->defaultUrl($campaign->product, $organisation);
 
         $rawContent = $entry?->get('content') ?? '<p><em>(No content yet — link an entry to this campaign.)</em></p>';
         $previewMailable = new NewsletterMailable($campaign, $previewSubscriber, 'preview');
@@ -597,6 +624,7 @@ class CampaignController extends Controller
             'subject'             => $this->normalizeSubjectText($campaign->subject ?? '(No subject)'),
             'preheader'           => $entry?->get('preheader') ?? '',
             'heroImageUrl'        => $heroUrl,
+            'heroImageLinkUrl'    => app(\App\Services\Newsletter\NewsletterBanner::class)->linkUrl($entry?->get('hero_image_link_url')),
             'content'             => $content,
             'introContent'        => $marinaMaitamaSections['intro_html'],
             'marinaContent'       => $marinaMaitamaSections['marina_html'],
@@ -621,7 +649,7 @@ class CampaignController extends Controller
             'sentDate'            => now()->format('F j, Y'),
             'collectionLogo'      => $collectionLogo,
             'headerColor'         => $headerColor,
-            'footerConfig'        => $collectionConfig['footer'] ?? [],
+            'footerConfig'        => $footerConfig,
             'footerPartial'       => $footerPartial,
             'foundationCtaText'   => $entry?->get('cta_text') ?? null,
             'foundationCtaUrl'    => $entry?->get('cta_url') ?? null,
@@ -794,10 +822,12 @@ class CampaignController extends Controller
         $entries = [];
 
         foreach ($collectionHandles ?? array_keys($this->collectionOptions()) as $collection) {
-            $collectionEntries = Entry::query()
-                ->where('collection', $collection)
-                ->orderBy('date', 'desc')
-                ->get();
+            $query = Entry::query()->where('collection', $collection);
+            $blueprints = app(CpOperatorScope::class)->blueprintHandlesForCollection(request()->user(), $collection);
+            if ($blueprints !== null) {
+                $query->whereIn('blueprint', $blueprints);
+            }
+            $collectionEntries = $query->orderBy('date', 'desc')->get();
 
             foreach ($collectionEntries as $entry) {
                 $entries[$collection][] = [
@@ -811,6 +841,21 @@ class CampaignController extends Controller
         }
 
         return $entries;
+    }
+
+    private function validateEntryForProduct(?string $entryId, \App\Models\Product $product): void
+    {
+        if (! filled($entryId)) {
+            return;
+        }
+
+        $entry = Entry::find($entryId);
+        if (! $entry || $entry->collectionHandle() !== $product->primary_collection_handle
+            || (filled($product->blueprint_handle) && $entry->blueprint()?->handle() !== $product->blueprint_handle)) {
+            throw ValidationException::withMessages([
+                'entry_id' => 'Select an entry from the selected product blueprint.',
+            ]);
+        }
     }
 
     private function registry(): CollectionRegistry

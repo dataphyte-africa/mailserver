@@ -548,8 +548,11 @@
                             @endif
                         </td>
                         <td class="subscriber-cp-text-right">
+                            @if(! in_array($subscriber->id, $sharedIds, true))
                             <a href="{{ cp_route('newsletter.subscribers.edit', $subscriber) }}"
                                class="subscriber-cp-link">Edit</a>
+                            @endif
+                            @if($isSuper)
                             <form method="POST"
                                   action="{{ cp_route('newsletter.subscribers.destroy', $subscriber) }}"
                                   class="subscriber-cp-inline-form"
@@ -557,6 +560,7 @@
                                 @csrf @method('DELETE')
                                 <button type="submit" class="subscriber-cp-link-danger">Delete</button>
                             </form>
+                            @endif
                         </td>
                     </tr>
                 @empty

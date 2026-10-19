@@ -18,6 +18,109 @@ use Tests\TestCase;
 
 class SubscriptionFormControllerTest extends TestCase
 {
+    public function test_insight_signup_uses_approved_product_audience_instead_of_legacy_group(): void
+    {
+        Mail::fake();
+        $legacy = SubscriberGroup::factory()->create([
+            'id' => 1, 'slug' => 'insight-subscribers', 'collection_handle' => 'insight_newsletters',
+            'organisation_id' => null, 'product_id' => null,
+        ]);
+        Blueprint::make('insight_subscribe')->setNamespace('forms')->setContents([
+            'sections' => ['main' => ['fields' => [
+                ['handle' => 'firstname', 'field' => ['type' => 'text', 'display' => 'Firstname']],
+                ['handle' => 'email', 'field' => ['type' => 'text', 'display' => 'Email', 'validate' => 'required|email']],
+                ['handle' => 'country', 'field' => ['type' => 'text', 'display' => 'Country']],
+                ['handle' => 'profession', 'field' => ['type' => 'text', 'display' => 'Profession']],
+                ['handle' => 'gender', 'field' => ['type' => 'select', 'display' => 'Gender', 'options' => [
+                    'male' => 'Male', 'female' => 'Female', 'other' => 'Other',
+                ]]],
+                ['handle' => 'preference', 'field' => [
+                    'type' => 'select', 'display' => 'Preference', 'multiple' => true,
+                    'options' => ['data-dive' => 'Data Dive', 'pocket-science' => 'Pocket Science'],
+                ]],
+            ]]],
+        ])->save();
+        Form::make('insight_subscribe')->title('Insight Subscribe')->store(true)->merge([
+            'newsletter_group' => $legacy->getKey(), 'newsletter_endpoint' => 'insight',
+            'newsletter_preference_field' => 'preference', 'newsletter_send_confirmation_email' => true,
+        ])->save();
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Insight', 'slug' => 'insight', 'status' => 'active',
+            'primary_collection_handle' => 'insight_newsletters',
+        ]);
+        $product = Product::query()->create([
+            'organisation_id' => $organisation->getKey(), 'name' => 'Data Dive',
+            'slug' => 'insight-newsletters-data-dive', 'status' => 'active', 'product_type' => 'newsletter',
+            'primary_collection_handle' => 'insight_newsletters',
+        ]);
+        $group = SubscriberGroup::factory()->create([
+            'organisation_id' => $organisation->getKey(), 'product_id' => $product->getKey(),
+            'collection_handle' => 'insight_newsletters', 'is_public_preference' => true,
+        ]);
+        $subGroup = SubscriberSubGroup::factory()->create([
+            'subscriber_group_id' => $group->getKey(), 'slug' => 'newsletter', 'name' => 'Newsletter',
+        ]);
+        $this->assertSame('insight_newsletters', $organisation->primary_collection_handle);
+        $this->assertSame('insight_newsletters', $product->primary_collection_handle);
+        $this->assertTrue((bool) $group->is_public_preference);
+        $this->assertNull($subGroup->archived_at);
+        $this->assertSame('data-dive', app(\App\Services\Newsletter\SubscriptionFormService::class)->preferenceOptions(Form::find('insight_subscribe'))[0]['slug']);
+        $this->assertTrue(SubscriberGroup::query()->where('organisation_id', $organisation->getKey())->where('product_id', $product->getKey())->where('is_public_preference', true)->whereNull('archived_at')->exists());
+
+        $schema = $this->getJson(route('newsletter.forms.schema', ['form' => 'insight']))->assertOk()->json();
+        $this->assertNull($schema['group']);
+        $choices = collect($schema['fields'])->firstWhere('handle', 'preference')['options'];
+        $this->assertSame(['data-dive'], array_column($choices, 'value'));
+        $this->assertContains(['value' => 'NGA', 'label' => 'Nigeria'], collect($schema['fields'])->firstWhere('handle', 'country')['options']);
+        $this->get(route('newsletter.forms.show', ['form' => 'insight']))
+            ->assertOk()
+            ->assertSee('data-country-picker', false)
+            ->assertSee('data-country-search', false)
+            ->assertSee('name="country"', false)
+            ->assertSee('value="NGA"', false);
+
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'insight']), [
+            'firstname' => 'Ada', 'email' => 'insight@example.test', 'preference' => ['pocket-science'],
+        ])->assertUnprocessable();
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'insight']), [
+            'firstname' => 'Ada', 'email' => 'insight@example.test', 'preference' => ['data-dive'],
+            'country' => 'NGA', 'profession' => 'Reporter', 'gender' => 'female',
+        ])->assertOk()->assertJsonPath('status', 'subscribed');
+
+        $subscriber = Subscriber::query()->where('email', 'insight@example.test')->firstOrFail();
+        $this->assertSame('pending', $subscriber->status);
+        $this->assertTrue($subscriber->subGroups()->whereKey($subGroup->getKey())->exists());
+        $this->assertFalse($subscriber->subGroups()->where('subscriber_group_id', $legacy->getKey())->exists());
+        $submission = Form::find('insight_subscribe')->querySubmissions()->first();
+        $this->assertSame('NGA', $submission->data()->get('country'));
+        $this->assertSame(1, Form::find('insight_subscribe')->querySubmissions()->count());
+        Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
+    }
+
+    public function test_legacy_subscription_has_shareable_public_page_and_browser_submission(): void
+    {
+        Mail::fake();
+        $this->makePolicyPointForm();
+        $page = route('newsletter.forms.show', ['form' => 'policy-point']);
+
+        $this->get($page)->assertOk()
+            ->assertSee('Subscribe to Policy Point Subscribe')
+            ->assertSee('name="frequency"', false)
+            ->assertSee('value="monthly"', false);
+
+        $this->from($page)->post(route('newsletter.forms.submit', ['form' => 'policy-point']), [
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'browser@example.test',
+            'frequency' => 'monthly',
+        ])->assertRedirect($page)->assertSessionHas('legacy_subscribe_success');
+
+        $subscriber = Subscriber::query()->where('email', 'browser@example.test')->firstOrFail();
+        $this->assertSame('pending', $subscriber->status);
+        $this->assertTrue($subscriber->subGroups()->where('slug', 'monthly')->exists());
+        Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
+    }
+
     public function test_schema_endpoint_returns_newsletter_form_metadata(): void
     {
         $form = $this->makePolicyPointForm();
@@ -218,7 +321,13 @@ class SubscriptionFormControllerTest extends TestCase
     public function test_pending_subscriber_preference_update_does_not_activate_before_delivery(): void
     {
         Mail::fake();
-        $this->makePolicyPointForm();
+        $form = $this->makePolicyPointForm();
+        $product = $this->createPolicyPointProduct();
+        SubscriberGroup::query()->findOrFail($form->get('newsletter_group'))->update([
+            'organisation_id' => $product->organisation_id,
+            'product_id' => $product->id,
+            'is_public_preference' => true,
+        ]);
 
         $this->postJson(route('newsletter.forms.submit', ['form' => 'policy-point']), [
             'first_name' => 'Ada',
@@ -482,6 +591,7 @@ class SubscriptionFormControllerTest extends TestCase
             'name' => 'Dataphyte',
             'slug' => 'dataphyte',
             'default_domain' => 'org.example.test',
+            'primary_collection_handle' => 'policy_point_newsletters',
         ]);
 
         return Product::query()->create([

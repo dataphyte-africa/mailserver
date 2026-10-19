@@ -12,11 +12,20 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Validation\ValidationException;
+use Statamic\Facades\User as StatamicUser;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Tests\TestCase;
 
 class SubscriberArchiveAssignmentTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $user = StatamicUser::findByEmail('admin@mailserver.test');
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'));
+        $this->app['request']->setUserResolver(fn () => $user);
+    }
+
     public function test_create_form_only_lists_assignable_sub_groups(): void
     {
         $active = $this->createSubGroup();
@@ -243,7 +252,10 @@ class SubscriberArchiveAssignmentTest extends TestCase
      */
     private function request(string $method, array $parameters = [], array $files = []): Request
     {
-        return Request::create('/cp/newsletter/subscribers', $method, $parameters, [], $files);
+        $request = Request::create('/cp/newsletter/subscribers', $method, $parameters, [], $files);
+        $request->setUserResolver(fn () => auth()->user());
+
+        return $request;
     }
 
     private function csvUpload(string $content): UploadedFile

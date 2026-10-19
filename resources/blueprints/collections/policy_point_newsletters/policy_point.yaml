@@ -36,6 +36,20 @@ tabs:
               allow_uploads: true
             handle: hero_image
           -
+            handle: hero_image_override_url
+            field:
+              type: text
+              display: One-time Hero Image URL
+              instructions: 'Upload a replacement above, or enter an HTTPS image URL for this issue only.'
+              width: 100
+          -
+            handle: hero_image_link_url
+            field:
+              type: text
+              display: Hero Image Link URL
+              instructions: 'Optional HTTPS link used when the hero image is clicked.'
+              width: 100
+          -
             field:
               type: bard
               width: 100

@@ -127,4 +127,13 @@ class TemplateResolverTest extends TestCase
 
         $this->assertEquals('emails.foundation.weekly', $result);
     }
+
+    public function test_resolves_migrated_academy_and_insight_update_templates(): void
+    {
+        $academy = $this->entryStub('emails.academy.datalab', 'academy_newsletters', 'datalab');
+        $insight = $this->entryStub('emails.insight.insight-update', 'insight_newsletters', 'insight_updates');
+
+        $this->assertSame('emails.academy.datalab', $this->resolver->resolve($academy));
+        $this->assertSame('emails.insight.insight-update', $this->resolver->resolve($insight));
+    }
 }

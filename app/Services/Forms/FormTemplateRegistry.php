@@ -20,6 +20,10 @@ class FormTemplateRegistry
                 'mode' => 'data_collection',
                 'requires_review' => false,
             ],
+            'subscription_basic' => [
+                'mode' => 'subscription',
+                'requires_review' => false,
+            ],
         ];
     }
 

@@ -6,6 +6,7 @@
 <tr>
     <td style="background-color:#f6f2eb;padding:30px 32px;border-top:1px solid #e7ddd1;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            @if($socialLinks)
             <tr>
                 <td style="padding:0 0 18px;text-align:center;">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
@@ -13,15 +14,17 @@
                             @foreach ([
                                 'facebook' => ['label' => 'Facebook'],
                                 'twitter' => ['label' => 'Twitter'],
+                                'x' => ['label' => 'X'],
                                 'linkedin' => ['label' => 'LinkedIn'],
                                 'whatsapp' => ['label' => 'WhatsApp Channel'],
                                 'youtube' => ['label' => 'YouTube'],
                                 'instagram' => ['label' => 'Instagram'],
                                 'tiktok' => ['label' => 'TikTok'],
                             ] as $platform => $icon)
+                                @continue(empty($socialLinks[$platform]))
                                 <td style="padding:0 5px;">
-                                    <a href="{{ $socialLinks[$platform] ?? '#' }}" target="_blank" rel="noopener noreferrer" aria-label="{{ $icon['label'] }}" style="display:block;width:30px;height:30px;border-radius:15px;background-color:#ffffff;border:1px solid #ddd3c6;text-decoration:none;text-align:center;">
-                                        <img src="{{ asset('assets/emails/social/' . $platform . '.png') }}" alt="{{ $icon['label'] }}" width="16" height="16" style="display:block;width:16px;height:16px;border:0;margin:6px auto;">
+                                    <a href="{{ $socialLinks[$platform] }}" target="_blank" rel="noopener noreferrer" aria-label="{{ $icon['label'] }}" style="display:block;width:30px;height:30px;border-radius:15px;background-color:#ffffff;border:1px solid #ddd3c6;text-decoration:none;text-align:center;">
+                                        <img src="{{ asset('assets/emails/social/' . ($platform === 'x' ? 'twitter' : $platform) . '.png') }}" alt="{{ $icon['label'] }}" width="16" height="16" style="display:block;width:16px;height:16px;border:0;margin:6px auto;">
                                     </a>
                                 </td>
                             @endforeach
@@ -29,6 +32,7 @@
                     </table>
                 </td>
             </tr>
+            @endif
 
             <tr>
                 <td style="padding:0 0 14px;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.7;color:#6b7280;">
@@ -38,9 +42,9 @@
 
             <tr>
                 <td style="padding:0 0 22px;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#6b7280;">
-                    <a href="{{ $preferencesUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" style="color:#3d405b;text-decoration:underline;">Manage preferences</a>
+                    <a href="{{ $preferencesUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" style="color:{{ $footerConfig['secondary_color'] ?? '#3d405b' }};text-decoration:underline;">Manage preferences</a>
                     &nbsp;&middot;&nbsp;
-                    <a href="{{ $unsubscribeUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" style="color:#3d405b;text-decoration:underline;">Unsubscribe</a>
+                    <a href="{{ $unsubscribeUrl ?? '#' }}" target="_blank" rel="noopener noreferrer" style="color:{{ $footerConfig['secondary_color'] ?? '#3d405b' }};text-decoration:underline;">Unsubscribe</a>
                 </td>
             </tr>
 
@@ -48,9 +52,10 @@
                 <tr>
                     <td style="padding:0;">
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            @foreach(array_chunk($offices, 2) as $officeRow)
                             <tr>
-                                @foreach($offices as $office)
-                                    <td class="stack-column office-column" width="{{ floor(100 / count($offices)) }}%" valign="top" style="padding:12px 10px;border-top:1px solid #e7ddd1;text-align:left;">
+                                @foreach($officeRow as $office)
+                                    <td class="stack-column office-column" width="50%" valign="top" style="padding:12px 10px;border-top:1px solid #e7ddd1;text-align:left;">
                                         <p style="margin:0 0 6px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;font-weight:700;color:#1f2937;">
                                             {{ $office['label'] ?? '' }}
                                         </p>
@@ -60,6 +65,7 @@
                                     </td>
                                 @endforeach
                             </tr>
+                            @endforeach
                         </table>
                     </td>
                 </tr>
@@ -68,7 +74,7 @@
             <tr>
                 <td style="padding:18px 0 0;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#8a8f98;">
                     &copy; {{ date('Y') }}
-                    <a href="https://dataphyte.org" target="_blank" rel="noopener noreferrer" style="color:#8a8f98;text-decoration:underline;">{{ $fromName ?? config('app.name') }}</a>.
+                    <a href="{{ $footerConfig['website_url'] ?? 'https://dataphyte.org' }}" target="_blank" rel="noopener noreferrer" style="color:#8a8f98;text-decoration:underline;">{{ $fromName ?? config('app.name') }}</a>.
                     All rights reserved.
                 </td>
             </tr>

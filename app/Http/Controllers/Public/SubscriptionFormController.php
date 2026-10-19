@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Services\Newsletter\SubscriptionFormService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Statamic\Contracts\Forms\Form as StatamicForm;
 
@@ -17,7 +19,9 @@ class SubscriptionFormController extends Controller
     public function schema(string $form)
     {
         $resolved = $this->resolvePublicForm($form);
-        $this->forms->syncManagedSubGroups($resolved);
+        if (! $this->forms->isInsightCutover($resolved)) {
+            $this->forms->syncManagedSubGroups($resolved);
+        }
 
         return response()->json($this->forms->schema($resolved));
     }
@@ -40,8 +44,33 @@ class SubscriptionFormController extends Controller
 
         $payload = $fields->process()->values()->all();
 
+        if ($this->forms->isInsightCutover($resolved)) {
+            foreach (['country', 'profession', 'gender'] as $handle) {
+                if (array_key_exists($handle, $input)) {
+                    $payload[$handle] = $input[$handle];
+                }
+            }
+            Validator::make($payload, [
+                'country' => ['nullable', Rule::exists('countries', 'code')],
+                'profession' => ['nullable', 'string', 'max:255'],
+                'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
+            ])->validate();
+        }
+
         if (! filled($payload['email'] ?? null)) {
             throw ValidationException::withMessages(['email' => 'Email is required.']);
+        }
+
+        if ($this->forms->submissionMode($resolved) === 'subscription'
+            && $this->forms->preferenceFieldHandle($resolved)
+            && $this->forms->selectedPreferenceSlugs($resolved, $payload) === []) {
+            throw ValidationException::withMessages([
+                $this->forms->preferenceFieldHandle($resolved) ?: 'preferences' => 'Select at least one preference.',
+            ]);
+        }
+
+        if ($this->forms->isInsightCutover($resolved)) {
+            $this->forms->validateInsightSelection($resolved, $payload);
         }
 
         if ($this->forms->submissionMode($resolved) === 'application') {
@@ -103,6 +132,10 @@ class SubscriptionFormController extends Controller
                 'subscriber_id' => $subscriber->id,
                 'subscriber_group_id' => $result['subscriber_group_id'],
             ]);
+        }
+
+        if (! $request->expectsJson()) {
+            return redirect()->back()->with('legacy_subscribe_success', $result['message']);
         }
 
         return response()->json([

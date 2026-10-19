@@ -58,10 +58,12 @@
     @if(!empty($heroImageUrl))
     <tr>
         <td class="hero-image" style="padding:0;">
+            @if(!empty($heroImageLinkUrl))<a href="{{ $heroImageLinkUrl }}">@endif
             <img src="{{ $heroImageUrl }}"
                  alt="{{ $subject }}"
                  width="600"
                  style="width:100%;height:auto;display:block;">
+            @if(!empty($heroImageLinkUrl))</a>@endif
         </td>
     </tr>
     @endif

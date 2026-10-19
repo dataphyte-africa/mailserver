@@ -12,8 +12,8 @@
             </p>
         </div>
         <div class="form-platform-actions">
-            <a href="{{ cp_route('product-forms.index') }}" class="form-platform-button">Back to forms</a>
-            <a href="{{ cp_route('product-forms.submissions.export', $form) }}" class="form-platform-button-primary">Export CSV</a>
+            <a href="{{ cp_route($form->mode === 'subscription' ? 'subscription-forms.index' : 'product-forms.index') }}" class="form-platform-button">Back to forms</a>
+            <a href="{{ cp_route($form->mode === 'subscription' ? 'subscription-forms.submissions.export' : 'product-forms.submissions.export', $form) }}" class="form-platform-button-primary">Export CSV</a>
         </div>
     </div>
 

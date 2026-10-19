@@ -6,6 +6,9 @@ use App\Contracts\Domain\DomainResolverInterface;
 use App\Contracts\Domain\ProductUrlGeneratorInterface;
 use App\Mail\SubscriptionConfirmationMail;
 use App\Models\Subscriber;
+use App\Models\ProductForm;
+use App\Models\Product;
+use App\Services\Forms\ProductFormSubscriptionService;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use Carbon\CarbonImmutable;
@@ -27,6 +30,8 @@ class SubscriptionFormService
         private readonly CollectionRegistry $collections,
         private readonly ApplicationSubmissionTrackingService $applicationTracking,
         private readonly PendingSubscriberLifecycleService $pendingLifecycles,
+        private readonly SubscriberEnrollmentService $enrollment,
+        private readonly ProductFormSubscriptionService $productSubscriptions,
         private readonly ProductUrlGeneratorInterface $productUrls,
         private readonly DomainResolverInterface $domains,
     ) {}
@@ -208,22 +213,59 @@ class SubscriptionFormService
 
     public function schema(StatamicForm $form): array
     {
+        $availableInsightSlugs = $this->isInsightCutover($form)
+            ? array_keys($this->insightPreferenceTargets($form)) : null;
+        $fields = $form->fields()->map(function (Field $field) use ($form, $availableInsightSlugs): array {
+            $serialized = $this->serializeField($field);
+            if ($availableInsightSlugs !== null && $field->handle() === $this->preferenceFieldHandle($form)) {
+                $serialized['options'] = array_values(array_filter($serialized['options'],
+                    fn (array $option): bool => in_array($option['value'], $availableInsightSlugs, true)));
+            }
+            if ($availableInsightSlugs !== null && $field->handle() === 'country') {
+                $serialized['options'] = $this->countryOptions();
+            }
+
+            return $serialized;
+        })->values()->all();
+        if ($availableInsightSlugs !== null) {
+            $handles = array_column($fields, 'handle');
+            foreach (['country', 'profession', 'gender'] as $handle) {
+                if (in_array($handle, $handles, true)) {
+                    continue;
+                }
+                $fields[] = [
+                    'handle' => $handle, 'type' => $handle === 'gender' ? 'select' : 'text',
+                    'display' => ucfirst($handle), 'instructions' => null, 'required' => false,
+                    'options' => $handle === 'country' ? $this->countryOptions() : ($handle === 'gender' ? [
+                        ['value' => 'male', 'label' => 'Male'],
+                        ['value' => 'female', 'label' => 'Female'],
+                        ['value' => 'other', 'label' => 'Other'],
+                    ] : []),
+                ];
+            }
+        }
+
         return [
             'handle' => $form->handle(),
             'title' => $form->title(),
             'collection' => $this->collectionHandle($form),
-            'group' => $this->group($form)?->only(['id', 'name', 'slug']),
+            'group' => $this->isInsightCutover($form) ? null : $this->group($form)?->only(['id', 'name', 'slug']),
             'endpoint' => $this->publicFormSubmitUrl($form),
             'privacy_url' => $this->privacyUrl($form),
             'logo_url' => $this->logoUrl($form),
             'brand_color' => $this->brandColor($form),
             'success_message' => $this->successMessage($form),
             'preference_field' => $this->preferenceFieldHandle($form),
-            'fields' => $form->fields()
-                ->map(fn (Field $field) => $this->serializeField($field))
-                ->values()
-                ->all(),
+            'fields' => $fields,
         ];
+    }
+
+    private function countryOptions(): array
+    {
+        return \Illuminate\Support\Facades\DB::table('countries')->orderBy('name')
+            ->get(['code', 'name'])->map(fn ($country): array => [
+                'value' => $country->code, 'label' => $country->name,
+            ])->all();
     }
 
     /**
@@ -407,135 +449,127 @@ class SubscriptionFormService
             return $this->submitApplication($form, $payload, $request, $submission);
         }
 
+        if ($this->isInsightCutover($form)) {
+            return $this->subscribeInsightProducts($form, $payload, $request);
+        }
+
         $collectionHandle = $this->collectionHandle($form);
         $group = $this->group($form);
         abort_if(! $group || ! $collectionHandle, 422, 'Newsletter form is not linked to a valid subscriber group.');
-        $groupSlug = $group->slug;
         $managedSubGroups = $this->syncManagedSubGroups($form)->keyBy('slug');
-        $groupId = $group->id;
-
-        $subscriber = Subscriber::firstOrNew([
-            'email' => strtolower(trim((string) Arr::get($payload, 'email'))),
-        ]);
-        $wasExisting = $subscriber->exists;
-        $previousStatus = $subscriber->status;
-        $previousFirstName = $subscriber->first_name;
-        $previousLastName = $subscriber->last_name;
-        $previousManagedIds = $wasExisting
-            ? $subscriber->allSubGroups()
-                ->where('subscriber_group_id', $groupId)
-                ->whereIn('subscriber_sub_groups.id', $managedSubGroups->pluck('id')->all())
-                ->wherePivotNull('subscriber_sub_group.unsubscribed_at')
-                ->pluck('subscriber_sub_groups.id')
-                ->sort()
-                ->values()
-                ->all()
-            : [];
-
-        $metadata = array_merge($subscriber->metadata ?? [], [
+        $selectedSlugs = $this->selectedPreferenceSlugs($form, $payload);
+        $result = $this->enrollment->enroll(
+            $group,
+            $managedSubGroups->pluck('id')->all(),
+            collect($selectedSlugs)->map(fn (string $slug) => $managedSubGroups->get($slug)?->id)
+                ->filter()->values()->all(),
+            [
+                'email' => Arr::get($payload, 'email'),
+                'first_name' => $this->resolveNameField($payload, ['first_name', 'firstname', 'first']),
+                'last_name' => $this->resolveNameField($payload, ['last_name', 'lastname', 'last']),
+            ],
+            [
             'newsletter_form' => [
                 'handle' => $form->handle(),
                 'collection' => $collectionHandle,
                 'endpoint' => $this->endpointSlug($form),
-                'selected_preferences' => $this->selectedPreferenceSlugs($form, $payload),
+                'selected_preferences' => $selectedSlugs,
                 'subscribed_via' => 'statamic_form',
             ],
-        ]);
+            ],
+            $request,
+        );
 
-        $targetStatus = $wasExisting && $previousStatus === 'active'
-            ? 'active'
-            : 'pending';
-        $enteredPendingFromNonPending = $targetStatus === 'pending'
-            && (! $wasExisting || $previousStatus !== 'pending');
+        return [
+            ...$result,
+            'message' => $this->messageForStatus($result['status'], $form),
+            'email_sent' => $this->dispatchLifecycleEmail($form, $result['subscriber'], $result['status']),
+        ];
+    }
 
-        $subscriber->fill([
-            'first_name' => $this->resolveNameField($payload, ['first_name', 'firstname', 'first']),
-            'last_name' => $this->resolveNameField($payload, ['last_name', 'lastname', 'last']),
-            'status' => $targetStatus,
-            'confirmed_at' => $targetStatus === 'active' ? ($subscriber->confirmed_at ?? now()) : null,
-            'unsubscribed_at' => null,
-            'ip_address' => $request->ip(),
-            'user_agent' => Str::limit((string) $request->userAgent(), 65535, ''),
-            'metadata' => $metadata,
-        ]);
+    public function isInsightCutover(StatamicForm $form): bool
+    {
+        return $form->handle() === 'insight_subscribe'
+            && $this->collectionHandle($form) === 'insight_newsletters';
+    }
 
-        $subscriber->ensureConfirmationToken();
-        $subscriber->save();
+    private function subscribeInsightProducts(StatamicForm $form, array $payload, Request $request): array
+    {
+        $targets = $this->insightPreferenceTargets($form);
+        $selectedSlugs = $this->validateInsightSelection($form, $payload, $targets);
 
-        if ($targetStatus === 'pending') {
-            if ($enteredPendingFromNonPending) {
-                $this->pendingLifecycles->resetForPending(
-                    $subscriber,
-                    $previousStatus === 'unsubscribed' ? 'resubscribed' : 'subscribed',
-                );
-            } else {
-                $this->pendingLifecycles->syncState($subscriber);
+        $result = $this->enrollment->enrollPreferences(
+            array_values($targets),
+            array_values(array_intersect_key($targets, array_flip($selectedSlugs))),
+            [
+                'email' => Arr::get($payload, 'email'),
+                'first_name' => $this->resolveNameField($payload, ['first_name', 'firstname', 'first']),
+                'last_name' => $this->resolveNameField($payload, ['last_name', 'lastname', 'last']),
+            ],
+            ['newsletter_form' => [
+                'handle' => $form->handle(),
+                'collection' => $this->collectionHandle($form),
+                'endpoint' => $this->endpointSlug($form),
+                'selected_preferences' => $selectedSlugs,
+                'subscribed_via' => 'statamic_form',
+            ]],
+            $request,
+        );
+
+        return [
+            ...$result,
+            'message' => $this->messageForStatus($result['status'], $form),
+            'email_sent' => $this->dispatchLifecycleEmail($form, $result['subscriber'], $result['status']),
+        ];
+    }
+
+    /** @param array<string, int>|null $targets
+     *  @return array<int, string>
+     */
+    public function validateInsightSelection(StatamicForm $form, array $payload, ?array $targets = null): array
+    {
+        $targets ??= $this->insightPreferenceTargets($form);
+        $selectedSlugs = $this->selectedPreferenceSlugs($form, $payload);
+        if ($selectedSlugs === [] || array_diff($selectedSlugs, array_keys($targets)) !== []) {
+            throw ValidationException::withMessages([
+                $this->preferenceFieldHandle($form) ?: 'preference' => ['Select at least one available product preference.'],
+            ]);
+        }
+
+        return $selectedSlugs;
+    }
+
+    /** @return array<string, int> */
+    private function insightPreferenceTargets(StatamicForm $form): array
+    {
+        $organisation = \App\Models\Organisation::query()
+            ->where('primary_collection_handle', $this->collectionHandle($form))
+            ->where('status', 'active')->first();
+        if (! $organisation) {
+            return [];
+        }
+
+        $targets = [];
+        foreach ($this->preferenceOptions($form) as $option) {
+            $slug = $option['slug'];
+            $product = Product::query()->where('organisation_id', $organisation->getKey())
+                ->where('slug', Str::slug((string) $this->collectionHandle($form)).'-'.$slug)
+                ->where('status', 'active')->first();
+            if (! $product) {
+                continue;
+            }
+            $group = SubscriberGroup::query()
+                ->where('organisation_id', $organisation->getKey())
+                ->where('product_id', $product->getKey())
+                ->where('is_public_preference', true)
+                ->whereNull('archived_at')->first();
+            $subGroup = $group?->subGroups()->where('slug', 'newsletter')->whereNull('archived_at')->first();
+            if ($subGroup) {
+                $targets[$slug] = (int) $subGroup->getKey();
             }
         }
 
-        $managedIds = $managedSubGroups->pluck('id')->all();
-        $selectedIds = collect($this->selectedPreferenceSlugs($form, $payload))
-            ->map(fn (string $slug) => $managedSubGroups->get($slug)?->id)
-            ->filter()
-            ->values()
-            ->all();
-
-        $existingManaged = $subscriber->allSubGroups()
-            ->where('subscriber_group_id', $groupId)
-            ->whereIn('subscriber_sub_groups.id', $managedIds)
-            ->pluck('subscriber_sub_groups.id')
-            ->all();
-
-        $toAdd = array_diff($selectedIds, $existingManaged);
-        $toReactivate = array_intersect($selectedIds, $existingManaged);
-        $toRemove = array_diff($existingManaged, $selectedIds);
-
-        foreach ($toReactivate as $subGroupId) {
-            $subscriber->allSubGroups()->updateExistingPivot($subGroupId, [
-                'subscribed_at' => now(),
-                'unsubscribed_at' => null,
-            ]);
-        }
-
-        if ($toAdd) {
-            $subscriber->subGroups()->attach($toAdd, [
-                'subscribed_at' => now(),
-                'unsubscribed_at' => null,
-            ]);
-        }
-
-        if ($toRemove) {
-            $subscriber->allSubGroups()->updateExistingPivot($toRemove, [
-                'unsubscribed_at' => now(),
-            ]);
-        }
-
-        $subscriber = $subscriber->fresh(['subGroups.group']);
-        $currentManagedIds = $subscriber->subGroups
-            ->where('group.slug', $groupSlug)
-            ->pluck('id')
-            ->sort()
-            ->values()
-            ->all();
-
-        $namesChanged = $this->normalize($previousFirstName) !== $this->normalize($subscriber->first_name)
-            || $this->normalize($previousLastName) !== $this->normalize($subscriber->last_name);
-        $preferencesChanged = $previousManagedIds !== $currentManagedIds;
-
-        $status = match (true) {
-            ! $wasExisting => 'subscribed',
-            $previousStatus === 'unsubscribed' => 'resubscribed',
-            $namesChanged || $preferencesChanged => 'subscription_updated',
-            default => 'already_subscribed',
-        };
-
-        return [
-            'subscriber' => $subscriber,
-            'subscriber_group_id' => $group->id,
-            'status' => $status,
-            'message' => $this->messageForStatus($status, $form),
-            'email_sent' => $this->dispatchLifecycleEmail($form, $subscriber, $status),
-        ];
+        return $targets;
     }
 
     public function resendPendingConfirmation(Subscriber $subscriber): void
@@ -544,6 +578,22 @@ class SubscriptionFormService
 
         if (! ($decision['eligible'] ?? false)) {
             throw new \RuntimeException($decision['message'] ?? 'This pending subscriber is not eligible for a confirmation resend.');
+        }
+
+        $productFormId = Arr::get($subscriber->metadata, 'product_form.id');
+        if ($productFormId) {
+            $productForm = ProductForm::query()->whereKey($productFormId)->where('status', 'published')->first();
+            if (! $productForm) {
+                throw new \RuntimeException('The original hosted subscription form is no longer published.');
+            }
+            $this->productSubscriptions->resendConfirmation(
+                $productForm,
+                $subscriber,
+                $this->pendingLifecycles->confirmationEmailStatus($subscriber),
+            );
+            $this->pendingLifecycles->markConfirmationResent($subscriber);
+
+            return;
         }
 
         $form = $this->resolveLifecycleFormForSubscriber($subscriber);
@@ -1097,13 +1147,6 @@ class SubscriptionFormService
             $parts[0] ?? null,
             $parts[1] ?? null,
         ];
-    }
-
-    private function normalize(?string $value): ?string
-    {
-        $value = is_string($value) ? trim($value) : $value;
-
-        return $value === '' ? null : $value;
     }
 
     private function resolveNameField(array $payload, array $handles): ?string

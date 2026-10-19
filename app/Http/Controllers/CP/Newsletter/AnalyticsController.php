@@ -9,6 +9,7 @@ use App\Models\CampaignLinkClick;
 use App\Models\CampaignSend;
 use App\Models\WebhookLog;
 use App\Services\Newsletter\CollectionRegistry;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,34 +20,39 @@ class AnalyticsController extends Controller
     /* Overview dashboard                                                   */
     /* ------------------------------------------------------------------ */
 
-    public function index(Request $request)
+    public function index(Request $request, CpOperatorScope $scope)
     {
         $collection = $request->input('collection');
         $days       = (int) ($request->input('days', 30));
 
         // Aggregate stats per campaign (last N days)
-        $campaigns = Campaign::query()
+        $campaignQuery = $scope->campaignQuery($request->user())
             ->when($collection, fn ($q) => $q->where('collection', $collection))
             ->whereIn('status', ['sent', 'sending', 'partial'])
-            ->where('sent_at', '>=', now()->subDays($days))
-            ->withCount([
-                'sends',
-                'sends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
-                'sends as opened_count'    => fn ($q) => $q->whereNotNull('opened_at'),
-                'sends as clicked_count'   => fn ($q) => $q->whereNotNull('clicked_at'),
-                'sends as bounced_count'   => fn ($q) => $q->whereIn('status', ['bounced', 'failed']),
-            ])
+            ->where('sent_at', '>=', now()->subDays($days));
+        $campaignCounts = [
+            'sends',
+            'sends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
+            'sends as opened_count'    => fn ($q) => $q->whereNotNull('opened_at'),
+            'sends as clicked_count'   => fn ($q) => $q->whereNotNull('clicked_at'),
+            'sends as bounced_count'   => fn ($q) => $q->whereIn('status', ['bounced', 'failed']),
+        ];
+
+        $allCampaigns = (clone $campaignQuery)->withCount($campaignCounts)->get();
+        $campaigns = $campaignQuery->withCount($campaignCounts)
             ->orderByDesc('sent_at')
-            ->get();
+            ->orderByDesc('id')
+            ->paginate(10, ['*'], 'campaign_page')
+            ->withQueryString();
 
         // Totals across the period
         $totals = [
-            'campaigns'  => $campaigns->count(),
-            'sent'        => $campaigns->sum('sends_count'),
-            'delivered'   => $campaigns->sum('delivered_count'),
-            'opened'      => $campaigns->sum('opened_count'),
-            'clicked'     => $campaigns->sum('clicked_count'),
-            'bounced'     => $campaigns->sum('bounced_count'),
+            'campaigns'  => $allCampaigns->count(),
+            'sent'        => $allCampaigns->sum('sends_count'),
+            'delivered'   => $allCampaigns->sum('delivered_count'),
+            'opened'      => $allCampaigns->sum('opened_count'),
+            'clicked'     => $allCampaigns->sum('clicked_count'),
+            'bounced'     => $allCampaigns->sum('bounced_count'),
         ];
 
         $totals['delivery_rate'] = $totals['sent'] > 0
@@ -59,6 +65,7 @@ class AnalyticsController extends Controller
         // Daily send volume for chart (last N days)
         $dailyVolume = CampaignSend::query()
             ->selectRaw('DATE(sent_at) as date, COUNT(*) as total, SUM(opened_at IS NOT NULL) as opened')
+            ->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('campaign', fn ($campaign) => $scope->restrictCampaigns($campaign, $request->user())))
             ->where('sent_at', '>=', now()->subDays($days))
             ->when($collection, fn ($q) => $q->whereHas('campaign', fn ($cq) => $cq->where('collection', $collection)))
             ->groupBy('date')
@@ -67,14 +74,18 @@ class AnalyticsController extends Controller
             ->keyBy('date');
 
         // Webhook health (last 24h)
-        $webhookHealth = [
+        $webhookHealth = $scope->isSuper($request->user()) ? [
             'total'       => WebhookLog::where('created_at', '>=', now()->subHours(24))->count(),
             'processed'   => WebhookLog::where('created_at', '>=', now()->subHours(24))->whereNotNull('processed_at')->count(),
             'failed'      => WebhookLog::where('created_at', '>=', now()->subHours(24))->whereNotNull('error')->count(),
             'pending'     => WebhookLog::where('created_at', '>=', now()->subHours(24))->whereNull('processed_at')->whereNull('error')->count(),
-        ];
+        ] : null;
 
-        $collections = $this->collectionOptions();
+        $collections = $scope->isSuper($request->user())
+            ? $this->collectionOptions()
+            : array_intersect_key($this->collectionOptions(), array_flip(
+                \App\Models\Product::query()->whereKey($scope->productIds($request->user()))->pluck('primary_collection_handle')->all()
+            ));
 
         return view('newsletter.cp.analytics.index', compact(
             'campaigns', 'totals', 'dailyVolume', 'webhookHealth', 'days', 'collection', 'collections'
@@ -396,6 +407,7 @@ class AnalyticsController extends Controller
 
     public function webhooks(Request $request)
     {
+        abort_unless(app(CpOperatorScope::class)->isSuper($request->user()), 403);
         $query = WebhookLog::query()->latest();
 
         if ($type = $request->input('event_type')) {

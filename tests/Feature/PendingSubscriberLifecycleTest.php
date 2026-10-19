@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\CP\Newsletter\SubscriberController;
+use Statamic\Facades\User as StatamicUser;
 use App\Mail\SubscriptionConfirmationMail;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
@@ -17,6 +18,14 @@ use Tests\TestCase;
 
 class PendingSubscriberLifecycleTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $user = StatamicUser::findByEmail('admin@mailserver.test');
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'));
+        $this->app['request']->setUserResolver(fn () => $user);
+    }
+
     public function test_show_exposes_expired_pending_lifecycle_state(): void
     {
         $subscriber = Subscriber::factory()->pending()->create([
@@ -208,6 +217,9 @@ class PendingSubscriberLifecycleTest extends TestCase
      */
     private function request(string $method, array $parameters = []): Request
     {
-        return Request::create('/cp/newsletter/subscribers', $method, $parameters);
+        $request = Request::create('/cp/newsletter/subscribers', $method, $parameters);
+        $request->setUserResolver(fn () => auth()->user());
+
+        return $request;
     }
 }

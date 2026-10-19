@@ -34,9 +34,11 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
+            @if($canEdit)
             <a href="{{ cp_route('newsletter.subscribers.edit', $subscriber) }}"
                class="btn-primary">Edit</a>
-            @if($pendingLifecycle['is_pending'] ?? false)
+            @endif
+            @if($canEdit && ($pendingLifecycle['is_pending'] ?? false))
                 <form method="POST" action="{{ cp_route('newsletter.subscribers.resend-confirmation', $subscriber) }}" class="inline">
                     @csrf
                     <button
@@ -49,6 +51,7 @@
                     </button>
                 </form>
             @endif
+            @if($isSuper)
             <a href="{{ cp_route('newsletter.subscribers.gdpr.export', $subscriber) }}"
                class="btn" title="Download all personal data (GDPR export)">
                 Export Data
@@ -59,6 +62,7 @@
                title="Right to erasure (GDPR Art. 17)">
                 Erase
             </a>
+            @endif
             @endif
         </div>
     </div>

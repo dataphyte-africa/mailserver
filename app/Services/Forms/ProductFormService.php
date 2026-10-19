@@ -14,6 +14,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +26,7 @@ class ProductFormService
         private readonly DomainResolverInterface $domains,
         private readonly FormTemplateRegistry $templates,
         private readonly OrganisationNewsletterDomainService $organisationDomains,
+        private readonly ProductFormSubscriptionService $subscriptions,
     ) {}
 
     public function create(Product $product, array $attributes): ProductForm
@@ -57,6 +59,7 @@ class ProductFormService
             Arr::get($attributes, 'audience_group_id'),
             Arr::get($attributes, 'audience_sub_group_id'),
         );
+        $this->assertSubscriptionConfiguration($definition['mode'], $fieldDefinitions, $audience);
 
         return ProductForm::query()->create([
             'organisation_id' => $organisation->getKey(),
@@ -76,7 +79,7 @@ class ProductFormService
             'allowed_origins' => $this->normalizeAllowedOrigins($attributes['allowed_origins'] ?? []),
             'settings' => is_array($attributes['settings'] ?? null) ? $attributes['settings'] : [],
             'requires_review' => array_key_exists('requires_review', $attributes)
-                ? (bool) $attributes['requires_review']
+                ? ($definition['mode'] === 'subscription' ? false : (bool) $attributes['requires_review'])
                 : (bool) $definition['requires_review'],
             'audience_group_id' => $audience['group_id'],
             'audience_sub_group_id' => $audience['sub_group_id'],
@@ -97,7 +100,16 @@ class ProductFormService
         }
 
         $fieldDefinitions = $this->normalizeFieldDefinitions($attributes['field_definitions'] ?? []);
-        $routing = $this->resolveOrganisationProductRouting($organisation, $attributes, $fieldDefinitions);
+        $this->assertSubscriptionConfiguration($definition['mode'], $fieldDefinitions, ['group_id' => null, 'sub_group_id' => null]);
+        $routing = $definition['mode'] === 'subscription'
+            ? ['field' => null, 'product_ids' => null]
+            : $this->resolveOrganisationProductRouting($organisation, $attributes, $fieldDefinitions);
+        $settings = is_array($attributes['settings'] ?? null) ? $attributes['settings'] : [];
+        if ($definition['mode'] === 'subscription') {
+            $settings['public_preference_group_ids'] = $this->subscriptions->selectedPreferenceGroupIds(
+                $organisation, $attributes['public_preference_group_ids'] ?? null,
+            );
+        }
 
         return ProductForm::query()->create([
             'organisation_id' => $organisation->getKey(),
@@ -115,9 +127,9 @@ class ProductFormService
             'success_message' => (string) ($attributes['success_message'] ?? 'Submission received.'),
             'field_definitions' => $fieldDefinitions,
             'allowed_origins' => $this->normalizeAllowedOrigins($attributes['allowed_origins'] ?? []),
-            'settings' => is_array($attributes['settings'] ?? null) ? $attributes['settings'] : [],
+            'settings' => $settings,
             'requires_review' => array_key_exists('requires_review', $attributes)
-                ? (bool) $attributes['requires_review']
+                ? ($definition['mode'] === 'subscription' ? false : (bool) $attributes['requires_review'])
                 : (bool) $definition['requires_review'],
             'audience_group_id' => null,
             'audience_sub_group_id' => null,
@@ -155,6 +167,7 @@ class ProductFormService
             Arr::get($attributes, 'audience_group_id'),
             Arr::get($attributes, 'audience_sub_group_id'),
         );
+        $this->assertSubscriptionConfiguration($definition['mode'], $fieldDefinitions, $audience);
 
         $form->forceFill([
             'organisation_id' => $organisation->getKey(),
@@ -174,7 +187,7 @@ class ProductFormService
             'allowed_origins' => $this->normalizeAllowedOrigins($attributes['allowed_origins'] ?? []),
             'settings' => is_array($attributes['settings'] ?? null) ? $attributes['settings'] : ($form->settings ?? []),
             'requires_review' => array_key_exists('requires_review', $attributes)
-                ? (bool) $attributes['requires_review']
+                ? ($definition['mode'] === 'subscription' ? false : (bool) $attributes['requires_review'])
                 : (bool) $definition['requires_review'],
             'audience_group_id' => $audience['group_id'],
             'audience_sub_group_id' => $audience['sub_group_id'],
@@ -197,7 +210,16 @@ class ProductFormService
         }
 
         $fieldDefinitions = $this->normalizeFieldDefinitions($attributes['field_definitions'] ?? $form->field_definitions ?? []);
-        $routing = $this->resolveOrganisationProductRouting($organisation, $attributes, $fieldDefinitions);
+        $this->assertSubscriptionConfiguration($definition['mode'], $fieldDefinitions, ['group_id' => null, 'sub_group_id' => null]);
+        $routing = $definition['mode'] === 'subscription'
+            ? ['field' => null, 'product_ids' => null]
+            : $this->resolveOrganisationProductRouting($organisation, $attributes, $fieldDefinitions);
+        $settings = is_array($attributes['settings'] ?? null) ? $attributes['settings'] : ($form->settings ?? []);
+        if ($definition['mode'] === 'subscription') {
+            $settings['public_preference_group_ids'] = $this->subscriptions->selectedPreferenceGroupIds(
+                $organisation, $attributes['public_preference_group_ids'] ?? null,
+            );
+        }
 
         $form->forceFill([
             'organisation_id' => $organisation->getKey(),
@@ -215,9 +237,9 @@ class ProductFormService
             'success_message' => (string) ($attributes['success_message'] ?? $form->success_message),
             'field_definitions' => $fieldDefinitions,
             'allowed_origins' => $this->normalizeAllowedOrigins($attributes['allowed_origins'] ?? []),
-            'settings' => is_array($attributes['settings'] ?? null) ? $attributes['settings'] : ($form->settings ?? []),
+            'settings' => $settings,
             'requires_review' => array_key_exists('requires_review', $attributes)
-                ? (bool) $attributes['requires_review']
+                ? ($definition['mode'] === 'subscription' ? false : (bool) $attributes['requires_review'])
                 : (bool) $definition['requires_review'],
             'audience_group_id' => null,
             'audience_sub_group_id' => null,
@@ -244,6 +266,11 @@ class ProductFormService
     public function submitUrl(ProductForm $form): string
     {
         return $this->publicRouteUrl($form, 'product-forms.public.submit', 'form_submit_endpoint');
+    }
+
+    public function schemaUrl(ProductForm $form): string
+    {
+        return $this->publicRouteUrl($form, 'product-forms.public.schema', 'form_page');
     }
 
     /**
@@ -301,12 +328,20 @@ class ProductFormService
 
         $validator = Validator::make($payload, $this->submissionRules($form));
         $validated = $validator->validate();
+        if ($form->mode === 'subscription') {
+            $this->assertSubscriptionConfiguration('subscription', $form->field_definitions ?? [], [
+                'group_id' => $form->audience_group_id,
+                'sub_group_id' => $form->audience_sub_group_id,
+            ]);
+            $validated['preferences'] = $this->subscriptions->validateSelection($form, $payload);
+        }
         $status = $form->requires_review ? 'pending_review' : 'submitted';
 
         return ProductFormSubmission::query()->create([
             'product_form_id' => $form->getKey(),
             'organisation_id' => $form->organisation_id,
-            'product_id' => $this->resolveSubmissionProduct($form, $validated)->getKey(),
+            'product_id' => $form->mode === 'subscription' && $form->form_scope === 'organisation'
+                ? null : $this->resolveSubmissionProduct($form, $validated)->getKey(),
             'status' => $status,
             'payload' => $this->submissionPayload($form, $validated),
             'submission_origin' => $this->normalizeOrigin($request->headers->get('Origin')),
@@ -326,20 +361,53 @@ class ProductFormService
      */
     public function publicSchema(ProductForm $form): array
     {
+        $organisation = $form->organisation;
+        $group = $form->mode === 'subscription' ? $form->audienceGroup : null;
+
         return [
             'id' => $form->getKey(),
+            'handle' => $form->slug,
             'name' => $form->name,
+            'title' => $form->headline ?: $form->name,
             'slug' => $form->slug,
             'mode' => $form->mode,
+            'collection' => $form->product?->primary_collection_handle ?? $organisation?->primary_collection_handle,
+            'group' => $group?->only(['id', 'name', 'slug']),
             'form_scope' => $form->form_scope,
             'requires_review' => (bool) $form->requires_review,
             'product_selection_field' => $form->product_selection_field,
             'allowed_product_ids' => $form->allowed_product_ids ?? [],
-            'fields' => $form->field_definitions ?? [],
+            'fields' => collect($form->field_definitions ?? [])->map(function (array $field): array {
+                if ($field['type'] === 'country') {
+                    $field['options'] = DB::table('countries')->orderBy('name')->get(['code', 'name'])
+                        ->map(fn ($country): array => ['value' => $country->code, 'label' => $country->name])->all();
+                }
+
+                return $field;
+            })->all(),
             'hosted_page_url' => $this->hostedPageUrl($form),
+            'schema_url' => $this->schemaUrl($form),
             'submit_url' => $this->submitUrl($form),
+            'endpoint' => $this->submitUrl($form),
+            'logo_url' => $organisation?->logo_path
+                ? url(\Illuminate\Support\Facades\Storage::disk('public')->url($organisation->logo_path)) : null,
+            'banner_url' => ($form->settings['show_banner'] ?? true) && $organisation?->banner_path
+                ? url(\Illuminate\Support\Facades\Storage::disk('public')->url($organisation->banner_path)) : null,
+            'brand_color' => $organisation?->brand_primary_color,
+            'privacy_url' => $form->settings['privacy_url'] ?? null,
             'allowed_origins' => $this->allowedOrigins($form),
             'success_message' => $form->success_message,
+            'audience_group_id' => $form->mode === 'subscription' ? $form->audience_group_id : null,
+            'audience_sub_group_id' => $form->mode === 'subscription' ? $form->audience_sub_group_id : null,
+            'preferences' => $form->mode === 'subscription'
+                ? $this->subscriptions->approvedPreferences($form)->map(fn (SubscriberGroup $group): array => [
+                    'id' => $group->getKey(),
+                    'name' => $group->name,
+                    'sub_groups' => $group->subGroups->map(fn (SubscriberSubGroup $subGroup): array => [
+                        'id' => $subGroup->getKey(), 'name' => $subGroup->name,
+                    ])->all(),
+                ])->all()
+                : [],
         ];
     }
 
@@ -474,6 +542,20 @@ class ProductFormService
         ];
     }
 
+    private function assertSubscriptionConfiguration(string $mode, array $fields, array $audience): void
+    {
+        if ($mode !== 'subscription') {
+            return;
+        }
+
+        if (! collect($fields)->contains(fn (array $field) => $field['handle'] === 'email'
+            && $field['type'] === 'email' && $field['required'])) {
+            throw ValidationException::withMessages([
+                'field_definitions' => ['Subscription forms require a required email field.'],
+            ]);
+        }
+    }
+
     /**
      * @param  mixed  $fieldDefinitions
      * @return array<int, array<string, mixed>>
@@ -512,7 +594,7 @@ class ProductFormService
                 ]);
             }
 
-            if (! in_array($type, ['text', 'email', 'textarea', 'select'], true)) {
+            if (! in_array($type, ['text', 'email', 'textarea', 'select', 'country'], true)) {
                 throw ValidationException::withMessages([
                     "field_definitions.{$index}.type" => ['Unsupported field type for this baseline.'],
                 ]);
@@ -597,6 +679,9 @@ class ProductFormService
                         $field['options'] ?? [],
                     ));
                     break;
+                case 'country':
+                    $rule[] = Rule::exists('countries', 'code');
+                    break;
                 default:
                     $rule[] = 'string';
                     break;
@@ -658,6 +743,10 @@ class ProductFormService
         foreach ($form->field_definitions ?? [] as $field) {
             $handle = (string) $field['handle'];
             $payload[$handle] = $validated[$handle] ?? null;
+        }
+
+        if ($form->mode === 'subscription') {
+            $payload['preferences'] = $validated['preferences'];
         }
 
         return $payload;

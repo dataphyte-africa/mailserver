@@ -76,6 +76,7 @@
 </div>
 
 <div class="analytics-cp-overview-row analytics-cp-overview-row-two">
+    @if($webhookHealth !== null)
     <div class="analytics-cp-card analytics-cp-health-card">
             <h2 class="analytics-cp-card-title">Webhook Health <span>(24h)</span></h2>
             @php
@@ -115,6 +116,7 @@
             </div>
     </div>
 
+    @endif
     <div class="analytics-cp-card analytics-cp-total-card">
         <h2 class="analytics-cp-card-title">Total Activity</h2>
         <div class="analytics-cp-stat-list analytics-cp-stat-list-large">
@@ -141,7 +143,7 @@
 <div class="analytics-cp-table-card">
     <div class="analytics-cp-table-header">
         <h2 class="analytics-cp-card-title">Campaign Performance</h2>
-        <span class="analytics-cp-count">{{ $campaigns->count() }} campaigns</span>
+        <span class="analytics-cp-count">{{ $campaigns->total() }} campaigns</span>
     </div>
     <div class="analytics-cp-table-scroll">
     <table class="data-table analytics-cp-table">
@@ -217,6 +219,24 @@
         </tbody>
     </table>
     </div>
+    @if($campaigns->hasPages())
+    <nav class="analytics-cp-pagination" aria-label="Campaign performance pages">
+        <span>Showing {{ $campaigns->firstItem() }}-{{ $campaigns->lastItem() }} of {{ $campaigns->total() }}</span>
+        <div class="analytics-cp-pagination-actions">
+            @if($campaigns->onFirstPage())
+                <span class="analytics-cp-page-link" aria-disabled="true">Previous</span>
+            @else
+                <a class="analytics-cp-page-link" href="{{ $campaigns->previousPageUrl() }}">Previous</a>
+            @endif
+            <span>Page {{ $campaigns->currentPage() }} of {{ $campaigns->lastPage() }}</span>
+            @if($campaigns->hasMorePages())
+                <a class="analytics-cp-page-link" href="{{ $campaigns->nextPageUrl() }}">Next</a>
+            @else
+                <span class="analytics-cp-page-link" aria-disabled="true">Next</span>
+            @endif
+        </div>
+    </nav>
+    @endif
 </div>
 
 @endsection

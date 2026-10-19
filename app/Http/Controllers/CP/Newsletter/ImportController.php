@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\SubscriberEngagementService;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -146,13 +147,16 @@ class ImportController extends Controller
 
     public function export(Request $request)
     {
-        $query = Subscriber::with('subGroups.group')
+        $scope = app(CpOperatorScope::class);
+        $productIds = $scope->productIds($request->user());
+        $query = $scope->subscriberQuery($request->user())
+            ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))), 'subGroups.group'])
             ->withCount([
-                'campaignSends as campaigns_count',
-                'campaignSends as delivered_count' => fn ($q) => $q->whereIn('status', ['delivered', 'opened', 'clicked']),
-                'campaignSends as failed_count' => fn ($q) => $q->whereIn('status', ['failed', 'bounced']),
-                'campaignSends as opened_count' => fn ($q) => $q->whereNotNull('opened_at'),
-                'campaignSends as clicked_count' => fn ($q) => $q->whereNotNull('clicked_at'),
+                'campaignSends as campaigns_count' => fn ($q) => $this->scopeSends($q, $request),
+                'campaignSends as delivered_count' => fn ($q) => $this->scopeSends($q, $request)->whereIn('status', ['delivered', 'opened', 'clicked']),
+                'campaignSends as failed_count' => fn ($q) => $this->scopeSends($q, $request)->whereIn('status', ['failed', 'bounced']),
+                'campaignSends as opened_count' => fn ($q) => $this->scopeSends($q, $request)->whereNotNull('opened_at'),
+                'campaignSends as clicked_count' => fn ($q) => $this->scopeSends($q, $request)->whereNotNull('clicked_at'),
             ]);
 
         if ($request->filled('status')) {
@@ -161,7 +165,7 @@ class ImportController extends Controller
 
         if ($request->filled('sub_group')) {
             $query->whereHas('subGroups', fn ($q) =>
-                $q->where('subscriber_sub_groups.id', $request->sub_group)
+                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))
             );
         }
 
@@ -175,6 +179,9 @@ class ImportController extends Controller
         }
 
         $sort = $request->string('sort')->value() ?: 'created_at';
+        if (! $scope->isSuper($request->user()) && in_array($sort, ['engagement_rating', 'engagement_score'], true)) {
+            $sort = 'created_at';
+        }
         $direction = strtolower($request->string('direction')->value() ?: 'desc');
         $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
 
@@ -218,7 +225,8 @@ class ImportController extends Controller
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ];
 
-        $callback = function () use ($subscribers) {
+        $isSuper = $scope->isSuper($request->user());
+        $callback = function () use ($subscribers, $isSuper) {
             $handle = fopen('php://output', 'w');
 
             // Header row
@@ -248,9 +256,9 @@ class ImportController extends Controller
                     $subscriber->last_name,
                     $subscriber->status,
                     $subGroupSlugs,
-                    $subscriber->engagement_rating,
-                    $subscriber->engagement_score,
-                    $subscriber->last_engaged_at?->toDateTimeString(),
+                    $isSuper ? $subscriber->engagement_rating : '',
+                    $isSuper ? $subscriber->engagement_score : '',
+                    $isSuper ? $subscriber->last_engaged_at?->toDateTimeString() : '',
                     $subscriber->campaigns_count,
                     $subscriber->delivered_count,
                     $subscriber->failed_count,
@@ -298,10 +306,13 @@ class ImportController extends Controller
      */
     private function assignableSubGroups(): Collection
     {
+        $scope = app(CpOperatorScope::class);
+        $isSuper = $scope->isSuper(request()->user());
+        $productIds = $scope->productIds(request()->user());
         return SubscriberSubGroup::query()
             ->with('group')
             ->whereNull('archived_at')
-            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at')->when(! $isSuper, fn ($q) => $q->whereIn('product_id', $productIds)))
             ->orderBy('subscriber_group_id')
             ->get();
     }
@@ -321,10 +332,13 @@ class ImportController extends Controller
             return;
         }
 
+        $scope = app(CpOperatorScope::class);
+        $isSuper = $scope->isSuper(request()->user());
+        $productIds = $scope->productIds(request()->user());
         $assignableCount = SubscriberSubGroup::query()
             ->whereIn('id', $ids->all())
             ->whereNull('archived_at')
-            ->whereHas('group', fn ($query) => $query->whereNull('archived_at'))
+            ->whereHas('group', fn ($query) => $query->whereNull('archived_at')->when(! $isSuper, fn ($q) => $q->whereIn('product_id', $productIds)))
             ->count();
 
         if ($assignableCount !== $ids->count()) {
@@ -332,5 +346,11 @@ class ImportController extends Controller
                 $input => 'Archived audience sub-groups cannot be assigned during subscriber import.',
             ]);
         }
+    }
+
+    private function scopeSends($query, Request $request)
+    {
+        $scope = app(CpOperatorScope::class);
+        return $scope->isSuper($request->user()) ? $query : $query->whereHas('campaign', fn ($campaign) => $scope->restrictCampaigns($campaign, $request->user()));
     }
 }
