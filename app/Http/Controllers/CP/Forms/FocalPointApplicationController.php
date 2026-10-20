@@ -3,29 +3,14 @@
 namespace App\Http\Controllers\CP\Forms;
 
 use App\Models\FocalPointApplication;
-use App\Services\Foundation\FocalPointApplicationContent;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Statamic\Facades\GlobalSet;
 use Statamic\Facades\User;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FocalPointApplicationController
 {
-    public function approveTerms(FocalPointApplicationContent $content): RedirectResponse
-    {
-        $this->assertSuper();
-        abort_unless($content->canApprove(), 422, 'Add Terms of Reference before approving them.');
-
-        $variables = GlobalSet::findByHandle('focal_point_application')?->inDefaultSite();
-        abort_unless($variables, 404);
-        $variables->data([...$variables->data()->toArray(), 'approved_tor_version' => $content->torVersion()]);
-        $variables->save();
-
-        return back()->with('success', 'Current Terms of Reference approved. Later edits require another approval.');
-    }
-
     public function index(): View
     {
         $this->assertSuper();

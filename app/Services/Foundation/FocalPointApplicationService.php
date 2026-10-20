@@ -40,7 +40,7 @@ class FocalPointApplicationService
     public function isReady(): bool
     {
         return $this->drive->configured()
-            && ($this->content->torApproved() || app()->environment('local'));
+            && $this->content->hasTerms();
     }
 
     public function states(): array

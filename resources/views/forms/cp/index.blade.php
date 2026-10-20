@@ -89,9 +89,6 @@
                         <h2>{{ $bespoke['name'] }}</h2>
                         <p class="form-platform-meta">Custom application form &middot; Admin-owned</p>
                         <p class="form-platform-help">{{ $bespoke['description'] }}</p>
-                        @if(array_key_exists('terms_approved', $bespoke))
-                            <p class="form-platform-meta">Terms: {{ $bespoke['terms_approved'] ? 'Approved' : 'Needs approval' }}</p>
-                        @endif
                     </div>
                     <div class="form-platform-actions">
                         <a href="{{ $bespoke['url'] }}" target="_blank" rel="noopener" class="form-platform-button">Preview public page</a>
@@ -103,13 +100,6 @@
                         @endif
                     </div>
                 </div>
-                @if(isset($bespoke['terms_approved']) && ! $bespoke['terms_approved'])
-                    <form method="post" action="{{ cp_route('focal-point-applications.approve-terms') }}" class="form-platform-actions" style="margin:14px 0">
-                        @csrf
-                        <button class="form-platform-button-primary" type="submit" @disabled(! $bespoke['can_approve_terms'])>Approve current terms</button>
-                        @unless($bespoke['can_approve_terms'])<span class="form-platform-help">Add Terms of Reference before approval.</span>@endunless
-                    </form>
-                @endif
                 <label class="form-platform-label" for="bespoke-url-{{ $loop->index }}">Public form link</label>
                 <input id="bespoke-url-{{ $loop->index }}" class="form-platform-control" type="text" readonly value="{{ $bespoke['url'] }}" onclick="this.select()">
             </div>

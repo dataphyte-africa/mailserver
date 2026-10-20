@@ -35,10 +35,6 @@ class FocalPointApplicationTest extends TestCase
             'refresh_token' => 'test-refresh', 'cv_folder_id' => 'cv-folder',
             'certificate_folder_id' => 'certificate-folder',
         ]);
-        $content = app(FocalPointApplicationContent::class);
-        $variables = GlobalSet::findByHandle('focal_point_application')->inDefaultSite();
-        $variables->data([...$variables->data()->toArray(), 'approved_tor_version' => $content->torVersion()]);
-        $variables->save();
         Http::fake([
             'election.dataphyte.com/api/v1/locations/states' => Http::response(['data' => [
                 ['id' => 1, 'name' => 'Osun'], ['id' => 2, 'name' => 'Connecticut'],
@@ -234,25 +230,27 @@ class FocalPointApplicationTest extends TestCase
         ]))->assertUnprocessable()->assertJsonValidationErrors(['resident_in_state', 'application_consent']);
     }
 
-    public function test_terms_must_be_approved_and_acknowledged_before_submission(): void
+    public function test_terms_must_be_acknowledged_and_current_before_submission(): void
     {
         $this->postJson(route('focal-points.applications.store'), $this->payload([
             'tor_accepted' => null,
         ]))->assertUnprocessable()->assertJsonValidationErrors('tor_accepted');
 
+        $previousVersion = app(FocalPointApplicationContent::class)->torVersion();
         $variables = GlobalSet::findByHandle('focal_point_application')->inDefaultSite();
-        $variables->data([...$variables->data()->toArray(), 'approved_tor_version' => null]);
+        $variables->data([...$variables->data()->toArray(), 'tor_html' => '<p>Updated terms for applicants.</p>']);
         $variables->save();
         $this->get(route('focal-points.applications.show'))->assertOk()
-            ->assertDontSee('Draft for review')->assertDontSee('Preview only.')
-            ->assertDontSee('Submission not available yet')
+            ->assertSee('Updated terms for applicants.')
             ->assertSee('id="observation-experience-field" hidden', false)
             ->assertSee('id="coordination-experience-field" hidden', false);
-        $this->postJson(route('focal-points.applications.store'), $this->payload())->assertStatus(503);
+        $this->postJson(route('focal-points.applications.store'), $this->payload([
+            'tor_version' => $previousVersion,
+        ]))->assertUnprocessable()->assertJsonValidationErrors('tor_version');
         $this->assertDatabaseCount('focal_point_applications', 0);
     }
 
-    public function test_local_testing_can_submit_with_unapproved_terms_but_production_cannot(): void
+    public function test_saved_terms_are_ready_in_production_without_separate_approval(): void
     {
         $variables = GlobalSet::findByHandle('focal_point_application')->inDefaultSite();
         $variables->data([...$variables->data()->toArray(), 'approved_tor_version' => null]);
@@ -260,19 +258,22 @@ class FocalPointApplicationTest extends TestCase
 
         $originalEnvironment = app()->environment();
         try {
-            app()->detectEnvironment(fn () => 'local');
+            app()->detectEnvironment(fn () => 'production');
             $this->assertTrue(app(FocalPointApplicationService::class)->isReady());
             $this->get(route('focal-points.applications.show'))->assertOk()
-                ->assertSee('>Submit application</button>', false)
+                ->assertSee('id="submit-button"', false)
+                ->assertDontSee('id="submit-button" disabled', false)
                 ->assertDontSee('Draft for review');
-
-            app()->detectEnvironment(fn () => 'production');
-            $this->assertFalse(app(FocalPointApplicationService::class)->isReady());
         } finally {
             app()->detectEnvironment(fn () => $originalEnvironment);
         }
 
+        $this->assertTrue(app(FocalPointApplicationService::class)->isReady());
+
+        $variables->data([...$variables->data()->toArray(), 'tor_html' => '']);
+        $variables->save();
         $this->assertFalse(app(FocalPointApplicationService::class)->isReady());
+        $this->postJson(route('focal-points.applications.store'), $this->payload())->assertStatus(503);
     }
 
     public function test_submission_closes_after_the_final_minute_in_lagos(): void
@@ -293,7 +294,7 @@ class FocalPointApplicationTest extends TestCase
             ->assertDontSee('Applications are closed.');
     }
 
-    public function test_admin_can_edit_copy_close_reopen_and_approve_a_changed_tor(): void
+    public function test_admin_can_edit_copy_close_reopen_and_save_changed_terms(): void
     {
         $variables = GlobalSet::findByHandle('focal_point_application')->inDefaultSite();
         $variables->data([
@@ -318,24 +319,23 @@ class FocalPointApplicationTest extends TestCase
             ->assertSee('A new recruitment introduction.')
             ->assertSee('A revised role description.')
             ->assertSee('Updated terms');
-        $this->assertFalse(app(FocalPointApplicationContent::class)->torApproved());
+        $this->assertTrue(app(FocalPointApplicationService::class)->isReady());
 
         $this->withoutMiddleware(CountUsers::class);
         $this->withoutMiddleware(Authorize::class);
         $admin = StatamicUser::findByEmail('admin@mailserver.test');
         $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
-        $this->post(cp_route('focal-point-applications.approve-terms'))->assertRedirect();
-        $this->assertTrue(app(FocalPointApplicationContent::class)->torApproved());
+        $this->get(cp_route('product-forms.index'))->assertOk()
+            ->assertDontSee('Approve current terms')
+            ->assertDontSee('Needs approval');
 
         $variables->data([...$variables->data()->toArray(), 'tor_html' => '<p>The payment amount and breakdown will be inserted only after confirmation.</p>']);
         $variables->save();
-        $this->assertTrue(app(FocalPointApplicationContent::class)->canApprove());
-        $this->post(cp_route('focal-point-applications.approve-terms'))->assertRedirect();
-        $this->assertTrue(app(FocalPointApplicationContent::class)->torApproved());
+        $this->assertTrue(app(FocalPointApplicationService::class)->isReady());
 
         $variables->data([...$variables->data()->toArray(), 'tor_html' => '<p>Changed again.</p>']);
         $variables->save();
-        $this->assertFalse(app(FocalPointApplicationContent::class)->torApproved());
+        $this->assertTrue(app(FocalPointApplicationService::class)->isReady());
     }
 
     private function payload(array $overrides = []): array

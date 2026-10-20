@@ -77,7 +77,6 @@ class FormDataCollectionServiceProvider extends ServiceProvider
         Statamic::pushCpRoutes(function (): void {
             \Route::prefix('focal-point-applications')->name('focal-point-applications.')->group(function (): void {
                 \Route::get('/', [CpFocalPointApplicationController::class, 'index'])->name('index');
-                \Route::post('/approve-terms', [CpFocalPointApplicationController::class, 'approveTerms'])->name('approve-terms');
                 \Route::get('/export/csv', [CpFocalPointApplicationController::class, 'export'])->name('export');
                 \Route::get('/{applicationId}', [CpFocalPointApplicationController::class, 'show'])->whereNumber('applicationId')->name('show');
                 \Route::post('/{applicationId}/status', [CpFocalPointApplicationController::class, 'updateStatus'])->whereNumber('applicationId')->name('status');

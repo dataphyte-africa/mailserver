@@ -62,15 +62,8 @@ class FocalPointApplicationContent
         return 'sha256:'.hash('sha256', $this->torHtml());
     }
 
-    public function torApproved(): bool
+    public function hasTerms(): bool
     {
-        return ($this->data()['approved_tor_version'] ?? null) === $this->torVersion();
-    }
-
-    public function canApprove(): bool
-    {
-        $html = $this->torHtml();
-
-        return filled(strip_tags($html));
+        return filled(strip_tags($this->torHtml()));
     }
 }

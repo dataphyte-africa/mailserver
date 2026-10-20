@@ -10,7 +10,6 @@ use App\Services\Forms\FormTemplateRegistry;
 use App\Services\Forms\ProductFormService;
 use App\Services\Forms\ProductFormSubscriptionService;
 use App\Services\Forms\ScopedProductFormProductSelector;
-use App\Services\Foundation\FocalPointApplicationContent;
 use App\Services\Newsletter\SubscriptionFormService;
 use App\Services\Platform\CpOperatorScope;
 use Carbon\CarbonImmutable;
@@ -26,7 +25,7 @@ use Statamic\Facades\Form as StatamicForm;
 
 class ProductFormController
 {
-    public function index(Request $request, ScopedProductFormProductSelector $products, ProductFormService $formService, SubscriptionFormService $legacyService, FocalPointApplicationContent $focalContent): View|RedirectResponse
+    public function index(Request $request, ScopedProductFormProductSelector $products, ProductFormService $formService, SubscriptionFormService $legacyService): View|RedirectResponse
     {
         $subscriptionWorkspace = $this->isSubscriptionWorkspace($request);
         $isSuper = app(CpOperatorScope::class)->isSuper($request->user());
@@ -55,8 +54,6 @@ class ProductFormController
                 'url' => route('focal-points.applications.show'),
                 'submissions_url' => cp_route('focal-point-applications.index'),
                 'manage_url' => cp_route('globals.variables.edit', 'focal_point_application'),
-                'terms_approved' => $focalContent->torApproved(),
-                'can_approve_terms' => $focalContent->canApprove(),
             ],
             [
                 'name' => 'Observer Violations',
