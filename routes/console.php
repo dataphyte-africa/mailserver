@@ -3,6 +3,7 @@
 use App\Console\Commands\Newsletter\DispatchScheduledCampaigns;
 use App\Console\Commands\Newsletter\FinalizeCampaigns;
 use App\Console\Commands\Newsletter\SyncCampaignStats;
+use App\Console\Commands\Newsletter\DispatchDueEngagementRecalculations;
 use App\Console\Commands\Foundation\PurgeExpiredFocalPointApplicationDrafts;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -61,6 +62,13 @@ Schedule::command(SyncCampaignStats::class, [
     ->runInBackground()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/campaign-sync-deep.log'));
+
+Schedule::command(DispatchDueEngagementRecalculations::class)
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/engagement-recalculation.log'));
 
 Schedule::command(PurgeExpiredFocalPointApplicationDrafts::class)
     ->dailyAt('03:00')

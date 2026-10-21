@@ -518,7 +518,7 @@ class ProductFormService
 
         $subGroup = SubscriberSubGroup::query()->with('group')->find($subGroupId);
 
-        if (! $subGroup || $subGroup->isArchived() || ! $subGroup->group || $subGroup->group->isArchived()) {
+        if (! $subGroup || $subGroup->purpose !== 'preference' || $subGroup->isArchived() || ! $subGroup->group || $subGroup->group->isArchived()) {
             throw ValidationException::withMessages([
                 'audience_sub_group_id' => ['Forms may only assign active audience sub-groups with active parent groups.'],
             ]);

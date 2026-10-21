@@ -70,6 +70,61 @@ class CampaignAudienceOwnershipService
         );
     }
 
+    public function validatePersistedForPrivate(Campaign $campaign, Product $template): ValidatedCampaignAudience
+    {
+        $audiences = $campaign->audiences()->get();
+        $groupType = (new SubscriberGroup)->getMorphClass();
+        $subGroupType = (new SubscriberSubGroup)->getMorphClass();
+        if ($audiences->isEmpty()) {
+            throw new CampaignAudienceOwnershipException('private_group_id', 'Select a private audience before sending.');
+        }
+
+        $first = $audiences->first();
+        if ($audiences->count() === 1 && $first->targetable_type === $groupType && $first->send_to_all) {
+            return $this->validateForPrivate($template, (int) $first->targetable_id, true, []);
+        }
+
+        if ($audiences->contains(fn (CampaignAudience $audience) => $audience->targetable_type !== $subGroupType || $audience->send_to_all)) {
+            throw new CampaignAudienceOwnershipException('sub_groups', 'The private campaign has invalid persisted targets.');
+        }
+
+        $groupIds = SubscriberSubGroup::query()->whereKey($audiences->pluck('targetable_id'))
+            ->pluck('subscriber_group_id')->unique();
+        if ($groupIds->count() !== 1) {
+            throw new CampaignAudienceOwnershipException('private_group_id', 'Private campaign targets must belong to one audience.');
+        }
+
+        return $this->validateForPrivate($template, (int) $groupIds->first(), false, $audiences->pluck('targetable_id')->all());
+    }
+
+    public function validateForPrivate(Product $template, int $groupId, bool $sendToAll, array $subGroupIds): ValidatedCampaignAudience
+    {
+        $organisation = $this->activeOrganisationFor($template);
+        $group = SubscriberGroup::query()->whereKey($groupId)
+            ->where('organisation_id', $organisation->getKey())
+            ->where('audience_scope', 'organisation_private')
+            ->whereNull('product_id')->whereNull('archived_at')->first();
+        if ($group === null) {
+            throw new CampaignAudienceOwnershipException('private_group_id', 'Select an available private audience in this organisation.');
+        }
+
+        if ($sendToAll) {
+            return new ValidatedCampaignAudience($group, new Collection);
+        }
+
+        $ids = collect($subGroupIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            throw new CampaignAudienceOwnershipException('sub_groups', 'Select at least one eligible rating subgroup.');
+        }
+        $segments = $group->subGroups()->whereKey($ids)->where('purpose', 'engagement')
+            ->where('slug', '!=', 'rating-suppressed')->whereNull('archived_at')->get();
+        if ($segments->count() !== $ids->count()) {
+            throw new CampaignAudienceOwnershipException('sub_groups', 'One or more selected rating subgroups are unavailable.');
+        }
+
+        return new ValidatedCampaignAudience(null, $segments);
+    }
+
     /**
      * @param  array<int, mixed>  $subGroupIds
      */
@@ -118,6 +173,9 @@ class CampaignAudienceOwnershipService
             /** @var SubscriberSubGroup $subGroup */
             $subGroup = $subGroups->get($id);
             $this->assertGroupOwnedBy($subGroup->group, $product, $organisation, 'sub_groups');
+            if ($subGroup->purpose === 'engagement' && $subGroup->slug === 'rating-suppressed') {
+                throw new CampaignAudienceOwnershipException('sub_groups', 'Suppressed subscribers cannot be targeted.');
+            }
             $orderedSubGroups->push($subGroup);
         }
 
@@ -136,12 +194,27 @@ class CampaignAudienceOwnershipService
             );
         }
 
-        if ($audience->group !== null) {
+        if ($campaign->audience_scope === 'organisation_private') {
+            $targets = $audience->group !== null ? [$audience->group] : $audience->subGroups;
+            if (count($targets) === 0) {
+                throw new CampaignAudienceOwnershipException('private_group_id', 'Select a private audience before sending.');
+            }
+            foreach ($targets as $target) {
+                $group = $target instanceof SubscriberGroup ? $target : $target->group;
+                if (! $group->isPrivateAudience() || $group->isArchived()
+                    || (int) $group->organisation_id !== (int) $organisation->getKey()
+                    || $group->product_id !== null) {
+                    throw new CampaignAudienceOwnershipException('private_group_id', 'Private audience ownership is invalid.');
+                }
+            }
+        } elseif ($audience->group !== null) {
             $this->assertGroupOwnedBy($audience->group, $product, $organisation, 'send_to_all');
         }
 
-        foreach ($audience->subGroups as $subGroup) {
-            $this->assertGroupOwnedBy($subGroup->group, $product, $organisation, 'sub_groups');
+        if ($campaign->audience_scope !== 'organisation_private') {
+            foreach ($audience->subGroups as $subGroup) {
+                $this->assertGroupOwnedBy($subGroup->group, $product, $organisation, 'sub_groups');
+            }
         }
 
         $campaign->audiences()->delete();

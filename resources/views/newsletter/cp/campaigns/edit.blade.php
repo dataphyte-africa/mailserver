@@ -17,7 +17,7 @@
 @endif
 
 <form method="POST" action="{{ cp_route('newsletter.campaigns.update', $campaign) }}"
-      x-data="campaignForm()" x-init="init()">
+      x-data="campaignForm()">
     @csrf
     @method('PUT')
 
@@ -39,7 +39,7 @@
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-grey-80 mb-1">Product</label>
+                    <label class="block text-sm font-medium text-grey-80 mb-1">{{ $campaign->audience_scope === 'organisation_private' ? 'Email template' : 'Product' }}</label>
                     <div class="input-text w-full bg-grey-10 text-grey-80">
                         {{ $product->organisation->name }} / {{ $product->name }}
                     </div>
@@ -106,6 +106,16 @@
             <div class="card p-6">
                 <h2 class="text-lg font-semibold mb-3">Audience</h2>
 
+                <p class="text-sm mb-3">{{ $campaign->audience_scope === 'organisation_private' ? 'Private organisation audience' : 'Product subscribers' }}</p>
+                @if($campaign->audience_scope === 'organisation_private')
+                    <label class="block text-sm font-medium mb-1">Private audience</label>
+                    <select name="private_group_id" x-model="privateGroupId" class="input-text w-full mb-4">
+                        @foreach($privateGroups as $group)
+                            <option value="{{ $group->id }}" @selected((string) old('private_group_id', $selectedPrivateGroupId) === (string) $group->id)>{{ $group->name }}</option>
+                        @endforeach
+                    </select>
+                @endif
+
                 <label class="flex items-center gap-2 mb-4 cursor-pointer">
                     <input type="hidden" name="send_to_all" value="0">
                     <input type="checkbox" name="send_to_all" value="1"
@@ -113,6 +123,22 @@
                     <span class="text-sm font-medium">Send to All</span>
                 </label>
 
+                @if($campaign->audience_scope === 'organisation_private')
+                <div x-show="!sendToAll">
+                    @foreach($privateGroups as $group)
+                        <div x-show="String(privateGroupId) === @js((string) $group->id)">
+                            @foreach($group->subGroups as $sub)
+                                <label class="flex items-center gap-2 py-1 cursor-pointer">
+                                    <input type="checkbox" name="sub_groups[]" value="{{ $sub->id }}"
+                                           @checked(in_array($sub->id, $selectedSubGroupIds))
+                                           :disabled="sendToAll || String(privateGroupId) !== @js((string) $group->id)" class="checkbox">
+                                    <span class="text-sm">{{ $sub->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @endforeach
+                </div>
+                @else
                 <div x-show="!sendToAll">
                     @foreach($subGroups as $group)
                     <div class="mb-3" x-show="groupMatchesProduct(@js($group->product_id), @js($group->slug), @js($group->collection_handle))">
@@ -131,6 +157,7 @@
                     </div>
                     @endforeach
                 </div>
+                @endif
             </div>
 
             <div class="card p-6">
@@ -247,6 +274,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function campaignForm() {
     return {
         productId: @js((string) $product->getKey()),
+        privateGroupId: @js((string) old('private_group_id', $selectedPrivateGroupId)),
         collection: OLD_COLLECTION,
         subject: '{{ old('subject', addslashes($campaign->subject ?? '')) }}',
         sendToAll: {{ $sendToAll ? 'true' : 'false' }},

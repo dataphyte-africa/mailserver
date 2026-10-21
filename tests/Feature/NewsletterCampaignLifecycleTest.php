@@ -62,6 +62,22 @@ class NewsletterCampaignLifecycleTest extends BaseTestCase
         $this->assertSame('sent', $campaign->fresh()->status);
     }
 
+    public function test_finalize_marks_campaign_partial_when_a_queued_contact_is_skipped(): void
+    {
+        $campaign = Campaign::factory()->create([
+            'status' => 'sending',
+            'sent_at' => now(),
+            'total_recipients' => 2,
+        ]);
+
+        CampaignSend::factory()->for($campaign)->create(['status' => 'sent']);
+        CampaignSend::factory()->for($campaign)->create(['status' => 'skipped']);
+
+        Artisan::call('campaigns:finalize');
+
+        $this->assertSame('partial', $campaign->fresh()->status);
+    }
+
     public function test_send_queued_command_requeues_retryable_failed_sends_and_processes_them(): void
     {
         Mail::fake();

@@ -8,6 +8,8 @@ use App\Models\Campaign;
 use App\Models\Organisation;
 use App\Models\Product;
 use App\Models\Subscriber;
+use App\Models\SubscriberGroup;
+use App\Models\SubscriberSubGroup;
 use Illuminate\Support\Facades\URL;
 
 class NewsletterPublicUrlService
@@ -32,9 +34,9 @@ class NewsletterPublicUrlService
         return $this->signedProductUrl('newsletter.unsubscribe.show', $subscriber, $collectionHandle, $productContext);
     }
 
-    public function unsubscribeProcessUrl(Subscriber $subscriber, ?string $collectionHandle = null, Campaign|Organisation|string|int|null $productContext = null): string
+    public function unsubscribeProcessUrl(Subscriber $subscriber, ?string $collectionHandle = null, Campaign|Organisation|string|int|null $productContext = null, ?int $privateGroupId = null): string
     {
-        return $this->signedProductUrl('newsletter.unsubscribe.process', $subscriber, $collectionHandle, $productContext);
+        return $this->signedProductUrl('newsletter.unsubscribe.process', $subscriber, $collectionHandle, $productContext, $privateGroupId);
     }
 
     public function hasValidSignature($request): bool
@@ -42,8 +44,14 @@ class NewsletterPublicUrlService
         return $request->hasValidSignature() || $request->hasValidSignature(false);
     }
 
-    private function signedProductUrl(string $routeName, Subscriber $subscriber, ?string $collectionHandle, Campaign|Organisation|string|int|null $productContext): string
+    private function signedProductUrl(string $routeName, Subscriber $subscriber, ?string $collectionHandle, Campaign|Organisation|string|int|null $productContext, ?int $privateGroupId = null): string
     {
+        if ($productContext instanceof Campaign && $productContext->audience_scope === 'organisation_private') {
+            if ($routeName === 'newsletter.unsubscribe.show' || $routeName === 'newsletter.unsubscribe.process') {
+                $privateGroupId = $this->privateGroupId($productContext);
+            }
+            $productContext = $productContext->organisation;
+        }
         $productId = $this->productId($productContext, $collectionHandle);
         $organisationId = $this->organisationId($productContext, $collectionHandle, $productId);
         $parameters = array_filter([
@@ -51,6 +59,7 @@ class NewsletterPublicUrlService
             'collection' => $collectionHandle,
             'organisation' => $organisationId,
             'product' => $productId,
+            'private_group' => $privateGroupId,
         ], fn ($value) => filled($value));
 
         $relativeUrl = URL::signedRoute($routeName, $parameters, null, false);
@@ -66,6 +75,15 @@ class NewsletterPublicUrlService
         }
 
         return URL::signedRoute($routeName, $parameters);
+    }
+
+    private function privateGroupId(Campaign $campaign): ?int
+    {
+        $target = $campaign->audiences()->with('targetable')->first()?->targetable;
+        $group = $target instanceof SubscriberGroup ? $target
+            : ($target instanceof SubscriberSubGroup ? $target->group : null);
+
+        return $group?->isPrivateAudience() ? (int) $group->getKey() : null;
     }
 
     private function organisationId(Campaign|Organisation|string|int|null $productContext, ?string $collectionHandle, ?int $productId): ?int

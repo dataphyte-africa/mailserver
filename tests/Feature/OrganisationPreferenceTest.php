@@ -31,7 +31,7 @@ class OrganisationPreferenceTest extends TestCase
         ])->assertOk();
 
         $this->assertSame('active', $subscriber->fresh()->status);
-        $this->assertEqualsCanonicalizing([$marina->id, $weekly->id], $subscriber->subGroups()->pluck('subscriber_sub_groups.id')->all());
+        $this->assertEqualsCanonicalizing([$marina->id, $weekly->id], $subscriber->subGroups()->where('purpose', 'preference')->pluck('subscriber_sub_groups.id')->all());
         $this->assertDatabaseHas('organisations', ['id' => $foundation->id]);
     }
 

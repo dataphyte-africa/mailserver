@@ -5,6 +5,7 @@ namespace App\Services\Newsletter;
 use App\Models\CampaignAudience;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -13,13 +14,14 @@ class ScopedSubscriberGroupDeletionService
 {
     public function __construct(
         private readonly ScopedSubscriberGroupProductSelector $products,
+        private readonly CpOperatorScope $scope,
     ) {}
 
     public function delete(
         ?Authenticatable $operator,
         SubscriberGroup $group,
     ): bool {
-        if ($this->products->resolveGroup($operator, $group) === null) {
+        if (! $this->canManage($operator, $group)) {
             return false;
         }
 
@@ -34,7 +36,7 @@ class ScopedSubscriberGroupDeletionService
         ?Authenticatable $operator,
         SubscriberGroup $group,
     ): bool {
-        if ($this->products->resolveGroup($operator, $group) === null) {
+        if (! $this->canManage($operator, $group)) {
             return false;
         }
 
@@ -49,7 +51,7 @@ class ScopedSubscriberGroupDeletionService
         ?Authenticatable $operator,
         SubscriberGroup $group,
     ): bool {
-        if ($this->products->resolveGroup($operator, $group) === null) {
+        if (! $this->canManage($operator, $group)) {
             return false;
         }
 
@@ -117,6 +119,13 @@ class ScopedSubscriberGroupDeletionService
         return $group->subGroups()
             ->get()
             ->every(fn (SubscriberSubGroup $subGroup): bool => ! $this->wasTargetedByCampaign($subGroup));
+    }
+
+    private function canManage(?Authenticatable $operator, SubscriberGroup $group): bool
+    {
+        return $group->isPrivateAudience()
+            ? $this->scope->canGroup($operator, $group)
+            : $this->products->resolveGroup($operator, $group) !== null;
     }
 
     public function canDeleteSubGroup(SubscriberSubGroup $subGroup): bool

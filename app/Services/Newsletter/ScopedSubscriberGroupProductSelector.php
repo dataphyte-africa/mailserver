@@ -5,6 +5,7 @@ namespace App\Services\Newsletter;
 use App\Models\Product;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
+use App\Services\Platform\CpOperatorScope;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -14,6 +15,7 @@ class ScopedSubscriberGroupProductSelector
 {
     public function __construct(
         private readonly ScopedCampaignProductSelector $products,
+        private readonly CpOperatorScope $scope,
     ) {}
 
     /**
@@ -47,17 +49,20 @@ class ScopedSubscriberGroupProductSelector
 
         $productIds = $this->productsFor($operator)->modelKeys();
 
-        if ($productIds === []) {
-            return new Collection;
-        }
-
         return SubscriberGroup::query()
-            ->ownedByProducts($productIds)
-            ->whereHas('product', function (Builder $query) use ($productIds): void {
-                $query
-                    ->whereKey($productIds)
-                    ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
-                    ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle');
+            ->where(function (Builder $query) use ($productIds, $operator): void {
+                $query->where(function (Builder $products) use ($productIds): void {
+                    $products->where('audience_scope', 'product_public')
+                        ->ownedByProducts($productIds)
+                        ->whereHas('product', fn (Builder $product) => $product
+                            ->whereKey($productIds)
+                            ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
+                            ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle'));
+                })->orWhere(function (Builder $private) use ($operator): void {
+                    $private->where('audience_scope', 'organisation_private')
+                        ->whereNull('product_id')
+                        ->whereIn('organisation_id', $this->scope->organisationIds($operator));
+                });
             })
             ->orderBy('subscriber_groups.name')
             ->get();

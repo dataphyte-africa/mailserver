@@ -48,6 +48,35 @@ class AudienceResolver
             ->get();
     }
 
+    public function includesPrivateMember(Campaign $campaign, Subscriber $subscriber): bool
+    {
+        if ($subscriber->status !== 'active') {
+            return false;
+        }
+
+        foreach ($campaign->audiences as $audience) {
+            $target = $audience->targetable;
+            $group = $target instanceof SubscriberGroup ? $target : $target?->group;
+            if (! $group?->isPrivateAudience() || $group->isArchived()
+                || (int) $group->organisation_id !== (int) $campaign->organisation_id) {
+                continue;
+            }
+            if ($subscriber->groupEngagements()->where('subscriber_group_id', $group->getKey())
+                ->where('rating', 'suppressed')->exists()) {
+                continue;
+            }
+            $isMember = $subscriber->subGroups()->where('subscriber_group_id', $group->getKey())
+                ->where('purpose', 'preference')->exists();
+            if ($isMember && ($target instanceof SubscriberGroup || ($target instanceof SubscriberSubGroup
+                && $target->purpose === 'engagement' && $target->slug !== 'rating-suppressed'
+                && $subscriber->subGroups()->whereKey($target->getKey())->exists()))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Returns subscriber IDs for a single audience row.
      */
@@ -75,8 +104,11 @@ class AudienceResolver
     private function resolveGroup(SubscriberGroup $group): Collection
     {
         return Subscriber::active()
+            ->whereDoesntHave('groupEngagements', fn ($q) => $q
+                ->where('subscriber_group_id', $group->getKey())->where('rating', 'suppressed'))
             ->whereHas('allSubGroups', function ($q) use ($group) {
                 $q->where('subscriber_group_id', $group->id)
+                  ->where('purpose', 'preference')
                   ->whereNull('subscriber_sub_group.unsubscribed_at');
             })
             ->pluck('id');
@@ -84,7 +116,17 @@ class AudienceResolver
 
     private function resolveSubGroup(SubscriberSubGroup $subGroup): Collection
     {
+        if ($subGroup->purpose === 'engagement' && $subGroup->slug === 'rating-suppressed') {
+            return collect();
+        }
+
         return Subscriber::active()
+            ->whereDoesntHave('groupEngagements', fn ($q) => $q
+                ->where('subscriber_group_id', $subGroup->subscriber_group_id)->where('rating', 'suppressed'))
+            ->when($subGroup->group?->isPrivateAudience(), fn ($query) => $query
+                ->whereHas('subGroups', fn ($members) => $members
+                    ->where('subscriber_group_id', $subGroup->subscriber_group_id)
+                    ->where('purpose', 'preference')))
             ->whereHas('subGroups', function ($q) use ($subGroup) {
                 $q->where('subscriber_sub_groups.id', $subGroup->id);
             })

@@ -9,6 +9,7 @@ use App\Services\Newsletter\ScopedSubscriberGroupDeletionService;
 use App\Services\Newsletter\ScopedSubscriberGroupProductSelector;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SubGroupController extends Controller
 {
@@ -27,6 +28,10 @@ class SubGroupController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
+
+        if (str_starts_with(Str::slug($validated['name']), 'rating-')) {
+            throw ValidationException::withMessages(['name' => 'This name is reserved for engagement segments.']);
+        }
 
         $group->subGroups()->create([
             'name' => $validated['name'],
@@ -50,11 +55,16 @@ class SubGroupController extends Controller
             403,
             'Subgroup is outside the selected audience product scope.'
         );
+        abort_if($subGroup->purpose !== 'preference', 403);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
+
+        if (str_starts_with(Str::slug($validated['name']), 'rating-')) {
+            throw ValidationException::withMessages(['name' => 'This name is reserved for engagement segments.']);
+        }
 
         $subGroup->update([
             'name' => $validated['name'],
@@ -73,6 +83,7 @@ class SubGroupController extends Controller
         SubscriberSubGroup $subGroup,
         ScopedSubscriberGroupDeletionService $deletions,
     ) {
+        abort_if($subGroup->purpose !== 'preference', 403);
         abort_unless(
             $deletions->deleteSubGroup($request->user(), $group, $subGroup),
             403,
@@ -90,6 +101,7 @@ class SubGroupController extends Controller
         SubscriberSubGroup $subGroup,
         ScopedSubscriberGroupDeletionService $deletions,
     ) {
+        abort_if($subGroup->purpose !== 'preference', 403);
         abort_unless(
             $deletions->archiveSubGroup($request->user(), $group, $subGroup),
             403,
@@ -107,6 +119,7 @@ class SubGroupController extends Controller
         SubscriberSubGroup $subGroup,
         ScopedSubscriberGroupDeletionService $deletions,
     ) {
+        abort_if($subGroup->purpose !== 'preference', 403);
         abort_unless(
             $deletions->restoreSubGroup($request->user(), $group, $subGroup),
             403,

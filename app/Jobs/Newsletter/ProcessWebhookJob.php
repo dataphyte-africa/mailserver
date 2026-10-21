@@ -144,7 +144,8 @@ class ProcessWebhookJob implements ShouldQueue
         };
 
         if ($send->subscriber) {
-            app(SubscriberEngagementService::class)->persist($send->subscriber);
+            $subscriber = app(SubscriberEngagementService::class)->persist($send->subscriber);
+            app(\App\Services\Newsletter\GroupEngagementService::class)->syncForSubscriber($subscriber);
         }
     }
 
@@ -394,7 +395,8 @@ class ProcessWebhookJob implements ShouldQueue
             default => null,
         };
 
-        app(SubscriberEngagementService::class)->persist($subscriber->fresh());
+        $subscriber = app(SubscriberEngagementService::class)->persist($subscriber->fresh());
+        app(\App\Services\Newsletter\GroupEngagementService::class)->syncForSubscriber($subscriber);
 
         return true;
     }

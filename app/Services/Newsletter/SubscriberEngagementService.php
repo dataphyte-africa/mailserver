@@ -3,6 +3,8 @@
 namespace App\Services\Newsletter;
 
 use App\Models\Subscriber;
+use App\Models\SubscriberGroup;
+use App\Models\SubscriberSubGroup;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -13,12 +15,31 @@ class SubscriberEngagementService
 
     public function compute(Subscriber $subscriber): array
     {
-        $recentSends = $subscriber->campaignSends()
-            ->orderByRaw('COALESCE(clicked_at, opened_at, sent_at, created_at) desc')
+        return $this->computeFromSends($subscriber, $subscriber->campaignSends());
+    }
+
+    public function computeForGroup(Subscriber $subscriber, SubscriberGroup $group): array
+    {
+        $groupType = (new SubscriberGroup)->getMorphClass();
+        $subGroupType = (new SubscriberSubGroup)->getMorphClass();
+        $subGroupIds = $group->subGroups()->pluck('id')->all();
+        $sends = $subscriber->campaignSends()->whereHas('campaign.audiences', function ($query) use ($group, $groupType, $subGroupType, $subGroupIds) {
+            $query->where(fn ($targets) => $targets
+                ->where(fn ($groups) => $groups->where('targetable_type', $groupType)->where('targetable_id', $group->getKey()))
+                ->orWhere(fn ($subGroups) => $subGroups->where('targetable_type', $subGroupType)->whereIn('targetable_id', $subGroupIds)));
+        });
+
+        return $this->computeFromSends($subscriber, $sends, true);
+    }
+
+    private function computeFromSends(Subscriber $subscriber, $sends, bool $unratedWhenEmpty = false): array
+    {
+        $recentSends = (clone $sends)
+            ->orderByRaw('COALESCE(sent_at, created_at) desc')
             ->limit(self::WINDOW_SIZE)
             ->get(['status', 'sent_at', 'opened_at', 'clicked_at', 'failed_at', 'bounced_at']);
 
-        $lastEngagedAt = $subscriber->campaignSends()
+        $lastEngagedAt = (clone $sends)
             ->selectRaw('MAX(COALESCE(clicked_at, opened_at)) as last_engaged_at')
             ->value('last_engaged_at');
 
@@ -35,9 +56,10 @@ class SubscriberEngagementService
         $score = $this->scoreWindow($recentSends);
         $recentClick = $this->hasRecentClick($recentSends, 30);
         $engagementCount = $recentSends->filter(fn ($send) => $send->clicked_at || $send->opened_at)->count();
-        $sentCount = (int) $subscriber->campaignSends()->count();
+        $sentCount = (int) (clone $sends)->count();
 
         $rating = match (true) {
+            $unratedWhenEmpty && $sentCount === 0 => 'new',
             $recentClick && $score >= 8 => 'high',
             $this->isAtRisk($sentCount, $engagementCount, $lastEngagedAt) => 'inactive',
             $score >= 4 && $this->engagedRecently($lastEngagedAt, 90) => 'moderate',

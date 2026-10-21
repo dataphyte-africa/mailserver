@@ -2373,6 +2373,149 @@ textarea.form-platform-control {
     padding: .35rem .75rem;
 }
 
+.newsletter-engagement-page {
+    display: grid;
+    gap: 1rem;
+}
+
+.newsletter-engagement-card {
+    padding: 1.5rem;
+}
+
+.newsletter-engagement-heading {
+    align-items: start;
+    display: flex;
+    gap: 2rem;
+    justify-content: space-between;
+}
+
+.newsletter-engagement-title {
+    color: #111827;
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 0 0 .5rem;
+}
+
+.newsletter-engagement-copy,
+.newsletter-engagement-note {
+    color: #475569;
+    font-size: .875rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.newsletter-engagement-copy {
+    max-width: 44rem;
+}
+
+.newsletter-engagement-organisation,
+.newsletter-engagement-interval {
+    display: grid;
+    gap: .4rem;
+}
+
+.newsletter-engagement-organisation {
+    flex: 0 0 15rem;
+}
+
+.newsletter-engagement-organisation label,
+.newsletter-engagement-interval label {
+    color: #334155;
+    font-size: .8125rem;
+    font-weight: 700;
+}
+
+.newsletter-engagement-table-wrap {
+    border: 1px solid #d7dee8;
+    border-radius: .625rem;
+    margin-top: 1.25rem;
+    overflow-x: auto;
+}
+
+.newsletter-engagement-table {
+    border-collapse: collapse;
+    color: #334155;
+    font-size: .875rem;
+    text-align: left;
+    width: 100%;
+}
+
+.newsletter-engagement-table th,
+.newsletter-engagement-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: .7rem 1rem;
+    vertical-align: top;
+}
+
+.newsletter-engagement-table thead {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.newsletter-engagement-table tbody tr:last-child th,
+.newsletter-engagement-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.newsletter-engagement-table tbody th {
+    color: #0f172a;
+    font-weight: 700;
+    width: 9rem;
+}
+
+.newsletter-engagement-note {
+    margin-top: 1rem;
+}
+
+.newsletter-engagement-status {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 1rem 0 1.25rem;
+}
+
+.newsletter-engagement-status span {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: .5rem;
+    display: grid;
+    font-size: .875rem;
+    gap: .25rem;
+    padding: .75rem 1rem;
+}
+
+.newsletter-engagement-status strong {
+    color: #64748b;
+    font-size: .75rem;
+    text-transform: uppercase;
+}
+
+.newsletter-engagement-actions,
+.newsletter-engagement-interval-controls {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+
+.newsletter-engagement-interval-controls input {
+    width: 7rem;
+}
+
+.newsletter-engagement-error {
+    color: #b91c1c;
+    font-size: .8125rem;
+    margin: .5rem 0 0;
+}
+
+.newsletter-engagement-section-title {
+    color: #111827;
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: .5rem 0 0;
+}
+
 .newsletter-groups-empty-card {
     color: #64748b;
     padding: 2rem 1rem;
@@ -2525,6 +2668,20 @@ select.newsletter-group-form-control {
     .newsletter-groups-actions {
         justify-content: flex-start;
         width: 100%;
+    }
+
+    .newsletter-engagement-heading {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .newsletter-engagement-organisation {
+        flex: auto;
+        width: 100%;
+    }
+
+    .newsletter-engagement-status {
+        grid-template-columns: 1fr;
     }
 }
 .operator-scopes-page{max-width:1100px;margin:0 auto;padding:24px;color:#172033}

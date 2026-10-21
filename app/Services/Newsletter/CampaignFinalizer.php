@@ -17,7 +17,7 @@ class CampaignFinalizer
             ->selectRaw('
                 COUNT(*) as total,
                 SUM(status = "queued") as queued,
-                SUM(status IN ("failed","bounced","complained")) as failed
+                SUM(status IN ("failed","bounced","complained","skipped")) as failed
             ')
             ->first();
 

@@ -33,7 +33,7 @@
         @endif
         <span class="eyebrow">Newsletter subscription</span>
         <h1>Subscribe to {{ $displayName }}</h1>
-        <p>Select the newsletters you want to receive. We will email you to confirm your subscription.</p>
+        <p>Select the newsletters you want to receive. Your subscription starts when you submit this form. You can unsubscribe using the link in any newsletter.</p>
 
         @if(session('legacy_subscribe_success'))
             <div class="notice success" role="status">{{ session('legacy_subscribe_success') }}</div>

@@ -34,19 +34,24 @@ class Subscriber extends Model
     public function subGroups(): BelongsToMany
     {
         return $this->belongsToMany(SubscriberSubGroup::class, 'subscriber_sub_group')
-            ->withPivot(['subscribed_at', 'unsubscribed_at'])
+            ->withPivot(['subscribed_at', 'unsubscribed_at', 'private_source'])
             ->wherePivotNull('unsubscribed_at');
     }
 
     public function allSubGroups(): BelongsToMany
     {
         return $this->belongsToMany(SubscriberSubGroup::class, 'subscriber_sub_group')
-            ->withPivot(['subscribed_at', 'unsubscribed_at']);
+            ->withPivot(['subscribed_at', 'unsubscribed_at', 'private_source']);
     }
 
     public function campaignSends(): HasMany
     {
         return $this->hasMany(CampaignSend::class);
+    }
+
+    public function groupEngagements(): HasMany
+    {
+        return $this->hasMany(SubscriberGroupEngagement::class);
     }
 
     public function scopeActive(Builder $query): Builder

@@ -15,6 +15,7 @@ class SubscriberGroup extends Model
     protected $fillable = [
         'organisation_id',
         'product_id',
+        'audience_scope',
         'name',
         'slug',
         'collection_handle',
@@ -47,6 +48,11 @@ class SubscriberGroup extends Model
     public function isArchived(): bool
     {
         return $this->archived_at !== null;
+    }
+
+    public function isPrivateAudience(): bool
+    {
+        return $this->audience_scope === 'organisation_private';
     }
 
     public function activeSubscribersCount(): int

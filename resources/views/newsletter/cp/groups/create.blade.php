@@ -7,7 +7,7 @@
         <div>
             <a href="{{ cp_route('newsletter.groups.index') }}" class="newsletter-group-form-back">&larr; Groups</a>
             <h1 class="newsletter-group-form-title">Create Group</h1>
-            <p class="newsletter-group-form-subtitle">Create a product-owned audience group for newsletter targeting.</p>
+            <p class="newsletter-group-form-subtitle">Create a private organisation audience. It will not appear on public subscription forms.</p>
         </div>
     </div>
 
@@ -22,18 +22,17 @@
                 @error('name') <p class="newsletter-group-form-error">{{ $message }}</p> @enderror
             </div>
             <div class="newsletter-group-form-field">
-                <label class="newsletter-group-form-label">Product <span>*</span></label>
-                <select name="product_id" class="newsletter-group-form-control @error('product_id') newsletter-group-form-control-error @enderror" required>
-                    <option value="">Select a product</option>
-                    @foreach($products as $product)
-                        <option value="{{ $product->getKey() }}" @selected((string) old('product_id') === (string) $product->getKey())>
-                            {{ $product->organisation->name }} / {{ $product->name }}
-                            ({{ $collectionOptions[$product->primary_collection_handle] }})
+                <label class="newsletter-group-form-label">Organisation <span>*</span></label>
+                <select name="organisation_id" class="newsletter-group-form-control @error('organisation_id') newsletter-group-form-control-error @enderror" required>
+                    <option value="">Select an organisation</option>
+                    @foreach($organisations as $organisation)
+                        <option value="{{ $organisation->getKey() }}" @selected((string) old('organisation_id', $organisations->count() === 1 ? $organisations->first()->getKey() : '') === (string) $organisation->getKey())>
+                            {{ $organisation->name }}
                         </option>
                     @endforeach
                 </select>
-                <p class="newsletter-group-form-help">The product determines the group's newsletter collection.</p>
-                @error('product_id') <p class="newsletter-group-form-error">{{ $message }}</p> @enderror
+                <p class="newsletter-group-form-help">The current rating segments are created automatically.</p>
+                @error('organisation_id') <p class="newsletter-group-form-error">{{ $message }}</p> @enderror
             </div>
             <div class="newsletter-group-form-field">
                 <label class="newsletter-group-form-label">Description</label>

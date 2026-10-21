@@ -4,6 +4,7 @@ namespace App\Jobs\Newsletter;
 
 use App\Mail\NewsletterMailable;
 use App\Models\CampaignSend;
+use App\Services\Newsletter\AudienceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\SentMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -59,6 +60,12 @@ class SendNewsletterEmailJob implements ShouldQueue
 
         if (! $campaign || ! $subscriber) {
             $send->update(['status' => 'failed', 'bounce_reason' => 'Missing campaign or subscriber']);
+            return;
+        }
+
+        if ($campaign->audience_scope === 'organisation_private'
+            && ! app(AudienceResolver::class)->includesPrivateMember($campaign->load('audiences.targetable'), $subscriber)) {
+            $send->update(['status' => 'skipped', 'bounce_reason' => 'No longer eligible for private audience']);
             return;
         }
 

@@ -105,9 +105,14 @@
                             <div class="help" style="color: #b91c1c;">{{ $errors->first('preferences') }}</div>
                         @endif
                     </fieldset>
+                    <p class="help">By subscribing, you agree to receive the selected newsletters. Your subscription starts immediately; you can unsubscribe using the link in any email.
+                        @if($form->settings['privacy_url'] ?? null)
+                            <a href="{{ $form->settings['privacy_url'] }}">Privacy policy</a>.
+                        @endif
+                    </p>
                 @endif
 
-                <button type="submit">Submit</button>
+                <button type="submit">{{ $form->mode === 'subscription' ? 'Subscribe' : 'Submit' }}</button>
             </form>
 
             <div class="meta">

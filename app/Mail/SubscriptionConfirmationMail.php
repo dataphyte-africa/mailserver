@@ -107,7 +107,7 @@ class SubscriptionConfirmationMail extends Mailable
         return match ($this->status) {
             'resubscribed' => 'Your subscription has been restored.',
             'subscription_updated' => 'Your profile and preferences were updated.',
-            default => 'Your subscription is confirmed.',
+            default => 'You are subscribed to these updates.',
         };
     }
 

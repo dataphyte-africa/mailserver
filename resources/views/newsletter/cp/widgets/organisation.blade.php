@@ -48,7 +48,7 @@
         <div class="org-dashboard-grid">
             <section class="org-dashboard-panel" aria-labelledby="org-dashboard-attention">
                 <div class="org-dashboard-panel-heading"><div><span class="org-dashboard-kicker">Your next moves</span><h3 id="org-dashboard-attention">Needs attention</h3></div></div>
-                <a class="org-dashboard-task" href="{{ cp_route('newsletter.subscribers.index', ['status' => 'pending']) }}"><span class="org-dashboard-task-icon">01</span><span><strong>{{ number_format($subscriberStats['pending']) }} pending subscribers</strong><small>Awaiting confirmation before they can receive campaigns</small></span><span aria-hidden="true">&rarr;</span></a>
+                <a class="org-dashboard-task" href="{{ cp_route('newsletter.subscribers.index', ['status' => 'pending']) }}"><span class="org-dashboard-task-icon">01</span><span><strong>{{ number_format($subscriberStats['pending']) }} pending subscribers</strong><small>Review before including them in campaigns</small></span><span aria-hidden="true">&rarr;</span></a>
                 <a class="org-dashboard-task" href="{{ cp_route('newsletter.campaigns.index', ['status' => 'draft']) }}"><span class="org-dashboard-task-icon">02</span><span><strong>{{ number_format($draftCampaigns) }} draft campaigns</strong><small>Review and prepare your next send</small></span><span aria-hidden="true">&rarr;</span></a>
                 <a class="org-dashboard-task" href="{{ cp_route('subscription-forms.index') }}"><span class="org-dashboard-task-icon">03</span><span><strong>{{ number_format($formsCount) }} subscription forms</strong><small>Manage signup pages and automated messages</small></span><span aria-hidden="true">&rarr;</span></a>
             </section>

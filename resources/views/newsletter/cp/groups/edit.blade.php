@@ -24,13 +24,14 @@
             <h2 class="font-semibold mb-3">Group Details</h2>
             <form method="POST" action="{{ cp_route('newsletter.groups.update', $group) }}" class="card p-5 space-y-4">
                 @csrf @method('PUT')
-                <input type="hidden" name="product_id" value="{{ $product->getKey() }}">
+                @if($product)<input type="hidden" name="product_id" value="{{ $product->getKey() }}">@endif
                 <div>
                     <label class="publish-field-label">Group Name</label>
                     <input type="text" name="name" value="{{ old('name', $group->name) }}"
                            class="input-text w-full" required>
                     @error('name') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
+                @if($product)
                 <div>
                     <label class="publish-field-label">Product</label>
                     <div class="input-text w-full bg-gray-50 text-gray-700">
@@ -43,6 +44,9 @@
                     <label class="publish-field-label">Newsletter Collection</label>
                     <div class="input-text w-full bg-gray-50 text-gray-700">{{ $collectionLabel }}</div>
                 </div>
+                @else
+                    <p class="text-sm text-gray-500">Private audience for {{ $group->organisation?->name }}. Not shown on public preference pages.</p>
+                @endif
                 <div>
                     <label class="publish-field-label">Description</label>
                     <textarea name="description" rows="2"
@@ -52,7 +56,33 @@
             </form>
         </div>
 
-        {{-- Sub-groups --}}
+        @if($group->isPrivateAudience())
+        <div>
+            <h2 class="font-semibold mb-3">Add member</h2>
+            <form method="POST" action="{{ cp_route('newsletter.groups.members.store', $group) }}" class="card p-5 space-y-4">
+                @csrf
+                <label class="publish-field-label">Email <input type="email" name="email" class="input-text w-full" required></label>
+                <label class="publish-field-label">First name <input type="text" name="first_name" class="input-text w-full"></label>
+                <label class="publish-field-label">Last name <input type="text" name="last_name" class="input-text w-full"></label>
+                <label class="publish-field-label">Permission source <input type="text" name="source" class="input-text w-full" placeholder="e.g. Event signup on 21 October" required></label>
+                <label class="text-sm"><input type="checkbox" name="permission_confirmed" value="1" required> I confirm this address may receive email from this organisation.</label>
+                @if($errors->any())<p class="text-red-500 text-sm">{{ $errors->first() }}</p>@endif
+                <button class="btn-primary" type="submit">Add member</button>
+            </form>
+        </div>
+        <div>
+            <h2 class="font-semibold mb-3">Import members</h2>
+            <form method="POST" action="{{ cp_route('newsletter.groups.members.import', $group) }}" enctype="multipart/form-data" class="card p-5 space-y-4">
+                @csrf
+                <p class="text-sm text-gray-500">CSV headers: email, first_name, last_name. Maximum 2,000 rows. Existing opt-outs are skipped.</p>
+                <input type="file" name="csv_file" accept=".csv,.txt" required>
+                <label class="publish-field-label">Permission source <input type="text" name="source" class="input-text w-full" required></label>
+                <label class="text-sm"><input type="checkbox" name="permission_confirmed" value="1" required> I confirm these addresses may receive email from this organisation.</label>
+                <button class="btn-primary" type="submit">Import CSV</button>
+            </form>
+        </div>
+        @else
+        {{-- Product preference sub-groups --}}
         <div>
             <h2 class="font-semibold mb-3">Sub-groups</h2>
             <div class="card p-5 space-y-3">
@@ -118,6 +148,33 @@
                 </form>
             </div>
         </div>
+        @endif
 
     </div>
+    @if($group->isPrivateAudience())
+    <div class="card p-5 mt-6">
+        <h2 class="font-semibold mb-3">Members</h2>
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+            <thead><tr><th class="text-left p-2">Email</th><th class="text-left p-2">Rating</th><th class="text-left p-2">Product subscriptions</th><th class="text-left p-2">Source</th><th class="text-left p-2">Status</th><th class="p-2"></th></tr></thead>
+            <tbody>
+            @forelse($members as $member)
+                @php
+                    $membership = $member->allSubGroups->first();
+                    $products = $member->subGroups->filter(fn ($sub) => $sub->purpose === 'preference' && $sub->group?->audience_scope === 'product_public' && (int) $sub->group?->organisation_id === (int) $group->organisation_id)->pluck('group.product.name')->filter()->unique();
+                @endphp
+                <tr class="border-t"><td class="p-2">{{ $member->email }}</td>
+                    <td class="p-2">{{ $member->groupEngagements()->where('subscriber_group_id', $group->id)->value('rating') ?? 'New / Unrated' }}</td>
+                    <td class="p-2">{{ $products->isEmpty() ? 'None' : $products->join(', ') }}</td>
+                    <td class="p-2">{{ $membership?->pivot?->private_source ?? 'Not recorded' }}</td>
+                    <td class="p-2">{{ $membership?->pivot?->unsubscribed_at ? 'Removed' : 'Active' }}</td>
+                    <td class="p-2">@if(! $membership?->pivot?->unsubscribed_at)<form method="POST" action="{{ cp_route('newsletter.groups.members.destroy', [$group, $member]) }}">@csrf @method('DELETE')<button class="text-red-500" type="submit">Remove</button></form>@endif</td>
+                </tr>
+            @empty
+                <tr><td class="p-2" colspan="6">No members yet.</td></tr>
+            @endforelse
+            </tbody>
+        </table></div>
+        {{ $members->links() }}
+    </div>
+    @endif
 @endsection

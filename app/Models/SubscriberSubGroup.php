@@ -11,7 +11,7 @@ class SubscriberSubGroup extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['subscriber_group_id', 'name', 'slug', 'description', 'archived_at', 'archived_by'];
+    protected $fillable = ['subscriber_group_id', 'name', 'slug', 'description', 'purpose', 'archived_at', 'archived_by'];
 
     protected $casts = [
         'archived_at' => 'datetime',
@@ -25,14 +25,14 @@ class SubscriberSubGroup extends Model
     public function subscribers(): BelongsToMany
     {
         return $this->belongsToMany(Subscriber::class, 'subscriber_sub_group')
-            ->withPivot(['subscribed_at', 'unsubscribed_at'])
+            ->withPivot(['subscribed_at', 'unsubscribed_at', 'private_source'])
             ->wherePivotNull('unsubscribed_at');
     }
 
     public function allSubscribers(): BelongsToMany
     {
         return $this->belongsToMany(Subscriber::class, 'subscriber_sub_group')
-            ->withPivot(['subscribed_at', 'unsubscribed_at']);
+            ->withPivot(['subscribed_at', 'unsubscribed_at', 'private_source']);
     }
 
     public function isArchived(): bool

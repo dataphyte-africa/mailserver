@@ -18,6 +18,7 @@ use App\Services\Newsletter\CollectionRegistry;
 use App\Services\Newsletter\CuratedRssStoriesService;
 use App\Services\Newsletter\RssFeedService;
 use App\Services\Newsletter\ScopedCampaignProductSelector;
+use App\Services\Newsletter\ScopedSubscriberGroupProductSelector;
 use App\Services\Newsletter\TemplateResolver;
 use App\Services\Platform\CpOperatorScope;
 use App\Support\Platform\Ownership\CampaignOwnershipWriter;
@@ -80,6 +81,10 @@ class CampaignController extends Controller
 
         return view('newsletter.cp.campaigns.create', [
             'products' => $scopedProducts,
+            'privateGroups' => app(ScopedSubscriberGroupProductSelector::class)->groupsFor($request->user())
+                ->filter(fn ($group) => $group->isPrivateAudience() && ! $group->isArchived())
+                ->load(['subGroups' => fn ($query) => $query->where('purpose', 'engagement')
+                    ->where('slug', '!=', 'rating-suppressed')->whereNull('archived_at')]),
             'collections' => array_intersect_key($collectionOptions, array_flip($scopedCollectionHandles)),
             'collectionMeta' => $this->collectionMeta(),
             'subGroups'   => $this->subGroupTree($scopedProducts->modelKeys()),
@@ -96,6 +101,8 @@ class CampaignController extends Controller
     ) {
         $data = $request->validate([
             'product_id'   => 'required|integer',
+            'audience_scope' => 'nullable|in:product_public,organisation_private',
+            'private_group_id' => 'required_if:audience_scope,organisation_private|nullable|integer',
             'name'         => 'required|string|max:255',
             'collection'   => 'required|' . $this->collectionValidationRule(),
             'entry_id'     => 'nullable|string',
@@ -123,13 +130,16 @@ class CampaignController extends Controller
         }
 
         $this->validateEntryForProduct($data['entry_id'] ?? null, $product);
+        if (($data['audience_scope'] ?? 'product_public') === 'organisation_private'
+            && in_array($data['action'], ['schedule', 'send'], true)
+            && blank($data['entry_id'] ?? null)) {
+            throw ValidationException::withMessages(['entry_id' => 'Select a content entry before scheduling or sending a private campaign.']);
+        }
 
         try {
-            $audience = $audiences->validateForProduct(
-                $product,
-                ! empty($data['send_to_all']),
-                $data['sub_groups'] ?? [],
-            );
+            $audience = ($data['audience_scope'] ?? 'product_public') === 'organisation_private'
+                ? $audiences->validateForPrivate($product, (int) $data['private_group_id'], ! empty($data['send_to_all']), $data['sub_groups'] ?? [])
+                : $audiences->validateForProduct($product, ! empty($data['send_to_all']), $data['sub_groups'] ?? []);
         } catch (CampaignAudienceOwnershipException $exception) {
             throw ValidationException::withMessages([
                 $exception->input() => $exception->getMessage(),
@@ -139,6 +149,7 @@ class CampaignController extends Controller
         $status = $workflow->statusForAuthorAction($request->user(), $data['action']);
 
         $campaign = $campaigns->createForProduct($product, [
+            'audience_scope' => $data['audience_scope'] ?? 'product_public',
             'name'         => $data['name'],
             'collection'   => $data['collection'],
             'entry_id'     => $data['entry_id'] ?? null,
@@ -277,7 +288,9 @@ class CampaignController extends Controller
         );
 
         try {
-            $audience = $audiences->validatePersistedForProduct($campaign, $product);
+            $audience = $campaign->audience_scope === 'organisation_private'
+                ? $audiences->validatePersistedForPrivate($campaign, $product)
+                : $audiences->validatePersistedForProduct($campaign, $product);
         } catch (CampaignAudienceOwnershipException) {
             abort(403, 'Campaign audience ownership is invalid.');
         }
@@ -288,6 +301,13 @@ class CampaignController extends Controller
             'collections'         => [$collectionHandle => $collectionOptions[$collectionHandle]],
             'collectionMeta'      => $this->collectionMeta(),
             'subGroups'           => $this->subGroupTree([$product->getKey()]),
+            'privateGroups' => app(ScopedSubscriberGroupProductSelector::class)->groupsFor($request->user())
+                ->filter(fn ($group) => $group->isPrivateAudience()
+                    && ! $group->isArchived()
+                    && (int) $group->organisation_id === (int) $product->organisation_id)
+                ->load(['subGroups' => fn ($query) => $query->where('purpose', 'engagement')
+                    ->where('slug', '!=', 'rating-suppressed')->whereNull('archived_at')]),
+            'selectedPrivateGroupId' => $audience->group?->getKey() ?? $audience->subGroups->first()?->subscriber_group_id,
             'entries'             => $this->allEntries([$collectionHandle]),
             'selectedSubGroupIds' => $audience->subGroups->modelKeys(),
             'sendToAll'           => $audience->sendsToAll(),
@@ -358,6 +378,7 @@ class CampaignController extends Controller
 
         $data = $request->validate([
             'name'         => 'required|string|max:255',
+            'private_group_id' => 'nullable|integer',
             'collection'   => 'required|' . $this->collectionValidationRule(),
             'entry_id'     => 'nullable|string',
             'subject'      => 'required|string|max:255',
@@ -384,13 +405,16 @@ class CampaignController extends Controller
         }
 
         $this->validateEntryForProduct($data['entry_id'] ?? null, $product);
+        if ($campaign->audience_scope === 'organisation_private'
+            && in_array($data['action'], ['schedule', 'send'], true)
+            && blank($data['entry_id'] ?? null)) {
+            throw ValidationException::withMessages(['entry_id' => 'Select a content entry before scheduling or sending a private campaign.']);
+        }
 
         try {
-            $audience = $audiences->validateForProduct(
-                $product,
-                ! empty($data['send_to_all']),
-                $data['sub_groups'] ?? [],
-            );
+            $audience = $campaign->audience_scope === 'organisation_private'
+                ? $audiences->validateForPrivate($product, (int) ($data['private_group_id'] ?? 0), ! empty($data['send_to_all']), $data['sub_groups'] ?? [])
+                : $audiences->validateForProduct($product, ! empty($data['send_to_all']), $data['sub_groups'] ?? []);
         } catch (CampaignAudienceOwnershipException $exception) {
             throw ValidationException::withMessages([
                 $exception->input() => $exception->getMessage(),
@@ -506,6 +530,12 @@ class CampaignController extends Controller
 
     public function send(Campaign $campaign, Request $request, CampaignWorkflowService $workflow)
     {
+        if ($campaign->audience_scope === 'organisation_private') {
+            $product = app(ScopedCampaignProductSelector::class)->resolveCampaign($request->user(), $campaign);
+            abort_unless($product !== null, 403);
+            abort_if(blank($campaign->entry_id), 422, 'Select a content entry before sending a private campaign.');
+            $this->validateEntryForProduct($campaign->entry_id, $product);
+        }
         $workflow->assertCanSend($request->user(), $campaign);
 
         DispatchCampaignJob::dispatch($campaign->id)->onQueue('campaigns');
@@ -805,7 +835,9 @@ class CampaignController extends Controller
     {
         $query = SubscriberGroup::query()
             ->whereNull('archived_at')
-            ->with(['subGroups' => fn ($query) => $query->whereNull('archived_at')]);
+            ->with(['subGroups' => fn ($query) => $query->whereNull('archived_at')
+                ->where(fn ($segments) => $segments->where('purpose', 'preference')
+                    ->orWhere('slug', '!=', 'rating-suppressed'))]);
 
         if ($productIds !== null) {
             $query->ownedByProducts($productIds);

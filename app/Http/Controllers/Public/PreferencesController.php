@@ -9,6 +9,7 @@ use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\NewsletterPublicUrlService;
+use App\Services\Newsletter\GroupEngagementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -31,6 +32,18 @@ class PreferencesController extends Controller
         }
         $organisation = $this->organisation($request, $subscriber);
         $productContext = $this->productContext($request, $organisation);
+        if ($mode === 'unsubscribe' && $request->filled('private_group')) {
+            $group = $this->privateGroup($request, $organisation);
+
+            return view('newsletter.public.private-unsubscribe', [
+                'subscriber' => $subscriber,
+                'organisation' => $organisation,
+                'group' => $group,
+                'formUrl' => $urls->unsubscribeProcessUrl($subscriber, $organisation->primary_collection_handle, $organisation, $group->getKey()),
+                'preferencesUrl' => $urls->preferencesUrl($subscriber, $organisation->primary_collection_handle, $organisation),
+                'completed' => false,
+            ]);
+        }
         $activeIds = $this->activeIds($subscriber, $organisation);
 
         return view('newsletter.public.preferences', [
@@ -46,13 +59,32 @@ class PreferencesController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $token, NewsletterPublicUrlService $urls)
+    public function update(Request $request, string $token, NewsletterPublicUrlService $urls, GroupEngagementService $engagement)
     {
         abort_unless($urls->hasValidSignature($request), 403, 'This preferences link has expired or is invalid.');
 
         $subscriber = Subscriber::query()->where('confirmation_token', $token)->firstOrFail();
         $organisation = $this->organisation($request, $subscriber);
         $productContext = $this->productContext($request, $organisation);
+        if ($request->filled('private_group')) {
+            $group = $this->privateGroup($request, $organisation);
+            $members = $group->subGroups()->where('slug', 'members')->where('purpose', 'preference')->firstOrFail();
+            DB::transaction(function () use ($subscriber, $members): void {
+                $subscriber->allSubGroups()->updateExistingPivot($members->getKey(), ['unsubscribed_at' => now()]);
+                if (! $subscriber->subGroups()->where('purpose', 'preference')->exists()) {
+                    $subscriber->update(['status' => 'unsubscribed', 'unsubscribed_at' => now()]);
+                }
+            });
+            $engagement->sync($subscriber->fresh(), $group);
+
+            return view('newsletter.public.private-unsubscribe', [
+                'subscriber' => $subscriber,
+                'organisation' => $organisation,
+                'group' => $group,
+                'preferencesUrl' => $urls->preferencesUrl($subscriber, $organisation->primary_collection_handle, $organisation),
+                'completed' => true,
+            ]);
+        }
         $validated = $request->validate([
             'sub_groups' => ['nullable', 'array'],
             'sub_groups.*' => ['integer', 'distinct'],
@@ -91,16 +123,18 @@ class PreferencesController extends Controller
                 }
             }
 
-            $hasAnyMembership = $subscriber->subGroups()->exists();
+            $hasAnyMembership = $subscriber->subGroups()->where('purpose', 'preference')->exists();
             $subscriber->update([
                 'status' => in_array($subscriber->status, ['erased', 'bounced', 'complained'], true)
                     ? $subscriber->status
-                    : ($hasAnyMembership
-                        ? ($subscriber->status === 'active' ? 'active' : 'pending')
-                        : 'unsubscribed'),
+                    : ($hasAnyMembership ? 'active' : 'unsubscribed'),
                 'unsubscribed_at' => $hasAnyMembership ? null : now(),
             ]);
         });
+
+        $affectedGroupIds = SubscriberSubGroup::query()->whereIn('id', array_unique(array_merge($current, $selected)))
+            ->pluck('subscriber_group_id')->unique()->all();
+        $engagement->syncForSubscriber($subscriber->fresh(), $affectedGroupIds);
 
         $remainingInOrganisation = $this->activeIds($subscriber, $organisation);
 
@@ -109,6 +143,17 @@ class PreferencesController extends Controller
             'organisation' => $organisation,
             'preferencesUrl' => $urls->preferencesUrl($subscriber, $organisation->primary_collection_handle, $productContext),
         ]);
+    }
+
+    private function privateGroup(Request $request, Organisation $organisation): SubscriberGroup
+    {
+        $id = $request->query('private_group');
+        abort_unless(is_scalar($id) && ctype_digit((string) $id), 403);
+
+        return SubscriberGroup::query()->whereKey((int) $id)
+            ->where('organisation_id', $organisation->getKey())
+            ->where('audience_scope', 'organisation_private')
+            ->whereNull('product_id')->firstOrFail();
     }
 
     private function organisation(Request $request, Subscriber $subscriber): Organisation
@@ -155,6 +200,7 @@ class PreferencesController extends Controller
     private function activeIds(Subscriber $subscriber, Organisation $organisation): array
     {
         return $subscriber->subGroups()
+            ->where('purpose', 'preference')
             ->whereHas('group', fn ($query) => $query
                 ->where('organisation_id', $organisation->getKey())
                 ->whereHas('product', fn ($product) => $product
@@ -181,6 +227,7 @@ class PreferencesController extends Controller
     private function publishedIds(Organisation $organisation): array
     {
         return SubscriberSubGroup::query()
+            ->where('purpose', 'preference')
             ->whereNull('archived_at')
             ->whereHas('group', fn ($query) => $query
                 ->where('organisation_id', $organisation->getKey())

@@ -19,7 +19,7 @@
 @endif
 
 <form method="POST" action="{{ cp_route('newsletter.campaigns.store') }}"
-      x-data="campaignForm()" x-init="init()">
+      x-data="campaignForm()">
     @csrf
 
     <div class="flex gap-6">
@@ -43,10 +43,10 @@
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-grey-80 mb-1">
-                        Product <span class="text-red">*</span>
+                        Email template <span class="text-red">*</span>
                     </label>
                     <select name="product_id" x-model="productId" class="input-text w-full">
-                        <option value="">— Select a product —</option>
+                        <option value="">— Select a template —</option>
                         @foreach($products as $product)
                             <option value="{{ $product->id }}" {{ (string) old('product_id') === (string) $product->id ? 'selected' : '' }}>
                                 {{ $product->organisation->name }} / {{ $product->name }}
@@ -54,7 +54,7 @@
                             </option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-grey-60 mt-1">Only products in your active scope are available.</p>
+                    <p class="text-xs text-grey-60 mt-1">Choose a content blueprint, such as Insight Updates. This does not subscribe private contacts to a product.</p>
                 </div>
 
                 <div class="mb-4">
@@ -136,6 +136,23 @@
             <div class="card p-6">
                 <h2 class="text-lg font-semibold mb-3">Audience</h2>
 
+                <label class="block text-sm font-medium mb-1">Audience type</label>
+                <select name="audience_scope" x-model="audienceScope" class="input-text w-full mb-3">
+                    <option value="product_public">Product subscribers</option>
+                    <option value="organisation_private">Private organisation audience</option>
+                </select>
+
+                <div x-show="audienceScope === 'organisation_private'" class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Private audience</label>
+                    <select name="private_group_id" x-model="privateGroupId" :disabled="audienceScope !== 'organisation_private'" class="input-text w-full">
+                        <option value="">— Select an audience —</option>
+                        @foreach($privateGroups as $group)
+                            <option value="{{ $group->id }}" :disabled="!groupMatchesOrganisation(@js($group->organisation_id))">{{ $group->organisation?->name }} / {{ $group->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-grey-60 mt-1">Only members of this organisation's private audience are eligible.</p>
+                </div>
+
                 {{-- Send to all toggle --}}
                 <label class="flex items-center gap-2 mb-4 cursor-pointer">
                     <input type="hidden" name="send_to_all" value="0">
@@ -145,11 +162,11 @@
                     <span class="text-sm font-medium">Send to All</span>
                 </label>
                 <p class="text-xs text-grey-60 mb-4" x-show="sendToAll">
-                    Every active subscriber in this collection's group will receive this campaign.
+                    Every eligible member of the selected audience will receive this campaign.
                 </p>
 
                 {{-- Sub-group checkboxes --}}
-                <div x-show="!sendToAll">
+                <div x-show="!sendToAll && audienceScope === 'product_public'">
                     @foreach($subGroups as $group)
                     <div class="mb-3" x-show="groupMatchesProduct(@js($group->product_id), @js($group->slug), @js($group->collection_handle))">
                         <p class="text-xs font-semibold uppercase tracking-wide text-grey-60 mb-1">
@@ -159,11 +176,26 @@
                         <label class="flex items-center gap-2 py-1 cursor-pointer">
                             <input type="checkbox" name="sub_groups[]"
                                    value="{{ $sub->id }}"
+                                   :disabled="audienceScope !== 'product_public' || sendToAll"
                                    class="checkbox">
                             <span class="text-sm">{{ $sub->name }}</span>
                         </label>
                         @endforeach
                     </div>
+                    @endforeach
+                </div>
+                <div x-show="!sendToAll && audienceScope === 'organisation_private'">
+                    @foreach($privateGroups as $group)
+                        <div x-show="String(privateGroupId) === @js((string) $group->id)" class="mb-3">
+                            <p class="text-xs font-semibold mb-1">{{ $group->name }} ratings</p>
+                            @foreach($group->subGroups as $sub)
+                                <label class="flex items-center gap-2 py-1 cursor-pointer">
+                                    <input type="checkbox" name="sub_groups[]" value="{{ $sub->id }}"
+                                           :disabled="audienceScope !== 'organisation_private' || sendToAll || String(privateGroupId) !== @js((string) $group->id)" class="checkbox">
+                                    <span class="text-sm">{{ $sub->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
                     @endforeach
                 </div>
             </div>
@@ -223,6 +255,7 @@
 // All entries keyed by collection — embedded server-side
 const ALL_ENTRIES = @json($entries);
 const COLLECTION_META = @json($collectionMeta);
+const PRODUCT_ORGANISATIONS = @json($products->pluck('organisation_id', 'id'));
 
 // Restore any old() value after validation failure
 const OLD_ENTRY_ID   = '{{ old('entry_id', '') }}';
@@ -280,6 +313,8 @@ document.addEventListener('DOMContentLoaded', function () {
 function campaignForm() {
     return {
         productId: @js((string) old('product_id', '')),
+        audienceScope: @js(old('audience_scope', 'product_public')),
+        privateGroupId: @js((string) old('private_group_id', '')),
         collection: OLD_COLLECTION,
         sendToAll: {{ old('send_to_all', 0) ? 'true' : 'false' }},
         action: '{{ old('action', 'draft') }}',
@@ -301,6 +336,10 @@ function campaignForm() {
             if (!this.productId || String(groupProductId) !== String(this.productId)) return false;
 
             return this.groupMatchesCollection(groupSlug, groupCollectionHandle);
+        },
+
+        groupMatchesOrganisation(organisationId) {
+            return this.productId && String(PRODUCT_ORGANISATIONS[this.productId]) === String(organisationId);
         },
     }
 }

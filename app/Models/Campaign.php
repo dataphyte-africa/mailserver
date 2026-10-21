@@ -15,7 +15,7 @@ class Campaign extends Model
     use HasFactory, HasOwnershipReadScopes;
 
     protected $fillable = [
-        'organisation_id', 'product_id',
+        'organisation_id', 'product_id', 'audience_scope',
         'entry_id', 'collection', 'name', 'subject',
         'from_name', 'from_email', 'reply_to',
         'status', 'scheduled_at', 'sent_at',

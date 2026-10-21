@@ -88,8 +88,8 @@ class ProductFormSubscriptionService
                 ->where('organisation_id', $form->organisation_id))
             ->where('is_public_preference', true)
             ->whereNull('archived_at')
-            ->whereHas('subGroups', fn ($query) => $query->whereNull('archived_at'))
-            ->with(['product', 'subGroups' => fn ($query) => $query->whereNull('archived_at')->orderBy('name')])
+            ->whereHas('subGroups', fn ($query) => $query->where('purpose', 'preference')->whereNull('archived_at'))
+            ->with(['product', 'subGroups' => fn ($query) => $query->where('purpose', 'preference')->whereNull('archived_at')->orderBy('name')])
             ->orderBy('name')->get();
     }
 
@@ -103,8 +103,8 @@ class ProductFormSubscriptionService
                 ->where('status', 'active')
                 ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
                 ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle'))
-            ->whereHas('subGroups', fn ($query) => $query->whereNull('archived_at'))
-            ->with(['product', 'subGroups' => fn ($query) => $query->whereNull('archived_at')->orderBy('name')])
+            ->whereHas('subGroups', fn ($query) => $query->where('purpose', 'preference')->whereNull('archived_at'))
+            ->with(['product', 'subGroups' => fn ($query) => $query->where('purpose', 'preference')->whereNull('archived_at')->orderBy('name')])
             ->orderBy('name')->get();
     }
 
@@ -144,6 +144,7 @@ class ProductFormSubscriptionService
             $group = SubscriberGroup::query()->find($form->audience_group_id);
             $subGroup = SubscriberSubGroup::query()->find($form->audience_sub_group_id);
             if ($group && ! $group->isArchived() && $subGroup && ! $subGroup->isArchived()
+                && $subGroup->purpose === 'preference'
                 && (int) $group->product_id === (int) $form->product_id
                 && (int) $group->organisation_id === (int) $form->organisation_id
                 && $group->collection_handle === $form->product->primary_collection_handle

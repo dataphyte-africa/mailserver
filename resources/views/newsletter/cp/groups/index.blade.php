@@ -20,11 +20,16 @@
                     <div class="newsletter-groups-card-main">
                         <h2 class="newsletter-groups-card-title">{{ $group->name }}</h2>
                         <p class="newsletter-groups-meta">
-                            {{ $collectionOptions[$group->collection_handle] ?? 'Unlinked collection' }}
+                            {{ $group->isPrivateAudience() ? $group->organisation?->name.' · Private audience' : ($collectionOptions[$group->collection_handle] ?? 'Unlinked collection') }}
                         </p>
                         @if($group->description)
                             <p class="newsletter-groups-description">{{ $group->description }}</p>
                         @endif
+                        <p class="newsletter-groups-meta">
+                            {{ $activeCounts->get($group->id, 0) }} active subscribers ·
+                            {{ $engagements->get($group->id)?->new_this_month ?? 0 }} new this month ·
+                            {{ $engagements->get($group->id)?->new_last_month ?? 0 }} last month
+                        </p>
                         @if($group->isArchived())
                             <p class="newsletter-groups-archive-label">Archived</p>
                         @endif
@@ -54,18 +59,12 @@
                 </div>
 
                 <div class="newsletter-groups-subgroups">
-                    @foreach($group->subGroups as $subGroup)
+                    @foreach(\App\Services\Newsletter\GroupEngagementService::SEGMENTS as $rating => $label)
                         <div class="newsletter-groups-chip">
-                            <span>{{ $subGroup->name }}</span>
-                            @if($subGroup->isArchived())
-                                <span class="newsletter-groups-chip-muted">archived</span>
-                            @endif
-                            <span class="newsletter-groups-chip-muted">{{ $subGroup->subscribers_count }} subscribers</span>
+                            <span>{{ $label }}:</span>
+                            <span class="newsletter-groups-chip-muted">{{ $ratingCounts->get($group->id)?->firstWhere('rating', $rating)?->total ?? 0 }}</span>
                         </div>
                     @endforeach
-                    @if($group->subGroups->isEmpty())
-                        <span class="newsletter-groups-empty-inline">No sub-groups yet.</span>
-                    @endif
                 </div>
             </div>
         @empty

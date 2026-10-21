@@ -113,6 +113,7 @@ class InsightProvisioner
 
         SubscriberSubGroup::query()
             ->where('subscriber_group_id', $group->id)
+            ->where('purpose', 'preference')
             ->whereNotIn('slug', $expectedSlugs)
             ->delete();
 

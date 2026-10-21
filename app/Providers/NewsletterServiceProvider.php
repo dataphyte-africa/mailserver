@@ -281,12 +281,18 @@ class NewsletterServiceProvider extends ServiceProvider
                 ->section('Newsletter')
                 ->url(cp_route('newsletter.groups.index'))
                 ->icon('tags');
+
+            $nav->content('Engagement Ratings')
+                ->section('Newsletter')
+                ->url(cp_route('newsletter.engagement.index'))
+                ->icon('charts');
         });
     }
 
     protected function registerCpStyles(): void
     {
-        Statamic::style('dataphyte/mailserver', 'cp');
+        $path = public_path('vendor/dataphyte/mailserver/css/cp.css');
+        Statamic::style('dataphyte/mailserver', 'cp.css?id='.filemtime($path));
     }
 
     protected function registerRoutes(): void
@@ -356,6 +362,11 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::delete('/erase',  [\App\Http\Controllers\CP\Newsletter\GdprController::class, 'erase'])->name('erase');
                 });
 
+                // Engagement ratings
+                \Route::get('/engagement', [\App\Http\Controllers\CP\Newsletter\EngagementRatingController::class, 'index'])->name('engagement.index');
+                \Route::put('/engagement/{organisation}', [\App\Http\Controllers\CP\Newsletter\EngagementRatingController::class, 'update'])->name('engagement.update');
+                \Route::post('/engagement/{organisation}/recalculate', [\App\Http\Controllers\CP\Newsletter\EngagementRatingController::class, 'recalculate'])->name('engagement.recalculate');
+
                 // Groups
                 \Route::prefix('groups')->name('groups.')->group(function () {
                     \Route::get('/',           [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'index'])->name('index');
@@ -363,6 +374,9 @@ class NewsletterServiceProvider extends ServiceProvider
                     \Route::post('/',          [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'store'])->name('store');
                     \Route::get('/{group}/edit',[\App\Http\Controllers\CP\Newsletter\GroupController::class, 'edit'])->name('edit');
                     \Route::put('/{group}',    [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'update'])->name('update');
+                    \Route::post('/{group}/members', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'addMember'])->name('members.store');
+                    \Route::post('/{group}/members/import', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'importMembers'])->name('members.import');
+                    \Route::delete('/{group}/members/{member}', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'removeMember'])->name('members.destroy');
                     \Route::post('/{group}/archive', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'archive'])->name('archive');
                     \Route::post('/{group}/restore', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'restore'])->name('restore');
                     \Route::delete('/{group}', [\App\Http\Controllers\CP\Newsletter\GroupController::class, 'destroy'])->name('destroy');

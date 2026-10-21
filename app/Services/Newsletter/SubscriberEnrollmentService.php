@@ -11,7 +11,9 @@ use Illuminate\Validation\ValidationException;
 
 class SubscriberEnrollmentService
 {
-    public function __construct(private readonly PendingSubscriberLifecycleService $pendingLifecycles) {}
+    public function __construct(
+        private readonly GroupEngagementService $groupEngagement,
+    ) {}
 
     /**
      * @param  array<int, int>  $managedIds
@@ -46,7 +48,7 @@ class SubscriberEnrollmentService
                     ->pluck('subscriber_sub_groups.id')->sort()->values()->all()
                 : [];
 
-            $targetStatus = $wasExisting && $previousStatus === 'active' ? 'active' : 'pending';
+            $targetStatus = 'active';
             $existingMetadata = $subscriber->metadata ?? [];
             if (array_key_exists('newsletter_form', $metadata)) {
                 unset($existingMetadata['product_form']);
@@ -58,7 +60,7 @@ class SubscriberEnrollmentService
                 'first_name' => $names['first_name'] ?? null,
                 'last_name' => $names['last_name'] ?? null,
                 'status' => $targetStatus,
-                'confirmed_at' => $targetStatus === 'active' ? ($subscriber->confirmed_at ?? now()) : null,
+                'confirmed_at' => $subscriber->confirmed_at,
                 'unsubscribed_at' => null,
                 'ip_address' => $request->ip(),
                 'user_agent' => Str::limit((string) $request->userAgent(), 65535, ''),
@@ -67,16 +69,12 @@ class SubscriberEnrollmentService
             $subscriber->ensureConfirmationToken();
             $subscriber->save();
 
-            if ($targetStatus === 'pending') {
-                if (! $wasExisting || $previousStatus !== 'pending') {
-                    $this->pendingLifecycles->resetForPending(
-                        $subscriber,
-                        $previousStatus === 'unsubscribed' ? 'resubscribed' : 'subscribed',
-                    );
-                } else {
-                    $this->pendingLifecycles->syncState($subscriber);
-                }
-            }
+            $subscriber->forceFill([
+                'pending_confirmation_expires_at' => null,
+                'pending_confirmation_last_resent_at' => null,
+                'pending_confirmation_resend_count' => 0,
+                'pending_lifecycle_state' => null,
+            ])->save();
 
             $existingManaged = $subscriber->allSubGroups()
                 ->whereIn('subscriber_sub_groups.id', $managedIds)
@@ -95,6 +93,11 @@ class SubscriberEnrollmentService
             if ($toRemove = array_diff($existingManaged, $selectedIds)) {
                 $subscriber->allSubGroups()->updateExistingPivot($toRemove, ['unsubscribed_at' => now()]);
             }
+
+            $groupIds = \App\Models\SubscriberSubGroup::query()
+                ->whereIn('id', array_unique(array_merge($managedIds, $selectedIds)))
+                ->pluck('subscriber_group_id')->unique()->all();
+            $this->groupEngagement->syncForSubscriber($subscriber, $groupIds);
 
             $subscriber = $subscriber->fresh(['subGroups.group']);
             $currentManagedIds = $subscriber->subGroups

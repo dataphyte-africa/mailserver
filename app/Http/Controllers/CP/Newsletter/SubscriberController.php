@@ -153,6 +153,7 @@ class SubscriberController extends Controller
         }
 
         app(SubscriberEngagementService::class)->persist($subscriber);
+        app(\App\Services\Newsletter\GroupEngagementService::class)->syncForSubscriber($subscriber);
 
         return redirect()
             ->route('statamic.cp.newsletter.subscribers.index')
@@ -250,7 +251,7 @@ class SubscriberController extends Controller
         ]);
 
         // Sync sub-groups: detach removed, attach new ones
-        $current     = $subscriber->subGroups()->pluck('subscriber_sub_groups.id')->toArray();
+        $current     = $subscriber->subGroups()->where('purpose', 'preference')->pluck('subscriber_sub_groups.id')->toArray();
         $incoming    = $validated['sub_groups'];
         $toDetach    = array_diff($current, $incoming);
         $toAttach    = array_diff($incoming, $current);
@@ -275,6 +276,7 @@ class SubscriberController extends Controller
         }
 
         app(SubscriberEngagementService::class)->persist($subscriber);
+        app(\App\Services\Newsletter\GroupEngagementService::class)->syncForSubscriber($subscriber);
 
         return redirect()
             ->route('statamic.cp.newsletter.subscribers.show', $subscriber)
@@ -325,6 +327,7 @@ class SubscriberController extends Controller
         $productIds = $scope->productIds(request()->user());
         return SubscriberSubGroup::query()
             ->with('group')
+            ->where('purpose', 'preference')
             ->whereNull('archived_at')
             ->whereHas('group', fn ($query) => $query->whereNull('archived_at')->when(! $isSuper, fn ($q) => $q->whereIn('product_id', $productIds)))
             ->orderBy('subscriber_group_id')
@@ -346,6 +349,7 @@ class SubscriberController extends Controller
         $productIds = $scope->productIds(request()->user());
         $assignableCount = SubscriberSubGroup::query()
             ->whereIn('id', $ids->all())
+            ->where('purpose', 'preference')
             ->whereNull('archived_at')
             ->whereHas('group', fn ($query) => $query->whereNull('archived_at')->when(! $isSuper, fn ($q) => $q->whereIn('product_id', $productIds)))
             ->count();

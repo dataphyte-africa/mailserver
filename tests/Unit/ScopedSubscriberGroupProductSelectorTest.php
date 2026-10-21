@@ -89,6 +89,7 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
             $table->id();
             $table->foreignId('organisation_id')->nullable();
             $table->foreignId('product_id')->nullable();
+            $table->string('audience_scope')->default('product_public');
             $table->string('name');
             $table->string('slug');
             $table->string('collection_handle')->nullable();
@@ -131,11 +132,10 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
             $table->timestamps();
         });
 
-        $products = new ScopedCampaignProductSelector(
-            new CpOperatorScope(new StatamicUserIdentityBridge, new ScopeResolver('active')),
-        );
-        $this->selector = new ScopedSubscriberGroupProductSelector($products);
-        $this->deletions = new ScopedSubscriberGroupDeletionService($this->selector);
+        $scope = new CpOperatorScope(new StatamicUserIdentityBridge, new ScopeResolver('active'));
+        $products = new ScopedCampaignProductSelector($scope);
+        $this->selector = new ScopedSubscriberGroupProductSelector($products, $scope);
+        $this->deletions = new ScopedSubscriberGroupDeletionService($this->selector, $scope);
     }
 
     public function test_lists_only_products_in_direct_active_scope_with_active_organisations(): void
@@ -253,6 +253,38 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
 
         $this->assertSame([$visible->getKey()], $groups->modelKeys());
         $this->assertTrue($this->selector->groupsFor($this->statamicUser('missing-link'))->isEmpty());
+    }
+
+    public function test_private_audience_visibility_uses_organisation_scope_not_product_scope(): void
+    {
+        $user = $this->createUser('statamic-private');
+        $allowed = $this->createProduct('private-allowed');
+        $foreign = $this->createProduct('private-foreign');
+        Capsule::table('organisation_user_scope')->insert([
+            'user_id' => $user->getKey(),
+            'organisation_id' => $allowed->organisation_id,
+            'scope_role' => 'organisation_manager',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $visible = SubscriberGroup::query()->create([
+            'organisation_id' => $allowed->organisation_id,
+            'product_id' => null,
+            'audience_scope' => 'organisation_private',
+            'name' => 'Private allowed', 'slug' => 'private-allowed',
+        ]);
+        $hidden = SubscriberGroup::query()->create([
+            'organisation_id' => $foreign->organisation_id,
+            'product_id' => null,
+            'audience_scope' => 'organisation_private',
+            'name' => 'Private foreign', 'slug' => 'private-foreign',
+        ]);
+        $operator = $this->statamicUser('statamic-private');
+
+        $this->assertSame([$visible->id], $this->selector->groupsFor($operator)->modelKeys());
+        $this->assertTrue((new CpOperatorScope(new StatamicUserIdentityBridge, new ScopeResolver('active')))->canGroup($operator, $visible));
+        $this->assertFalse((new CpOperatorScope(new StatamicUserIdentityBridge, new ScopeResolver('active')))->canGroup($operator, $hidden));
     }
 
     public function test_guarded_delete_removes_only_an_exact_group_in_direct_active_scope(): void

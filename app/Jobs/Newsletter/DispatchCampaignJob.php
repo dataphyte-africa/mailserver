@@ -5,6 +5,7 @@ namespace App\Jobs\Newsletter;
 use App\Models\Campaign;
 use App\Models\CampaignSend;
 use App\Services\Newsletter\AudienceResolver;
+use App\Services\Newsletter\CampaignAudienceOwnershipService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Statamic\Facades\Entry;
 
 /**
  * Resolves the audience for a campaign, creates CampaignSend rows in bulk,
@@ -50,6 +52,19 @@ class DispatchCampaignJob implements ShouldQueue
         if ($campaign->status === 'sending' && $campaign->total_recipients > 0) {
             Log::info("DispatchCampaignJob: campaign {$campaign->id} already dispatched ({$campaign->total_recipients} recipients) — skipping");
             return;
+        }
+
+        $template = $campaign->product;
+        if ($campaign->audience_scope === 'organisation_private') {
+            if (! $template || (int) $template->organisation_id !== (int) $campaign->organisation_id) {
+                throw new \RuntimeException('Private campaign template ownership is invalid.');
+            }
+            $entry = filled($campaign->entry_id) ? Entry::find($campaign->entry_id) : null;
+            if (! $entry || $entry->collectionHandle() !== $campaign->collection
+                || (filled($template->blueprint_handle) && $entry->blueprint()?->handle() !== $template->blueprint_handle)) {
+                throw new \RuntimeException('Private campaign content entry is missing or does not match its template.');
+            }
+            app(CampaignAudienceOwnershipService::class)->validatePersistedForPrivate($campaign, $template);
         }
 
         // Mark as sending immediately to prevent double dispatch

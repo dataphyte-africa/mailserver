@@ -78,6 +78,11 @@ class CpOperatorScope
 
     public function canGroup(?Authenticatable $operator, SubscriberGroup $group): bool
     {
+        if ($group->isPrivateAudience()) {
+            return $this->isSuper($operator) || ($group->product_id === null
+                && in_array((int) $group->organisation_id, $this->organisationIds($operator), true));
+        }
+
         return $this->isSuper($operator) || ($group->product_id !== null
             && Product::query()->whereKey($group->product_id)->whereKey($this->productIds($operator))
                 ->where('organisation_id', $group->organisation_id)

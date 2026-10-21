@@ -392,7 +392,7 @@ class ProductFormController
         return SubscriberGroup::query()
             ->with([
                 'product',
-                'subGroups' => fn ($query) => $query->whereNull('archived_at')->orderBy('name'),
+                'subGroups' => fn ($query) => $query->where('purpose', 'preference')->whereNull('archived_at')->orderBy('name'),
             ])
             ->whereIn('product_id', $productIds)
             ->whereNull('archived_at')

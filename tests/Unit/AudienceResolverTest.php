@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\CampaignAudience;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
+use App\Models\SubscriberGroupEngagement;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\AudienceResolver;
 use Tests\TestCase;
@@ -149,5 +150,30 @@ class AudienceResolverTest extends TestCase
         $this->assertCount(1, $resolved);
         $this->assertTrue($resolved->contains('id', $active->id));
         $this->assertFalse($resolved->contains('id', $expiredPending->id));
+    }
+
+    public function test_suppressed_rating_is_excluded_even_from_parent_group_target(): void
+    {
+        $group = SubscriberGroup::factory()->create();
+        $preference = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
+        $subscriber = Subscriber::factory()->create();
+        $subscriber->subGroups()->attach($preference->id, ['subscribed_at' => now()]);
+        SubscriberGroupEngagement::query()->create([
+            'subscriber_id' => $subscriber->id,
+            'subscriber_group_id' => $group->id,
+            'rating' => 'suppressed',
+            'score' => 0,
+            'first_joined_at' => now(),
+        ]);
+
+        $campaign = Campaign::factory()->create();
+        CampaignAudience::create([
+            'campaign_id' => $campaign->id,
+            'targetable_type' => 'subscriber_group',
+            'targetable_id' => $group->id,
+            'send_to_all' => true,
+        ]);
+
+        $this->assertCount(0, $this->resolver->resolve($campaign->load('audiences')));
     }
 }

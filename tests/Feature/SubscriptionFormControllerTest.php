@@ -88,7 +88,8 @@ class SubscriptionFormControllerTest extends TestCase
         ])->assertOk()->assertJsonPath('status', 'subscribed');
 
         $subscriber = Subscriber::query()->where('email', 'insight@example.test')->firstOrFail();
-        $this->assertSame('pending', $subscriber->status);
+        $this->assertSame('active', $subscriber->status);
+        $this->assertTrue($subscriber->subGroups()->where('slug', 'rating-new')->exists());
         $this->assertTrue($subscriber->subGroups()->whereKey($subGroup->getKey())->exists());
         $this->assertFalse($subscriber->subGroups()->where('subscriber_group_id', $legacy->getKey())->exists());
         $submission = Form::find('insight_subscribe')->querySubmissions()->first();
@@ -116,7 +117,7 @@ class SubscriptionFormControllerTest extends TestCase
         ])->assertRedirect($page)->assertSessionHas('legacy_subscribe_success');
 
         $subscriber = Subscriber::query()->where('email', 'browser@example.test')->firstOrFail();
-        $this->assertSame('pending', $subscriber->status);
+        $this->assertSame('active', $subscriber->status);
         $this->assertTrue($subscriber->subGroups()->where('slug', 'monthly')->exists());
         Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
     }
@@ -218,11 +219,11 @@ class SubscriptionFormControllerTest extends TestCase
         /** @var StatamicSubmission $submission */
         $submission = $form->querySubmissions()->first();
 
-        $this->assertEquals('pending', $subscriber->status);
+        $this->assertEquals('active', $subscriber->status);
         $this->assertNull($subscriber->confirmed_at);
         $this->assertSame(0, $subscriber->pending_confirmation_resend_count);
-        $this->assertNotNull($subscriber->pending_confirmation_expires_at);
-        $this->assertSame('awaiting_confirmation', $subscriber->pending_lifecycle_state);
+        $this->assertNull($subscriber->pending_confirmation_expires_at);
+        $this->assertNull($subscriber->pending_lifecycle_state);
         $this->assertSame(1, $form->querySubmissions()->count());
         $this->assertDatabaseHas('subscriber_groups', ['slug' => 'policy-point']);
         $this->assertDatabaseHas('subscriber_sub_groups', ['slug' => 'as-frequently']);
@@ -278,7 +279,7 @@ class SubscriptionFormControllerTest extends TestCase
 
         $this->assertDatabaseHas('subscribers', [
             'email' => 'ada-restored@example.com',
-            'status' => 'pending',
+            'status' => 'active',
         ]);
     }
 
@@ -318,7 +319,7 @@ class SubscriptionFormControllerTest extends TestCase
         ]);
     }
 
-    public function test_pending_subscriber_preference_update_does_not_activate_before_delivery(): void
+    public function test_active_subscriber_preference_update_remains_active(): void
     {
         Mail::fake();
         $form = $this->makePolicyPointForm();
@@ -346,7 +347,7 @@ class SubscriptionFormControllerTest extends TestCase
             'sub_groups' => [$frequent->id],
         ])->assertOk();
 
-        $this->assertSame('pending', $subscriber->fresh()->status);
+        $this->assertSame('active', $subscriber->fresh()->status);
         $this->assertNull($subscriber->fresh()->confirmed_at);
         $this->assertDatabaseHas('subscriber_sub_group', [
             'subscriber_id' => $subscriber->id,
@@ -491,11 +492,11 @@ class SubscriptionFormControllerTest extends TestCase
             ->assertJsonPath('status', 'resubscribed')
             ->assertJsonPath('message', 'Your subscription has been restored.');
 
-        $this->assertSame('pending', $subscriber->fresh()->status);
-        $this->assertNull($subscriber->fresh()->confirmed_at);
+        $this->assertSame('active', $subscriber->fresh()->status);
+        $this->assertNotNull($subscriber->fresh()->confirmed_at);
         $this->assertNull($subscriber->fresh()->unsubscribed_at);
         $this->assertSame(0, $subscriber->fresh()->pending_confirmation_resend_count);
-        $this->assertSame('awaiting_reconfirmation', $subscriber->fresh()->pending_lifecycle_state);
+        $this->assertNull($subscriber->fresh()->pending_lifecycle_state);
         Mail::assertQueued(SubscriptionConfirmationMail::class, function (SubscriptionConfirmationMail $mail) {
             return $mail->hasTo('ada@example.com') && $mail->status === 'resubscribed';
         });

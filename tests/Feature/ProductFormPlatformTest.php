@@ -14,7 +14,6 @@ use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Forms\ProductFormService;
 use App\Services\Newsletter\NewsletterPublicUrlService;
-use App\Services\Newsletter\PendingSubscriberLifecycleService;
 use App\Services\Newsletter\SubscriptionFormService;
 use App\Services\Platform\OrganisationNewsletterDomainService;
 use App\Services\Platform\StatamicNewsletterProductSyncService;
@@ -75,7 +74,7 @@ class ProductFormPlatformTest extends TestCase
         $this->postJson($endpoint, [
             'email' => 'person@example.test', 'country' => 'NGA', 'profession' => 'Reporter', 'gender' => 'female',
             'preferences' => [$subGroup->getKey()],
-        ])->assertCreated()->assertJsonPath('status', 'pending');
+        ])->assertCreated()->assertJsonPath('status', 'active');
 
         $this->assertSame('NGA', ProductFormSubmission::query()->firstOrFail()->payload['country']);
         Mail::assertQueued(SubscriptionConfirmationMail::class, fn (SubscriptionConfirmationMail $mail): bool => $mail->mailConfig['subject'] === 'Welcome to Insight'
@@ -83,7 +82,6 @@ class ProductFormPlatformTest extends TestCase
 
         $secondSubGroup = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->getKey()]);
         $subscriber = Subscriber::query()->where('email', 'person@example.test')->firstOrFail();
-        app(PendingSubscriberLifecycleService::class)->markDeliveryConfirmed($subscriber, now());
 
         $this->postJson($endpoint, [
             'email' => 'person@example.test', 'preferences' => [$secondSubGroup->getKey()],
@@ -104,7 +102,7 @@ class ProductFormPlatformTest extends TestCase
         ]);
     }
 
-    public function test_product_subscription_form_reuses_pending_lifecycle_and_exposes_schema(): void
+    public function test_product_subscription_form_activates_immediately_and_exposes_schema(): void
     {
         Mail::fake();
         $product = $this->createProduct();
@@ -145,12 +143,12 @@ class ProductFormPlatformTest extends TestCase
 
         $this->postJson($endpoint, [
             'full_name' => 'Signup Person', 'email' => 'signup@example.test', 'location' => 'lagos',
-        ])->assertCreated()->assertJsonPath('status', 'pending')->assertJsonPath('subscription_status', 'subscribed');
+        ])->assertCreated()->assertJsonPath('status', 'active')->assertJsonPath('subscription_status', 'subscribed');
 
         $subscriber = Subscriber::query()->where('email', 'signup@example.test')->firstOrFail();
-        $this->assertSame('pending', $subscriber->status);
+        $this->assertSame('active', $subscriber->status);
         $this->assertNull($subscriber->confirmed_at);
-        $this->assertNotNull($subscriber->pending_confirmation_expires_at);
+        $this->assertNull($subscriber->pending_confirmation_expires_at);
         $this->assertTrue($subscriber->subGroups()->whereKey($subGroup->getKey())->exists());
         Mail::assertQueued(SubscriptionConfirmationMail::class, fn ($mail) => $mail->hasTo('signup@example.test'));
 
@@ -159,12 +157,7 @@ class ProductFormPlatformTest extends TestCase
         ])->assertCreated()->assertJsonPath('subscription_status', 'already_subscribed');
         Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
 
-        app(SubscriptionFormService::class)->resendPendingConfirmation($subscriber->fresh());
-        Mail::assertQueued(SubscriptionConfirmationMail::class, 2);
-        $this->assertSame(1, $subscriber->fresh()->pending_confirmation_resend_count);
-
-        app(PendingSubscriberLifecycleService::class)->markDeliveryConfirmed($subscriber->fresh(), now());
-        $this->assertSame('active', $subscriber->fresh()->status);
+        $this->assertTrue($subscriber->subGroups()->where('slug', 'rating-new')->exists());
     }
 
     public function test_hosted_subscription_rejects_suppressed_address_without_storing_a_submission(): void
@@ -253,9 +246,9 @@ class ProductFormPlatformTest extends TestCase
 
         $selected = [$choices[$approved->getKey()]->getKey(), $choices[$second->getKey()]->getKey()];
         $this->postJson($endpoint, $base + ['preferences' => $selected])
-            ->assertCreated()->assertJsonPath('status', 'pending');
+            ->assertCreated()->assertJsonPath('status', 'active');
         $subscriber = Subscriber::query()->where('email', 'public@example.test')->firstOrFail();
-        $this->assertEqualsCanonicalizing($selected, $subscriber->subGroups()->pluck('subscriber_sub_groups.id')->all());
+        $this->assertEqualsCanonicalizing($selected, $subscriber->subGroups()->where('purpose', 'preference')->pluck('subscriber_sub_groups.id')->all());
         $this->assertEqualsCanonicalizing($selected, ProductFormSubmission::query()->firstOrFail()->payload['preferences']);
         Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
 
@@ -357,13 +350,13 @@ class ProductFormPlatformTest extends TestCase
 
         $selected = [$choices[$first->getKey()]->getKey(), $choices[$second->getKey()]->getKey()];
         $this->postJson($endpoint, $base + ['preferences' => $selected])
-            ->assertCreated()->assertJsonPath('status', 'pending');
+            ->assertCreated()->assertJsonPath('status', 'active');
         $submission = ProductFormSubmission::query()->firstOrFail();
         $this->assertNull($submission->product_id);
         $this->assertEqualsCanonicalizing($selected, $submission->payload['preferences']);
         $subscriber = Subscriber::query()->where('email', $base['email'])->firstOrFail();
-        $this->assertSame('pending', $subscriber->status);
-        $this->assertEqualsCanonicalizing($selected, $subscriber->subGroups()->pluck('subscriber_sub_groups.id')->all());
+        $this->assertSame('active', $subscriber->status);
+        $this->assertEqualsCanonicalizing($selected, $subscriber->subGroups()->where('purpose', 'preference')->pluck('subscriber_sub_groups.id')->all());
         Mail::assertQueued(SubscriptionConfirmationMail::class, fn (SubscriptionConfirmationMail $mail): bool => $mail->mailConfig['product_key'] instanceof Organisation
             && (int) $mail->mailConfig['product_key']->getKey() === (int) $first->organisation_id);
 
@@ -379,10 +372,10 @@ class ProductFormPlatformTest extends TestCase
 
         $this->postJson($endpoint, $base + ['preferences' => [$choices[$second->getKey()]->getKey()]])
             ->assertCreated()->assertJsonPath('subscription_status', 'subscription_updated');
-        $this->assertSame('pending', $subscriber->fresh()->status);
+        $this->assertSame('active', $subscriber->fresh()->status);
         $this->assertEqualsCanonicalizing(
             [$choices[$second->getKey()]->getKey()],
-            $subscriber->fresh()->subGroups()->pluck('subscriber_sub_groups.id')->all(),
+            $subscriber->fresh()->subGroups()->where('purpose', 'preference')->pluck('subscriber_sub_groups.id')->all(),
         );
 
         try {

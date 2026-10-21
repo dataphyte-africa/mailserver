@@ -305,6 +305,7 @@ class SubscriptionFormService
         }
 
         return collect($this->preferenceOptions($form))
+            ->reject(fn (array $option) => str_starts_with($option['slug'], 'rating-'))
             ->map(function (array $option) use ($group) {
                 return SubscriberSubGroup::firstOrCreate(
                     [
