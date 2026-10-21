@@ -179,8 +179,8 @@ class NewsletterMailable extends Mailable
                 'headerColor'        => $headerColor,
                 'footerConfig'       => $footerConfig,
                 'footerPartial'      => $footerPartial,
-                'browserUrl'         => $this->publicArchive ? null : route('newsletter.archive.show', $this->campaign),
-                'archiveUrl'         => route('newsletter.archive.index', [
+                'browserUrl'         => $this->publicArchive || ! $organisation ? null : route('newsletter.archive.show', $this->campaign),
+                'archiveUrl'         => ! $organisation ? null : route('newsletter.archive.index', [
                     'organisation' => $this->campaign->organisation_id,
                     'collection' => $collection,
                     'product' => $this->campaign->product_id,

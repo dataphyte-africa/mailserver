@@ -31,28 +31,38 @@
                 <p class="operator-scopes-warning">This user cannot sign in to the Control Panel yet. Assign a non-super role with CP access in Users.</p>
             @endunless
             <div class="operator-scopes-columns">
-                <fieldset>
-                    <legend>Organisations</legend>
-                    <p class="operator-scopes-help">Selecting one includes every active product beneath it. No product checkbox is needed.</p>
-                    @foreach($organisations as $organisation)
-                        <label><input type="checkbox" name="organisation_ids[]" value="{{ $organisation->id }}" @checked(in_array($organisation->id, $selectedOrganisations))> <span>{{ $organisation->name }} <small>{{ $products->where('organisation_id', $organisation->id)->count() }} active products included</small></span></label>
-                    @endforeach
+                <fieldset class="operator-scopes-panel">
+                    <legend>Organisation access</legend>
+                    <p class="operator-scopes-help">Grants access to every active product in the selected organisation.</p>
+                    <div class="operator-scopes-organisation-list">
+                        @foreach($organisations as $organisation)
+                            <label class="operator-scopes-organisation-option">
+                                <input type="checkbox" name="organisation_ids[]" value="{{ $organisation->id }}" @checked(in_array($organisation->id, $selectedOrganisations))>
+                                <span><strong>{{ $organisation->name }}</strong><small>All {{ $products->where('organisation_id', $organisation->id)->count() }} active products included</small></span>
+                            </label>
+                        @endforeach
+                    </div>
                 </fieldset>
-                <fieldset>
-                    <legend>Additional individual products</legend>
-                    <p class="operator-scopes-help">Only select products from organisations not selected on the left. These are extra direct grants.</p>
+                <fieldset class="operator-scopes-panel">
+                    <legend>Additional product access</legend>
+                    <p class="operator-scopes-help">Choose individual products only where the organisation is not selected.</p>
                     @foreach($organisations as $organisation)
-                        @php $organisationProducts = $products->where('organisation_id', $organisation->id); @endphp
+                        @php
+                            $organisationProducts = $products->where('organisation_id', $organisation->id);
+                            $organisationSelected = in_array($organisation->id, $selectedOrganisations);
+                        @endphp
                         @if($organisationProducts->isNotEmpty())
-                            <div class="operator-scopes-product-group" data-products-for-organisation="{{ $organisation->id }}">
-                                <h3>{{ $organisation->name }}</h3>
-                                @foreach($organisationProducts as $product)
-                                    <label><input type="checkbox" name="product_ids[]" value="{{ $product->id }}" @checked(in_array($product->id, $selectedProducts))> {{ $product->name }}</label>
-                                @endforeach
+                            <div class="operator-scopes-product-group" data-products-for-organisation="{{ $organisation->id }}" @if($organisationSelected) hidden @endif>
+                                <h3>{{ $organisation->name }} <span>{{ $organisationProducts->count() }} products</span></h3>
+                                <div class="operator-scopes-product-list">
+                                    @foreach($organisationProducts as $product)
+                                        <label><input type="checkbox" name="product_ids[]" value="{{ $product->id }}" @checked(! $organisationSelected && in_array($product->id, $selectedProducts)) @disabled($organisationSelected)> <span>{{ $product->name }}</span></label>
+                                    @endforeach
+                                </div>
                             </div>
                         @endif
                     @endforeach
-                    <p class="operator-scopes-inherited" hidden>Products in selected organisations are already included and are hidden here.</p>
+                    <p class="operator-scopes-inherited" @if($selectedOrganisations === []) hidden @endif>Products covered by organisation access are hidden from this list.</p>
                 </fieldset>
             </div>
         </form>
@@ -60,24 +70,4 @@
         <div class="operator-scopes-card">No non-super Statamic users have been created yet.</div>
     @endforelse
 </div>
-<script>
-document.querySelectorAll('form.operator-scopes-card').forEach((form) => {
-    const syncProducts = () => {
-        const selected = new Set(Array.from(form.querySelectorAll('input[name="organisation_ids[]"]:checked'), (input) => input.value);
-        let inherited = false;
-        form.querySelectorAll('[data-products-for-organisation]').forEach((group) => {
-            const included = selected.has(group.dataset.productsForOrganisation);
-            group.hidden = included;
-            group.querySelectorAll('input[name="product_ids[]"]').forEach((input) => {
-                if (included) input.checked = false;
-                input.disabled = included;
-            });
-            inherited ||= included;
-        });
-        form.querySelector('.operator-scopes-inherited').hidden = !inherited;
-    };
-    form.querySelectorAll('input[name="organisation_ids[]"]').forEach((input) => input.addEventListener('change', syncProducts));
-    syncProducts();
-});
-</script>
 @endsection

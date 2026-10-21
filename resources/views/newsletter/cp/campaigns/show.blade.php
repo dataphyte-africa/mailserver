@@ -87,16 +87,20 @@
                 <p class="text-xs text-grey-50 mb-3">
                     Merge tag tokens (<code>first_name</code>, <code>full_name</code>, <code>email</code>) are replaced with real subscriber data if the address matches a subscriber, otherwise blank.
                 </p>
-                <form method="POST"
+                <p class="text-xs text-grey-50 mb-3">This sends one test email only. It does not retry campaign delivery.</p>
+                <form id="test-send-form" method="POST"
                       action="{{ cp_route('newsletter.campaigns.test-send', $campaign) }}">
                     @csrf
                     <input type="email" name="email"
                            placeholder="recipient@example.com"
                            class="input-text w-full text-sm mb-2"
                            required>
-                    <button type="submit" class="btn-primary w-full text-sm">
+                    <button type="submit" class="btn-primary w-full text-sm disabled:opacity-60 disabled:cursor-wait">
                         Send Test
                     </button>
+                    <p id="test-send-progress" role="status" aria-live="polite" class="hidden text-xs text-grey-60 mt-2">
+                        Sending test email. Please wait for the result.
+                    </p>
                 </form>
             </div>
         </div>
@@ -479,6 +483,37 @@
 </div>
 
 <script>
+var testSendForm = document.getElementById('test-send-form');
+if (testSendForm) {
+    testSendForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        if (testSendForm.dataset.submitting === 'true') {
+            return;
+        }
+
+        testSendForm.dataset.submitting = 'true';
+        testSendForm.setAttribute('aria-busy', 'true');
+        var button = testSendForm.querySelector('button[type="submit"]');
+        button.disabled = true;
+        button.textContent = 'Sending test email…';
+        document.getElementById('test-send-progress').classList.remove('hidden');
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                HTMLFormElement.prototype.submit.call(testSendForm);
+            });
+        });
+    });
+
+    window.addEventListener('pageshow', function () {
+        testSendForm.dataset.submitting = 'false';
+        testSendForm.removeAttribute('aria-busy');
+        var button = testSendForm.querySelector('button[type="submit"]');
+        button.disabled = false;
+        button.textContent = 'Send Test';
+        document.getElementById('test-send-progress').classList.add('hidden');
+    });
+}
+
 // Close test-send panel when clicking outside it
 document.addEventListener('click', function (e) {
     var panel  = document.getElementById('test-send-panel');

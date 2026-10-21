@@ -141,6 +141,45 @@ class FormDataCollectionServiceProvider extends ServiceProvider
 
     protected function registerCpScripts(): void
     {
+        Statamic::inlineScript(<<<'JS'
+(function () {
+    function syncOperatorProducts(form) {
+        var selected = new Set(Array.from(form.querySelectorAll('input[name="organisation_ids[]"]:checked'), function (input) {
+            return input.value;
+        }));
+        var inherited = false;
+
+        form.querySelectorAll('[data-products-for-organisation]').forEach(function (group) {
+            var included = selected.has(group.dataset.productsForOrganisation);
+            group.hidden = included;
+            group.querySelectorAll('input[name="product_ids[]"]').forEach(function (input) {
+                if (included) input.checked = false;
+                input.disabled = included;
+            });
+            inherited = inherited || included;
+        });
+
+        var message = form.querySelector('.operator-scopes-inherited');
+        if (message) message.hidden = !inherited;
+    }
+
+    function bootOperatorProducts() {
+        document.querySelectorAll('form.operator-scopes-card').forEach(syncOperatorProducts);
+    }
+
+    document.addEventListener('change', function (event) {
+        if (!event.target.matches('form.operator-scopes-card input[name="organisation_ids[]"]')) return;
+        syncOperatorProducts(event.target.closest('form.operator-scopes-card'));
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootOperatorProducts);
+    } else {
+        bootOperatorProducts();
+    }
+    document.addEventListener('statamic:navigated', bootOperatorProducts);
+})();
+JS);
         Statamic::inlineScript('window.productBannerDefaultEndpoint = '.json_encode(url('/'.trim(config('statamic.cp.route', 'cp'), '/').'/product-banners/default')).';');
         Statamic::inlineScript('window.productBannerUploadEndpoint = '.json_encode(url('/'.trim(config('statamic.cp.route', 'cp'), '/').'/product-banners/one-time-upload')).';');
         Statamic::inlineScript(<<<'JS'

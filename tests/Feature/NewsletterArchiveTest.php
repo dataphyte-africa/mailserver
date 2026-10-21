@@ -68,6 +68,21 @@ class NewsletterArchiveTest extends TestCase
             ->assertDontSee(route('newsletter.archive.show', $sending), false);
     }
 
+    public function test_legacy_campaign_without_organisation_can_render_a_test_email(): void
+    {
+        [$organisation, $product, $entry] = $this->fixtures();
+        $legacy = $this->campaign($organisation, $product, $entry, 'partial');
+        $legacy->update(['organisation_id' => null, 'product_id' => null]);
+
+        $mail = new NewsletterMailable($legacy->fresh(), Subscriber::factory()->create(), 'test-legacy');
+        $content = $mail->content()->with;
+
+        $this->assertNull($content['browserUrl']);
+        $this->assertNull($content['archiveUrl']);
+        $this->assertStringNotContainsString('View in browser', $mail->render());
+        $this->assertStringNotContainsString('Past newsletters', $mail->render());
+    }
+
     private function fixtures(): array
     {
         StatamicCollection::make('insight_newsletters')->title('Insight Newsletters')->save();

@@ -287,6 +287,11 @@ class CpOperatorIsolationTest extends TestCase
             ])->assertRedirect();
             $this->assertSame(0, ProductUserScope::query()->where('user_id', $identity->id)
                 ->where('product_id', $foreign->id)->where('status', 'active')->count());
+            $accessPage = $this->get(cp_route('operator-scopes.index'))->assertOk();
+            $this->assertMatchesRegularExpression(
+                '/data-products-for-organisation=.{0,100}hidden/s',
+                $accessPage->getContent(),
+            );
 
             $this->put(cp_route('operator-scopes.update', $user->id()), [
                 'organisation_ids' => [],
