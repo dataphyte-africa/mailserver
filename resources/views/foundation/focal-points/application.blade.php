@@ -9,7 +9,7 @@
         *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 90% 5%,#dce9f9 0,transparent 36%),var(--wash);color:var(--ink);font:15px/1.55 "Avenir Next","Segoe UI",sans-serif}
         .shell{max-width:720px;margin:0 auto;padding:0 0 72px}.head{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:76px;padding:15px 24px;background:#fff;border-bottom:1px solid var(--line)}.logo{display:block;width:195px;max-width:100%;height:auto;object-fit:contain}.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:var(--accent)}.head-nav{display:flex;align-items:center;justify-content:flex-end;gap:3px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:none}.head-nav::-webkit-scrollbar{display:none}.head-nav button{flex:none;scroll-snap-align:center;white-space:nowrap;border:0;border-radius:7px;background:transparent;color:var(--muted);padding:7px 8px;font-size:12px;font-weight:600;line-height:1.2}.head-nav button:hover{background:#f4f7fc;color:var(--ink);filter:none}.head-nav button.current,.head-nav button.current:hover{background:#eaf1fb;color:var(--accent)}.head-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         .hero{background:linear-gradient(120deg,#102344,#203f73 66%,#2e629c);color:#fff;border-radius:0;padding:30px 32px;box-shadow:0 16px 36px #1a356028}.hero h1{font-size:clamp(27px,4vw,38px);line-height:1.12;letter-spacing:-.035em;margin:12px 0}.hero p{max-width:550px;color:#e1eaf8}.hero .deadline{display:inline-block;background:#ffffff1c;border:1px solid #ffffff55;padding:8px 12px;border-radius:99px;font-size:14px;font-weight:700}
-        .intro{padding:10px 8px 0;margin-top:18px}.intro p{line-height:1.65}.intro p:first-child{margin-top:0}.intro p:last-child{margin-bottom:0}.note{font-weight:600;color:#2d4d81}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-top:18px;box-shadow:0 6px 24px #14294a0b}
+        .intro{padding:10px 8px 0;margin-top:18px}.intro p{line-height:1.65}.intro p:first-child{margin-top:0}.intro p:last-child{margin-bottom:0}.note{font-weight:600;color:#2d4d81}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-top:18px;box-shadow:0 6px 24px #14294a0b}.resume-panel{margin-top:18px;padding:14px 18px;background:#edf5ff;border:1px solid #c5d8f3;border-radius:11px}.resume-panel summary{cursor:pointer;font-weight:700;color:#234d8d}.resume-panel p{margin:7px 0}.resume-controls{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px}.resume-controls label{margin:0;flex:1;min-width:220px}.resume-controls button{padding:9px 13px}.save-status{min-height:22px;margin:14px 0 -9px;color:var(--muted);font-size:13px}.save-status[data-state=error]{color:var(--danger)}.saved-file{display:block;color:#1d6040;font-size:12px;margin-top:5px}
         .shell>.intro,.shell>.alert,.shell>.panel,.shell>.foot{margin-left:18px;margin-right:18px}
         fieldset.step{border:0;padding:0;margin:0;min-width:0;scroll-margin-top:100px}fieldset.step[hidden]{display:none}legend{font-size:21px;font-weight:700;letter-spacing:-.02em;padding:0;margin-bottom:5px}.section-intro{color:var(--muted);font-size:14px;margin:0 0 20px}.grid{display:grid;grid-template-columns:1fr;gap:17px}.field{min-width:0}.field.wide{grid-column:1/-1}label,.label{font-size:14px;font-weight:600;display:block;margin-bottom:7px}.help{display:block;color:var(--muted);font-size:12px;margin-top:5px}.required{color:var(--danger)}input:not([type=radio]):not([type=checkbox]),select,textarea{width:100%;font:inherit;color:var(--ink);padding:10px 12px;border:1px solid #b7c6dc;border-radius:9px;background:#fff;min-height:44px}textarea{min-height:110px;resize:vertical}input:focus,select:focus,textarea:focus{outline:2px solid #4887ea;outline-offset:1px}.options{display:flex;gap:12px 20px;flex-wrap:wrap}.options label{font-weight:500;margin:0;display:flex;align-items:center;gap:8px}.options input{width:17px;height:17px}.question{border-top:1px solid var(--line);padding-top:20px;margin-top:5px}.error{color:var(--danger);font-size:13px;margin:5px 0 0}.alert{padding:15px 18px;border-radius:11px;margin-top:20px}.alert.error-box{background:#fff1f1;border:1px solid #ebc8cb;color:#751b29}.alert.success{background:#e9f7ef;border:1px solid #a3d5b6;color:#1d6040}.actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px}button{font:inherit;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;padding:11px 20px;font-weight:600}button.secondary{background:#fff;color:var(--ink)}button:hover{filter:brightness(1.12)}button:disabled{opacity:.55;cursor:not-allowed}.foot{color:var(--muted);font-size:13px;margin:32px 0;text-align:center}
         .location-picker{position:relative}.location-picker.enhanced select{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0;pointer-events:none}.location-picker input[type=search]{padding-right:35px}.location-results{position:absolute;z-index:5;top:calc(100% + 4px);left:0;right:0;height:220px;max-height:45vh;overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #aebed6;border-radius:9px;box-shadow:0 12px 24px #14294a24}.location-results[hidden]{display:none}.location-option{display:block;width:100%;border:0;border-radius:0;background:#fff;color:var(--ink);padding:10px 12px;text-align:left;font-weight:500}.location-option:hover,.location-option.active{background:#e9f1ff;filter:none}.location-empty{padding:11px 12px;color:var(--muted)}.terms-scroll{height:320px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:#f8faff;padding:18px;line-height:1.55}.terms-scroll h2{font-size:17px;margin:20px 0 8px}.terms-scroll h2:first-child{margin-top:0}.terms-scroll p,.terms-scroll li{font-size:14px}.terms-scroll ul{padding-left:22px}.terms-accept{margin-top:20px;display:flex;align-items:flex-start;gap:10px;font-weight:500}.terms-accept input{margin-top:5px}.terms-accept.locked{color:var(--muted)}
@@ -53,7 +53,19 @@
                 <ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
             </div>
         @endif
-        <form class="panel" action="{{ route('focal-points.applications.store') }}" method="post" enctype="multipart/form-data" id="application-form" novalidate>
+        @if(session('draft_resumed'))
+            <div class="alert success" role="status">Your saved application has been restored.</div>
+        @endif
+        @if($errors->has('resume'))
+            <div class="alert error-box" role="alert">{{ $errors->first('resume') }}</div>
+        @endif
+        <details class="resume-panel">
+            <summary>Resume a saved application</summary>
+            <p>Enter the email address used for your application and we will send a secure resume link.</p>
+            <div class="resume-controls"><label for="resume-email">Email address<input id="resume-email" type="email" autocomplete="email"></label><button type="button" id="resume-request">Email resume link</button></div>
+            <p id="resume-message" class="help" aria-live="polite"></p>
+        </details>
+        <form class="panel" action="{{ route('focal-points.applications.store') }}" method="post" enctype="multipart/form-data" id="application-form" data-draft-step-url="{{ route('focal-points.applications.drafts.step') }}" data-resume-request-url="{{ route('focal-points.applications.drafts.resume.request') }}" novalidate>
             @csrf
             <input type="hidden" name="tor_version" value="{{ $torVersion }}">
             <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px" value="">
@@ -116,8 +128,8 @@
                         @endforeach
                     </div></div>
                     <div class="field wide"><label for="tools_other">Other tools</label><input id="tools_other" name="tools_other" value="{{ old('tools_other') }}"></div>
-                    <div class="field"><label for="cv">CV, maximum two pages <span class="required">*</span></label><input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" required><span class="help">PDF, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span></div>
-                    <div class="field"><label for="certificate">Highest-qualification certificate <span class="required">*</span></label><input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required><span class="help">PDF, image, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span></div>
+                    <div class="field"><label for="cv">CV, maximum two pages <span class="required">*</span></label><input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" required><span class="help">PDF, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="cv-saved" @if(! $draft?->cv_filename) hidden @endif>{{ $draft?->cv_filename ? 'Saved: '.$draft->cv_filename.' Select a new file to replace it.' : '' }}</span></div>
+                    <div class="field"><label for="certificate">Highest-qualification certificate <span class="required">*</span></label><input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required><span class="help">PDF, image, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="certificate-saved" @if(! $draft?->certificate_filename) hidden @endif>{{ $draft?->certificate_filename ? 'Saved: '.$draft->certificate_filename.' Select a new file to replace it.' : '' }}</span></div>
                     <div class="field wide"><label style="display:flex;align-items:flex-start;gap:10px;font-weight:500"><input type="checkbox" name="application_consent" value="1" @checked(old('application_consent')) required style="margin-top:5px"> I consent to Dataphyte Foundation processing my answers and uploaded documents to assess this application and contact me about its outcome. <span class="required">*</span></label></div>
                 </div>
             </fieldset>
@@ -130,11 +142,13 @@
                 <p class="help" id="terms-help">Scroll to the end of the terms to enable acknowledgement.</p>
                 <label class="terms-accept locked" id="terms-accept-label"><input type="checkbox" id="tor_accepted" name="tor_accepted" value="1" required disabled @checked(old('tor_accepted'))> I have read and agree to the Terms of Reference. <span class="required">*</span></label>
             </fieldset>
+            <p class="save-status" id="save-status" aria-live="polite"></p>
             <div class="actions"><button type="button" class="secondary" id="back-button" hidden>Back</button><button type="button" id="next-button">Continue</button><button type="submit" id="submit-button" @disabled(! $isReady) hidden>Submit application</button></div>
         </form>
     @endif
 </main>
 @if($isOpen && !session('application_received'))
+@php($initialDraft = $draft ? ['answers' => $draft->answers, 'lastCompletedStep' => $draft->last_completed_step, 'cvFilename' => $draft->cv_filename, 'certificateFilename' => $draft->certificate_filename] : null)
 <script>
 (() => {
     const form = document.querySelector('#application-form');
@@ -147,6 +161,10 @@
     const terms = document.querySelector('#terms-scroll');
     const termsCheck = document.querySelector('#tor_accepted');
     const termsHelp = document.querySelector('#terms-help');
+    const saveStatus = document.querySelector('#save-status');
+    const initialDraft = @json($initialDraft);
+    const storageKey = 'focal-point-application-unsaved-step';
+    let serverDraft = initialDraft;
     for (const [answerId, detailId] of [['observed_before', 'observation_experience'], ['coordinated_before', 'coordination_experience']]) {
         const answer = document.querySelector(`#${answerId}`);
         const detail = document.querySelector(`#${detailId}`);
@@ -170,6 +188,55 @@
     };
     terms.addEventListener('scroll', unlockTerms, {passive: true});
     let current = 0;
+    const setSaveStatus = (message, state = '') => {
+        saveStatus.textContent = message;
+        if (state) saveStatus.dataset.state = state;
+        else delete saveStatus.dataset.state;
+    };
+    const savedFile = (kind, filename) => {
+        const input = form.querySelector(`#${kind}`);
+        const label = form.querySelector(`#${kind}-saved`);
+        input.required = !filename;
+        label.hidden = !filename;
+        label.textContent = filename ? `Saved: ${filename}. Select a new file to replace it.` : '';
+    };
+    const applyAnswers = answers => {
+        if (!answers) return;
+        Object.entries(answers).forEach(([name, value]) => {
+            if (name === 'tools') {
+                form.querySelectorAll('[name="tools[]"]').forEach(field => { field.checked = Array.isArray(value) && value.includes(field.value); });
+                return;
+            }
+            const field = form.querySelector(`[name="${CSS.escape(name)}"]`);
+            if (!field || ['website', 'cv', 'certificate'].includes(name)) return;
+            field.value = value ?? '';
+            if (field.matches('select')) field.dispatchEvent(new Event('change'));
+        });
+        ['state_id', 'lga_id', 'ward_id'].forEach(name => {
+            const field = form.querySelector(`[name="${name}"]`);
+            if (field && answers[name]) field.dataset.old = answers[name];
+        });
+    };
+    const readLocal = () => {
+        try {
+            const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+            if (saved && Date.now() - saved.savedAt < 30 * 60 * 1000) return saved;
+        } catch (_) {
+        }
+        return null;
+    };
+    const stashCurrentStep = () => {
+        const data = {};
+        new FormData(form).forEach((value, name) => {
+            if (value instanceof File || name === '_token' || name === 'tor_version' || name === 'website') return;
+            if (name.endsWith('[]')) {
+                const key = name.slice(0, -2);
+                data[key] = [...(data[key] || []), value];
+            } else data[name] = value;
+        });
+        try { sessionStorage.setItem(storageKey, JSON.stringify({savedAt: Date.now(), current, answers: data})); } catch (_) {}
+    };
+    const clearLocal = () => { try { sessionStorage.removeItem(storageKey); } catch (_) {} };
     const scrollLabelIntoView = index => {
         const navBounds = nav.getBoundingClientRect();
         const activeBounds = labels[index].getBoundingClientRect();
@@ -306,14 +373,37 @@
         return true;
     }
     form.querySelectorAll('[data-max-words]').forEach(field => field.addEventListener('input', () => field.setCustomValidity('')));
-    labels.forEach((label, index) => label.addEventListener('click', () => {
+    const saveCurrentStep = async () => {
+        if (!validStep()) return false;
+        setSaveStatus('Saving progress…');
+        const body = new FormData(form);
+        body.append('step', String(current));
+        try {
+            const response = await fetch(form.dataset.draftStepUrl, {
+                method: 'POST', body, credentials: 'same-origin', headers: {Accept: 'application/json', 'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value},
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(Object.values(payload.errors || {}).flat()[0] || 'We could not save your progress.');
+            serverDraft = {answers: payload.answers, lastCompletedStep: payload.last_completed_step, cvFilename: payload.cv_filename, certificateFilename: payload.certificate_filename};
+            savedFile('cv', payload.cv_filename);
+            savedFile('certificate', payload.certificate_filename);
+            clearLocal();
+            setSaveStatus('Saved.');
+            return true;
+        } catch (error) {
+            stashCurrentStep();
+            setSaveStatus(`${error.message} Your changes remain on this device until you retry.`, 'error');
+            return false;
+        }
+    };
+    labels.forEach((label, index) => label.addEventListener('click', async () => {
         if (index <= current) { show(index); return; }
         for (let step = current; step < index; step++) {
-            if (!validStep()) { scrollLabelIntoView(current); return; }
+            if (!await saveCurrentStep()) { scrollLabelIntoView(current); return; }
             show(step + 1);
         }
     }));
-    next.addEventListener('click', () => { if (validStep()) show(current + 1); });
+    next.addEventListener('click', async () => { if (await saveCurrentStep()) show(current + 1); });
     back.addEventListener('click', () => show(current - 1));
     form.addEventListener('submit', event => {
         event.preventDefault();
@@ -323,7 +413,32 @@
         submit.disabled = true; submit.textContent = 'Submitting…';
         form.submit();
     });
-    restore();
+    form.addEventListener('input', stashCurrentStep);
+    form.addEventListener('change', stashCurrentStep);
+    document.querySelector('#resume-request').addEventListener('click', async () => {
+        const email = document.querySelector('#resume-email');
+        const message = document.querySelector('#resume-message');
+        if (!email.checkValidity()) { email.reportValidity(); return; }
+        message.textContent = 'Sending…';
+        try {
+            const response = await fetch(form.dataset.resumeRequestUrl, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value}, body: JSON.stringify({email: email.value})});
+            const payload = await response.json();
+            message.textContent = payload.message || 'Check your email for a resume link.';
+        } catch (_) { message.textContent = 'We could not send the link. Please try again.'; }
+    });
+    applyAnswers(serverDraft?.answers);
+    const localDraft = readLocal();
+    if (localDraft) {
+        applyAnswers(localDraft.answers);
+        current = localDraft.current || 0;
+        setSaveStatus('Changes on this device have not yet been saved to the server.', 'error');
+    } else if (serverDraft) {
+        current = Math.min(serverDraft.lastCompletedStep + 1, steps.length - 1);
+        savedFile('cv', serverDraft.cvFilename);
+        savedFile('certificate', serverDraft.certificateFilename);
+        setSaveStatus('Saved application restored.');
+    }
+    restore().then(() => show(current));
     @if($errors->any())
         const errors = @json(array_keys($errors->toArray()));
         const first = errors.map(key => form.querySelector(`[name="${key}"],[name="${key}[]"]`)).find(Boolean);

@@ -3,6 +3,7 @@
 namespace App\Services\Foundation;
 
 use App\Models\FocalPointApplication;
+use App\Models\FocalPointApplicationDraft;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -65,7 +66,7 @@ class FocalPointApplicationService
             fn (array $ward): bool => (int) $ward['lga_id'] === $lgaId));
     }
 
-    public function rules(): array
+    public function rules(bool $requireDocuments = true): array
     {
         $max = max(1024, (int) config('focal_point_applications.max_upload_kb', 10240));
 
@@ -99,8 +100,8 @@ class FocalPointApplicationService
             'tools' => ['required', 'array', 'min:1'],
             'tools.*' => [Rule::in(['excel', 'word', 'google_forms', 'messaging', 'online_collection', 'other'])],
             'tools_other' => ['nullable', 'string', 'max:200'],
-            'cv' => ['required', 'file', 'mimes:pdf,doc,docx', "max:{$max}"],
-            'certificate' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', "max:{$max}"],
+            'cv' => [$requireDocuments ? 'required' : 'nullable', 'file', 'mimes:pdf,doc,docx', "max:{$max}"],
+            'certificate' => [$requireDocuments ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', "max:{$max}"],
             'application_consent' => ['accepted'],
             'tor_accepted' => ['accepted'],
             'tor_version' => ['required', Rule::in([$this->content->torVersion()])],
@@ -109,7 +110,7 @@ class FocalPointApplicationService
     }
 
     /** @param array<string, mixed> $validated */
-    public function submit(array $validated, UploadedFile $cv, UploadedFile $certificate): FocalPointApplication
+    public function submit(array $validated, ?UploadedFile $cv, ?UploadedFile $certificate, ?FocalPointApplicationDraft $draft = null): FocalPointApplication
     {
         $torHtml = $this->content->torHtml();
         $torVersion = 'sha256:'.hash('sha256', $torHtml);
@@ -138,9 +139,25 @@ class FocalPointApplicationService
         }
 
         $uploaded = [];
+        $uploadedThisRequest = [];
         try {
-            $uploaded['cv'] = $this->drive->upload($cv, 'cv');
-            $uploaded['certificate'] = $this->drive->upload($certificate, 'certificate');
+            if ($draft) {
+                if (! $draft->cv_drive_id || ! $draft->certificate_drive_id) {
+                    throw ValidationException::withMessages(['documents' => 'Upload both documents before submitting your application.']);
+                }
+                $uploaded = [
+                    'cv' => ['id' => $draft->cv_drive_id, 'url' => $draft->cv_drive_url, 'filename' => $draft->cv_filename],
+                    'certificate' => ['id' => $draft->certificate_drive_id, 'url' => $draft->certificate_drive_url, 'filename' => $draft->certificate_filename],
+                ];
+            } else {
+                if (! $cv || ! $certificate) {
+                    throw ValidationException::withMessages(['documents' => 'Upload both documents before submitting your application.']);
+                }
+                $uploaded['cv'] = $this->drive->upload($cv, 'cv');
+                $uploadedThisRequest = $uploaded;
+                $uploaded['certificate'] = $this->drive->upload($certificate, 'certificate');
+                $uploadedThisRequest = $uploaded;
+            }
 
             return DB::transaction(function () use ($validated, $state, $lga, $ward, $uploaded, $torHtml, $torVersion): FocalPointApplication {
                 $answers = Arr::except($validated, ['cv', 'certificate', 'website', 'application_consent', 'tor_accepted', 'tor_version']);
@@ -166,7 +183,7 @@ class FocalPointApplicationService
                 ]);
             });
         } catch (\Throwable $exception) {
-            foreach ($uploaded as $file) {
+            foreach ($uploadedThisRequest as $file) {
                 try {
                     $this->drive->delete($file['id']);
                 } catch (\Throwable) {

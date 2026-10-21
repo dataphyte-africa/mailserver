@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Mail\FocalPointApplicationReceivedMail;
+use App\Mail\FocalPointApplicationResumeMail;
 use App\Models\FocalPointApplication;
+use App\Models\FocalPointApplicationDraft;
 use App\Services\Foundation\FocalPointApplicationContent;
 use App\Services\Foundation\FocalPointApplicationService;
 use App\Services\Foundation\GoogleDriveApplicationStorage;
@@ -13,6 +15,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Mockery;
 use Statamic\Facades\GlobalSet;
@@ -336,6 +339,65 @@ class FocalPointApplicationTest extends TestCase
         $variables->data([...$variables->data()->toArray(), 'tor_html' => '<p>Changed again.</p>']);
         $variables->save();
         $this->assertTrue(app(FocalPointApplicationService::class)->isReady());
+    }
+
+    public function test_completed_personal_step_is_saved_as_a_private_draft(): void
+    {
+        $response = $this->postJson(route('focal-points.applications.drafts.step'), [
+            ...Arr::only($this->payload(), ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027']),
+            'step' => 0,
+        ]);
+
+        $response->assertOk()->assertJsonPath('answers.email', 'ada@example.test');
+        $draft = FocalPointApplicationDraft::query()->sole();
+        $this->assertSame('ada@example.test', $draft->email);
+        $this->assertSame(0, $draft->last_completed_step);
+        $this->assertTrue($draft->expires_at->isFuture());
+    }
+
+    public function test_resume_link_is_single_use_and_does_not_reveal_draft_existence(): void
+    {
+        $draft = FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => ['full_name' => 'Ada Observer'],
+            'expires_at' => now()->addDays(14),
+        ]);
+
+        $this->postJson(route('focal-points.applications.drafts.resume.request'), ['email' => 'missing@example.test'])
+            ->assertOk()->assertJsonPath('message', 'If an unfinished application matches that email, a resume link has been sent.');
+        Mail::assertNothingOutgoing();
+
+        $this->postJson(route('focal-points.applications.drafts.resume.request'), ['email' => $draft->email])
+            ->assertOk()->assertJsonPath('message', 'If an unfinished application matches that email, a resume link has been sent.');
+        Mail::assertQueued(FocalPointApplicationResumeMail::class);
+
+        $token = app(\App\Services\Foundation\FocalPointApplicationDraftService::class)->createResumeToken($draft);
+        $this->get(route('focal-points.applications.drafts.resume', ['uuid' => $draft->uuid, 'token' => $token]))
+            ->assertRedirect(route('focal-points.applications.show'))->assertSessionHas('focal_point_draft_uuid', $draft->uuid);
+        $this->get(route('focal-points.applications.drafts.resume', ['uuid' => $draft->uuid, 'token' => $token]))
+            ->assertRedirect(route('focal-points.applications.show'))->assertSessionHasErrors('resume');
+    }
+
+    public function test_final_submission_can_use_confirmed_draft_documents_without_reuploading(): void
+    {
+        $draft = FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'last_completed_step' => 2,
+            'cv_drive_id' => 'draft-cv-id', 'cv_drive_url' => 'https://drive.google.com/file/d/draft-cv-id/view', 'cv_filename' => 'saved-cv.pdf',
+            'certificate_drive_id' => 'draft-cert-id', 'certificate_drive_url' => 'https://drive.google.com/file/d/draft-cert-id/view', 'certificate_filename' => 'saved-certificate.pdf',
+            'expires_at' => now()->addDays(14),
+        ]);
+        $drive = Mockery::mock(GoogleDriveApplicationStorage::class);
+        $drive->shouldReceive('configured')->andReturn(true);
+        $drive->shouldNotReceive('upload');
+        app()->instance(GoogleDriveApplicationStorage::class, $drive);
+
+        $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
+            ->post(route('focal-points.applications.store'), $this->payload(['cv' => null, 'certificate' => null]))
+            ->assertRedirect(route('focal-points.applications.show'));
+
+        $application = FocalPointApplication::query()->sole();
+        $this->assertSame('draft-cv-id', $application->cv_drive_id);
+        $this->assertSame('draft-cert-id', $application->certificate_drive_id);
+        $this->assertDatabaseMissing('focal_point_application_drafts', ['id' => $draft->id]);
     }
 
     private function payload(array $overrides = []): array

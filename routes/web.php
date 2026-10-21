@@ -49,6 +49,12 @@ Route::prefix('applications/2027-state-focal-points')->name('focal-points.applic
     Route::get('/', [FocalPointApplicationController::class, 'show'])->name('show');
     Route::post('/', [FocalPointApplicationController::class, 'store'])
         ->middleware('throttle:5,1')->name('store');
+    Route::post('/drafts/step', [FocalPointApplicationController::class, 'saveDraftStep'])
+        ->middleware('throttle:20,1')->name('drafts.step');
+    Route::post('/drafts/resume', [FocalPointApplicationController::class, 'requestResume'])
+        ->middleware('throttle:5,1')->name('drafts.resume.request');
+    Route::get('/drafts/{uuid}/resume/{token}', [FocalPointApplicationController::class, 'resume'])
+        ->middleware('throttle:10,1')->name('drafts.resume');
     Route::get('/locations/states', [FocalPointApplicationController::class, 'states'])
         ->middleware('throttle:60,1')->name('locations.states');
     Route::get('/locations/states/{state}/lgas', [FocalPointApplicationController::class, 'lgas'])
