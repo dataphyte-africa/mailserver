@@ -61,6 +61,18 @@
                        class="email-container"
                        style="margin:0 auto;background-color:#fffdf9;overflow:hidden;">
 
+                    @if(!empty($browserUrl) || !empty($archiveUrl))
+                        <tr>
+                            <td style="padding:12px 24px;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;background-color:#f6f2eb;">
+                                @if(!empty($browserUrl))
+                                    <a href="{{ $browserUrl }}" style="color:#334155;text-decoration:underline;">View in browser</a>
+                                    &nbsp;&middot;&nbsp;
+                                @endif
+                                <a href="{{ $archiveUrl }}" style="color:#334155;text-decoration:underline;">Past newsletters</a>
+                            </td>
+                        </tr>
+                    @endif
+
                     {{-- ============================================================ --}}
                     {{-- HEADER BAND                                                   --}}
                     {{-- Upper: collection logo (editor-controlled via GlobalSet)     --}}

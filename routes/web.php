@@ -7,6 +7,7 @@ use App\Http\Controllers\Public\ObserverViolationReportController;
 use App\Http\Controllers\Public\ObserverViolationTestPageController;
 use App\Http\Controllers\Public\OsunPollingUnitController;
 use App\Http\Controllers\Public\PreferencesController;
+use App\Http\Controllers\Public\NewsletterArchiveController;
 use App\Http\Controllers\Public\SubscriptionFormController;
 use App\Http\Controllers\Public\UnsubscribeController;
 use App\Http\Controllers\Public\WebhookController;
@@ -72,6 +73,11 @@ Route::prefix('applications/2027-state-focal-points')->name('focal-points.applic
 */
 
 // Unsubscribe — signed URL, no auth required
+Route::get('/newsletter-archive/issues/{campaign}', [NewsletterArchiveController::class, 'show'])
+    ->whereNumber('campaign')->name('newsletter.archive.show');
+Route::get('/newsletter-archive/{organisation}/{collection}/{product?}', [NewsletterArchiveController::class, 'index'])
+    ->whereNumber('organisation')->whereNumber('product')->name('newsletter.archive.index');
+
 Route::get('/unsubscribe/{token}', [UnsubscribeController::class, 'show'])
     ->name('newsletter.unsubscribe.show');
 

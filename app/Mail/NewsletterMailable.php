@@ -30,7 +30,13 @@ class NewsletterMailable extends Mailable
         public readonly Campaign   $campaign,
         public readonly Subscriber $subscriber,
         public readonly string     $campaignSendId,
+        public readonly bool       $publicArchive = false,
     ) {}
+
+    public function hasEntry(): bool
+    {
+        return $this->resolveEntry() !== null;
+    }
 
     /* ------------------------------------------------------------------ */
 
@@ -68,7 +74,9 @@ class NewsletterMailable extends Mailable
         // Collection-aware logo and brand colour
         $collection      = $this->campaign->collection ?? '';
         $collectionKey   = str_replace('_newsletters', '', $collection); // insight | foundation
-        $footerPartial   = 'emails.partials.' . str_replace('_', '-', $collectionKey) . '.footer';
+        $footerPartial   = $this->publicArchive
+            ? 'emails.partials.shared.archive-footer'
+            : 'emails.partials.' . str_replace('_', '-', $collectionKey) . '.footer';
         $collectionConfig = config("newsletter.collections.{$collection}", []);
         $collectionLogo  = $this->resolveAssetUrl($settings["{$collectionKey}_logo"] ?? null)
             ?: ($organisation?->logo_path ? url(Storage::disk('public')->url($organisation->logo_path)) : null);
@@ -171,13 +179,19 @@ class NewsletterMailable extends Mailable
                 'headerColor'        => $headerColor,
                 'footerConfig'       => $footerConfig,
                 'footerPartial'      => $footerPartial,
+                'browserUrl'         => $this->publicArchive ? null : route('newsletter.archive.show', $this->campaign),
+                'archiveUrl'         => route('newsletter.archive.index', [
+                    'organisation' => $this->campaign->organisation_id,
+                    'collection' => $collection,
+                    'product' => $this->campaign->product_id,
+                ]),
                 'newsletterSettings' => $settings,
                 'ctaText'            => $entry?->get('cta_text') ?? null,
                 'ctaUrl'             => app(NewsletterBanner::class)->linkUrl($entry?->get('cta_url')),
                 'foundationCtaText'  => $entry?->get('cta_text') ?? null,
                 'foundationCtaUrl'   => $entry?->get('cta_url') ?? null,
-                'unsubscribeUrl'     => $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign),
-                'preferencesUrl'     => $this->publicUrls()->preferencesUrl($this->subscriber, $this->campaign->collection, $this->campaign),
+                'unsubscribeUrl'     => $this->publicArchive ? null : $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign),
+                'preferencesUrl'     => $this->publicArchive ? null : $this->publicUrls()->preferencesUrl($this->subscriber, $this->campaign->collection, $this->campaign),
                 // Subscriber personalisation variables (use in templates directly)
                 'subscriberFirstName' => $this->subscriber->first_name ?? '',
                 'subscriberLastName'  => $this->subscriber->last_name  ?? '',
