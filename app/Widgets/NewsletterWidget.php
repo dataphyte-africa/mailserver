@@ -10,6 +10,7 @@ use App\Models\ProductForm;
 use App\Models\Subscriber;
 use App\Models\WebhookLog;
 use App\Services\Platform\CpOperatorScope;
+use App\Services\Newsletter\AudienceGrowthService;
 use Statamic\Widgets\Widget;
 
 /**
@@ -91,6 +92,10 @@ class NewsletterWidget extends Widget
             $organisations = Organisation::query()->whereKey($organisationIds)->where('status', 'active')
                 ->orderBy('name')->get();
             $organisationIds = $organisations->modelKeys();
+            $growthService = app(AudienceGrowthService::class);
+            $organisationGrowth = $organisations->mapWithKeys(fn (Organisation $organisation) => [
+                $organisation->getKey() => $growthService->forOrganisation($organisation),
+            ]);
             $products = Product::query()->whereKey($productIds)->with('organisation')->orderBy('name')->get();
             $formsCount = ProductForm::query()->where('mode', 'subscription')->where(function ($query) use ($organisationIds, $productIds): void {
                 $query->where(fn ($query) => $query->where('form_scope', 'product')->whereIn('product_id', $productIds)
@@ -107,6 +112,7 @@ class NewsletterWidget extends Widget
 
             return view('newsletter.cp.widgets.organisation', $data + [
                 'organisations' => $organisations,
+                'organisationGrowth' => $organisationGrowth,
                 'products' => $products,
                 'formsCount' => $formsCount,
                 'draftCampaigns' => $scope->campaignQuery($operator)->where('status', 'draft')->count(),

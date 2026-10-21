@@ -45,10 +45,35 @@
             </div>
         </section>
 
+        @if($organisationGrowth->isNotEmpty())
+            <section class="org-dashboard-section" aria-labelledby="org-dashboard-growth">
+                <div class="org-dashboard-section-heading"><div><span class="org-dashboard-kicker">Audience growth</span><h3 id="org-dashboard-growth">Organisation subscribers</h3></div><a href="{{ cp_route('newsletter.groups.index') }}">View audiences &rarr;</a></div>
+                @foreach($organisations as $organisation)
+                    @php($growth = $organisationGrowth->get($organisation->getKey()))
+                    <h4>{{ $organisation->name }}</h4>
+                    <div class="org-dashboard-metrics">
+                        <div class="org-dashboard-metric"><span>Joined this month</span><strong>{{ number_format(collect($growth['months'])->last()['new']) }}</strong><small>Unique people joining an audience</small></div>
+                        <div class="org-dashboard-metric"><span>Total joined</span><strong>{{ number_format($growth['joined']) }}</strong><small>Unique people, all time</small></div>
+                        <div class="org-dashboard-metric"><span>Current subscribers</span><strong>{{ number_format($growth['current']) }}</strong><small>After unsubscribes and suppression</small></div>
+                    </div>
+                    <div style="overflow-x:auto;margin:12px 0 24px;border:1px solid #d8e2f0;border-radius:12px;background:#fff">
+                        <table style="width:100%;border-collapse:collapse;min-width:420px">
+                            <thead><tr style="background:#eef3fa"><th style="padding:10px 14px;text-align:left">Month</th><th style="padding:10px 14px;text-align:right">New subscribers</th><th style="padding:10px 14px;text-align:right">Total joined</th></tr></thead>
+                            <tbody>
+                            @foreach($growth['months'] as $month)
+                                <tr><td style="padding:8px 14px;border-top:1px solid #e5ecf5">{{ $month['label'] }}</td><td style="padding:8px 14px;border-top:1px solid #e5ecf5;text-align:right">{{ number_format($month['new']) }}</td><td style="padding:8px 14px;border-top:1px solid #e5ecf5;text-align:right">{{ number_format($month['total_joined']) }}</td></tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endforeach
+            </section>
+        @endif
+
         <div class="org-dashboard-grid">
             <section class="org-dashboard-panel" aria-labelledby="org-dashboard-attention">
                 <div class="org-dashboard-panel-heading"><div><span class="org-dashboard-kicker">Your next moves</span><h3 id="org-dashboard-attention">Needs attention</h3></div></div>
-                <a class="org-dashboard-task" href="{{ cp_route('newsletter.subscribers.index', ['status' => 'pending']) }}"><span class="org-dashboard-task-icon">01</span><span><strong>{{ number_format($subscriberStats['pending']) }} pending subscribers</strong><small>Review before including them in campaigns</small></span><span aria-hidden="true">&rarr;</span></a>
+                <a class="org-dashboard-task" href="{{ cp_route('newsletter.groups.index') }}"><span class="org-dashboard-task-icon">01</span><span><strong>Audience growth</strong><small>Review new and current subscribers by audience</small></span><span aria-hidden="true">&rarr;</span></a>
                 <a class="org-dashboard-task" href="{{ cp_route('newsletter.campaigns.index', ['status' => 'draft']) }}"><span class="org-dashboard-task-icon">02</span><span><strong>{{ number_format($draftCampaigns) }} draft campaigns</strong><small>Review and prepare your next send</small></span><span aria-hidden="true">&rarr;</span></a>
                 <a class="org-dashboard-task" href="{{ cp_route('subscription-forms.index') }}"><span class="org-dashboard-task-icon">03</span><span><strong>{{ number_format($formsCount) }} subscription forms</strong><small>Manage signup pages and automated messages</small></span><span aria-hidden="true">&rarr;</span></a>
             </section>

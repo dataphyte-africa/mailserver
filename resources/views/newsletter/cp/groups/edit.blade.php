@@ -2,13 +2,42 @@
 @section('title', 'Edit Group')
 
 @section('content')
-    <div class="mb-6">
+    @push('head')
+    <style>
+        .audience-detail { --audience-ink:#17233b; --audience-line:#cbd8ea; --audience-muted:#526785; max-width:1100px; }
+        .audience-detail-head { display:flex; align-items:end; justify-content:space-between; gap:1rem; margin-bottom:1.4rem; }
+        .audience-detail-head h1 { color:var(--audience-ink); font-size:1.8rem; font-weight:750; line-height:1.2; margin:.2rem 0; }
+        .audience-detail-kicker { color:var(--audience-muted); font-size:.75rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+        .audience-detail-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; margin-bottom:1.25rem; }
+        .audience-detail-stat, .audience-detail-panel { background:#fff; border:1px solid var(--audience-line); border-radius:12px; padding:1.2rem; }
+        .audience-detail-stat span { color:var(--audience-muted); display:block; font-size:.8rem; font-weight:650; }
+        .audience-detail-stat strong { color:var(--audience-ink); display:block; font-size:1.7rem; line-height:1.1; margin-top:.45rem; }
+        .audience-detail-panel { margin-bottom:1.25rem; }
+        .audience-detail-panel h2 { color:var(--audience-ink); font-size:1.1rem; font-weight:700; margin:0 0 .35rem; }
+        .audience-detail-help { color:var(--audience-muted); font-size:.84rem; margin-bottom:1rem; }
+        .audience-detail-table-wrap { overflow-x:auto; }
+        .audience-detail-table { border-collapse:collapse; width:100%; min-width:430px; }
+        .audience-detail-table th, .audience-detail-table td { border-bottom:1px solid #e4ebf5; padding:.65rem .5rem; text-align:left; }
+        .audience-detail-table th { background:#f1f5fb; color:#33445f; font-size:.75rem; font-weight:700; }
+        .audience-detail-table td:not(:first-child), .audience-detail-table th:not(:first-child) { text-align:right; }
+        .audience-detail-table tr:last-child td { border-bottom:0; }
+        .audience-detail-ratings { display:flex; flex-wrap:wrap; gap:.45rem; }
+        .audience-detail-rating { background:#edf3fa; border:1px solid #d9e4f1; border-radius:999px; color:#263c59; font-size:.8rem; padding:.4rem .65rem; }
+        .audience-detail-rating strong { margin-left:.35rem; }
+        @media(max-width:700px) { .audience-detail-grid { grid-template-columns:1fr; } .audience-detail-head { align-items:start; flex-direction:column; } }
+    </style>
+    @endpush
+    <div class="audience-detail">
+    <div class="audience-detail-head">
+        <div>
         <a href="{{ cp_route('newsletter.groups.index') }}"
            class="text-sm text-gray-500 hover:underline mb-1 block">← Groups</a>
-        <h1 class="text-3xl font-bold">{{ $group->name }}</h1>
+        <span class="audience-detail-kicker">{{ $group->isPrivateAudience() ? 'Private audience' : 'Product audience' }}</span>
+        <h1>{{ $group->name }}</h1>
         @if($group->isArchived())
             <p class="text-sm text-gray-500 mt-1">Archived</p>
         @endif
+        </div>
     </div>
 
     @if(session('success'))
@@ -16,6 +45,37 @@
             {{ session('success') }}
         </div>
     @endif
+
+    <div class="audience-detail-grid" aria-label="Audience growth summary">
+        <div class="audience-detail-stat"><span>New this month</span><strong>{{ number_format($growth['months'][11]['new']) }}</strong></div>
+        <div class="audience-detail-stat"><span>Total joined</span><strong>{{ number_format($growth['joined']) }}</strong></div>
+        <div class="audience-detail-stat"><span>Current subscribers</span><strong>{{ number_format($growth['current']) }}</strong></div>
+    </div>
+
+    <section class="audience-detail-panel" aria-labelledby="audience-growth-title">
+        <h2 id="audience-growth-title">Subscriber growth · last 12 months</h2>
+        <p class="audience-detail-help">Each person is counted once when they first join this audience. Total joined is cumulative; current subscribers excludes people who have left or are suppressed.</p>
+        <div class="audience-detail-table-wrap">
+            <table class="audience-detail-table">
+                <thead><tr><th scope="col">Month</th><th scope="col">New subscribers</th><th scope="col">Total joined</th></tr></thead>
+                <tbody>
+                @foreach($growth['months'] as $month)
+                    <tr><td>{{ $month['label'] }}</td><td>{{ number_format($month['new']) }}</td><td>{{ number_format($month['total_joined']) }}</td></tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="audience-detail-panel" aria-labelledby="audience-ratings-title">
+        <h2 id="audience-ratings-title">Rating breakdown</h2>
+        <p class="audience-detail-help">Ratings are assigned automatically. Historical preference buckets remain stored but are not managed here.</p>
+        <div class="audience-detail-ratings">
+            @foreach(\App\Services\Newsletter\GroupEngagementService::SEGMENTS as $rating => $label)
+                <span class="audience-detail-rating">{{ $label }} <strong>{{ number_format($ratingCounts->get($rating, 0)) }}</strong></span>
+            @endforeach
+        </div>
+    </section>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -81,73 +141,6 @@
                 <button class="btn-primary" type="submit">Import CSV</button>
             </form>
         </div>
-        @else
-        {{-- Product preference sub-groups --}}
-        <div>
-            <h2 class="font-semibold mb-3">Sub-groups</h2>
-            <div class="card p-5 space-y-3">
-                @forelse($group->subGroups as $subGroup)
-                    <div class="flex items-center justify-between py-1" x-data="{ editing: false }">
-                        <div x-show="!editing">
-                            <span class="font-medium text-sm">{{ $subGroup->name }}</span>
-                            @if($subGroup->isArchived())
-                                <span class="text-xs text-gray-400 ml-2">archived</span>
-                            @endif
-                            <span class="text-xs text-gray-400 ml-2">{{ $subGroup->subscribers_count }} subscribers</span>
-                        </div>
-
-                        {{-- Inline edit --}}
-                        <form x-show="editing"
-                              method="POST"
-                              action="{{ cp_route('newsletter.groups.sub-groups.update', [$group, $subGroup]) }}">
-                            @csrf @method('PUT')
-                            <input type="text" name="name" value="{{ $subGroup->name }}"
-                                   class="input-text text-sm py-1 px-2 w-36" required>
-                            <button type="submit" class="text-xs text-blue ml-1">Save</button>
-                        </form>
-
-                        <div class="flex gap-2 text-xs">
-                            <button @click="editing = !editing" class="text-blue hover:underline">
-                                <span x-text="editing ? 'Cancel' : 'Rename'"></span>
-                            </button>
-                            @if($subGroup->isArchived())
-                                <form method="POST"
-                                      action="{{ cp_route('newsletter.groups.sub-groups.restore', [$group, $subGroup]) }}"
-                                      onsubmit="return confirm('Restore sub-group {{ $subGroup->name }}? Its parent group must already be active.')">
-                                    @csrf
-                                    <button type="submit" class="text-gray-500 hover:underline">Restore</button>
-                                </form>
-                            @else
-                                <form method="POST"
-                                      action="{{ cp_route('newsletter.groups.sub-groups.archive', [$group, $subGroup]) }}"
-                                      onsubmit="return confirm('Archive sub-group {{ $subGroup->name }}?')">
-                                    @csrf
-                                    <button type="submit" class="text-gray-500 hover:underline">Archive</button>
-                                </form>
-                            @endif
-                            <form method="POST"
-                                  action="{{ cp_route('newsletter.groups.sub-groups.destroy', [$group, $subGroup]) }}"
-                                  onsubmit="return confirm('Delete sub-group {{ $subGroup->name }}?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-400 hover:underline">Delete</button>
-                            </form>
-                        </div>
-                    </div>
-                @empty
-                    <p class="text-sm text-gray-400">No sub-groups yet.</p>
-                @endforelse
-
-                {{-- Add sub-group --}}
-                <form method="POST"
-                      action="{{ cp_route('newsletter.groups.sub-groups.store', $group) }}"
-                      class="mt-3 pt-3 border-t flex gap-2">
-                    @csrf
-                    <input type="text" name="name" placeholder="New sub-group name"
-                           class="input-text flex-1 text-sm" required>
-                    <button type="submit" class="btn-primary text-sm">Add</button>
-                </form>
-            </div>
-        </div>
         @endif
 
     </div>
@@ -177,4 +170,5 @@
         {{ $members->links() }}
     </div>
     @endif
+    </div>
 @endsection

@@ -20,7 +20,10 @@ class GroupEngagementService
         'suppressed' => 'Suppressed',
     ];
 
-    public function __construct(private readonly SubscriberEngagementService $ratings) {}
+    public function __construct(
+        private readonly SubscriberEngagementService $ratings,
+        private readonly OrganisationMailOptOut $optOut,
+    ) {}
 
     public function ensureSegments(SubscriberGroup $group): void
     {
@@ -57,7 +60,10 @@ class GroupEngagementService
         $existing = SubscriberGroupEngagement::query()->where('subscriber_id', $subscriber->getKey())
             ->where('subscriber_group_id', $group->getKey())->first();
 
-        if (! $activeMembership && ! ($existing && in_array($subscriber->status, ['unsubscribed', 'bounced', 'complained'], true))) {
+        $organisationOptOut = $group->organisation_id
+            && $this->optOut->has((int) $group->organisation_id, (int) $subscriber->getKey());
+
+        if ($baseMemberships->isEmpty()) {
             $existing?->update(['is_member' => false]);
             $this->setSegment($subscriber, $group, null);
 
@@ -65,6 +71,9 @@ class GroupEngagementService
         }
 
         $result = $this->ratings->computeForGroup($subscriber, $group);
+        if (($organisationOptOut || ! $activeMembership) && $result['engagement_rating'] !== 'suppressed') {
+            $result['engagement_rating'] = 'unsubscribed';
+        }
         $firstJoinedAt = $existing?->first_joined_at
             ?? $baseMemberships->min(fn ($subGroup) => $subGroup->pivot->subscribed_at)
             ?? $subscriber->created_at ?? now();
@@ -72,7 +81,7 @@ class GroupEngagementService
             ['subscriber_id' => $subscriber->getKey(), 'subscriber_group_id' => $group->getKey()],
             [
                 'rating' => $result['engagement_rating'],
-                'is_member' => (bool) $activeMembership,
+                'is_member' => (bool) $activeMembership && ! $organisationOptOut,
                 'score' => $result['engagement_score'],
                 'first_joined_at' => $firstJoinedAt,
                 'last_engaged_at' => $result['last_engaged_at'],

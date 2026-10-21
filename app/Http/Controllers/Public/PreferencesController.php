@@ -10,6 +10,7 @@ use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\NewsletterPublicUrlService;
 use App\Services\Newsletter\GroupEngagementService;
+use App\Services\Newsletter\OrganisationMailOptOut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -51,6 +52,7 @@ class PreferencesController extends Controller
             'organisation' => $organisation,
             'groups' => $this->visibleGroups($organisation, $activeIds),
             'activeSubGroupIds' => $activeIds,
+            'organisationOptedOut' => app(OrganisationMailOptOut::class)->has((int) $organisation->getKey(), (int) $subscriber->getKey()),
             'mode' => $mode,
             'formUrl' => $mode === 'unsubscribe'
                 ? $urls->unsubscribeProcessUrl($subscriber, $organisation->primary_collection_handle, $productContext)
@@ -65,6 +67,7 @@ class PreferencesController extends Controller
 
         $subscriber = Subscriber::query()->where('confirmation_token', $token)->firstOrFail();
         $organisation = $this->organisation($request, $subscriber);
+        $optOut = app(OrganisationMailOptOut::class);
         $productContext = $this->productContext($request, $organisation);
         if ($request->filled('private_group')) {
             $group = $this->privateGroup($request, $organisation);
@@ -88,10 +91,16 @@ class PreferencesController extends Controller
         $validated = $request->validate([
             'sub_groups' => ['nullable', 'array'],
             'sub_groups.*' => ['integer', 'distinct'],
+            'audience_groups' => ['nullable', 'array'],
+            'audience_groups.*' => ['integer', 'distinct'],
+            'organisation_opt_out' => ['nullable', 'boolean'],
         ]);
-        $selected = array_map('intval', $validated['sub_groups'] ?? []);
+        $organisationOptedOut = (bool) ($validated['organisation_opt_out'] ?? false);
         $current = $this->activeIds($subscriber, $organisation);
         $published = $this->publishedIds($organisation);
+        $selected = $organisationOptedOut ? [] : ($request->has('audience_groups')
+            ? $this->selectedIdsForGroups($organisation, $current, $published, $validated['audience_groups'] ?? [])
+            : array_map('intval', $validated['sub_groups'] ?? []));
 
         abort_if(in_array($subscriber->status, ['erased', 'bounced', 'complained'], true)
             && array_diff($selected, $current) !== [], 422,
@@ -100,7 +109,8 @@ class PreferencesController extends Controller
         abort_if(array_diff($selected, array_unique(array_merge($current, $published))) !== [], 422,
             'One or more selected preferences are unavailable for this organisation.');
 
-        DB::transaction(function () use ($subscriber, $selected, $current): void {
+        DB::transaction(function () use ($subscriber, $selected, $current, $organisation, $organisationOptedOut, $optOut): void {
+            $optOut->set((int) $organisation->getKey(), (int) $subscriber->getKey(), $organisationOptedOut);
             $remove = array_diff($current, $selected);
             if ($remove !== []) {
                 $subscriber->allSubGroups()->updateExistingPivot($remove, ['unsubscribed_at' => now()]);
@@ -134,13 +144,18 @@ class PreferencesController extends Controller
 
         $affectedGroupIds = SubscriberSubGroup::query()->whereIn('id', array_unique(array_merge($current, $selected)))
             ->pluck('subscriber_group_id')->unique()->all();
+        $affectedGroupIds = array_unique(array_merge($affectedGroupIds, SubscriberGroup::query()
+            ->where('organisation_id', $organisation->getKey())
+            ->whereHas('subGroups', fn ($groups) => $groups->whereHas('subscribers', fn ($members) => $members->whereKey($subscriber->getKey())))
+            ->pluck('id')->all()));
         $engagement->syncForSubscriber($subscriber->fresh(), $affectedGroupIds);
 
         $remainingInOrganisation = $this->activeIds($subscriber, $organisation);
 
-        return view($remainingInOrganisation === [] ? 'newsletter.public.unsubscribed' : 'newsletter.public.preferences-saved', [
+        return view($organisationOptedOut || $remainingInOrganisation === [] ? 'newsletter.public.unsubscribed' : 'newsletter.public.preferences-saved', [
             'subscriber' => $subscriber,
             'organisation' => $organisation,
+            'organisationOptedOut' => $organisationOptedOut,
             'preferencesUrl' => $urls->preferencesUrl($subscriber, $organisation->primary_collection_handle, $productContext),
         ]);
     }
@@ -209,20 +224,13 @@ class PreferencesController extends Controller
 
     private function activeIds(Subscriber $subscriber, Organisation $organisation): array
     {
-        $legacyIsUnambiguous = Organisation::query()->where('status', 'active')
-            ->where('primary_collection_handle', $organisation->primary_collection_handle)->count() === 1;
-
         return $subscriber->subGroups()
             ->where('purpose', 'preference')
             ->whereHas('group', fn ($query) => $query
-                ->where(fn ($groups) => $groups
-                    ->where(fn ($owned) => $owned->where('organisation_id', $organisation->getKey())
-                        ->whereHas('product', fn ($product) => $product
-                            ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
-                            ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle')))
-                    ->when($legacyIsUnambiguous, fn ($owned) => $owned->orWhere(fn ($legacy) => $legacy
-                        ->whereNull('organisation_id')->whereNull('product_id')
-                        ->where('collection_handle', $organisation->primary_collection_handle)))))
+                ->where('organisation_id', $organisation->getKey())
+                ->whereHas('product', fn ($product) => $product
+                    ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
+                    ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle')))
             ->pluck('subscriber_sub_groups.id')->map(fn ($id) => (int) $id)->all();
     }
 
@@ -265,5 +273,22 @@ class PreferencesController extends Controller
             ->whereHas('subGroups', fn ($query) => $query->whereKey($visibleIds))
             ->with(['product', 'subGroups' => fn ($query) => $query->whereKey($visibleIds)->orderBy('name')])
             ->orderBy('name')->get();
+    }
+
+    private function selectedIdsForGroups(Organisation $organisation, array $current, array $published, array $groupIds): array
+    {
+        $groups = $this->visibleGroups($organisation, $current)->keyBy('id');
+        $selected = [];
+        foreach (array_map('intval', $groupIds) as $id) {
+            $group = $groups->get($id);
+            abort_unless($group, 422, 'One or more selected audiences are unavailable.');
+            $choices = $group->subGroups->pluck('id')->map(fn ($value) => (int) $value)->all();
+            $existing = array_values(array_intersect($choices, $current));
+            $publishedChoice = array_values(array_intersect($choices, $published));
+            abort_if($existing === [] && $publishedChoice === [], 422, 'This audience is unavailable for new subscriptions.');
+            array_push($selected, ...($existing ?: [reset($publishedChoice)]));
+        }
+
+        return array_unique($selected);
     }
 }

@@ -45,19 +45,21 @@ class AudienceResolver
 
         return Subscriber::active()
             ->whereIn('id', $uniqueIds)
+            ->whereNotIn('id', $this->optedOutSubscriberIds((int) $campaign->organisation_id))
             ->get();
     }
 
-    public function includesPrivateMember(Campaign $campaign, Subscriber $subscriber): bool
+    public function includesSubscriber(Campaign $campaign, Subscriber $subscriber): bool
     {
-        if ($subscriber->status !== 'active') {
+        if ($subscriber->status !== 'active'
+            || $this->optedOut((int) $campaign->organisation_id, (int) $subscriber->getKey())) {
             return false;
         }
 
         foreach ($campaign->audiences as $audience) {
             $target = $audience->targetable;
             $group = $target instanceof SubscriberGroup ? $target : $target?->group;
-            if (! $group?->isPrivateAudience() || $group->isArchived()
+            if (! $group || $group->isArchived()
                 || (int) $group->organisation_id !== (int) $campaign->organisation_id) {
                 continue;
             }
@@ -65,16 +67,27 @@ class AudienceResolver
                 ->whereIn('rating', ['unsubscribed', 'suppressed'])->exists()) {
                 continue;
             }
-            $isMember = $subscriber->subGroups()->where('subscriber_group_id', $group->getKey())
-                ->where('purpose', 'preference')->exists();
-            if ($isMember && ($target instanceof SubscriberGroup || ($target instanceof SubscriberSubGroup
-                && $target->purpose === 'engagement' && ! in_array($target->slug, ['rating-unsubscribed', 'rating-suppressed'], true)
-                && $subscriber->subGroups()->whereKey($target->getKey())->exists()))) {
+            if (! $subscriber->subGroups()->where('subscriber_group_id', $group->getKey())
+                ->where('purpose', 'preference')->exists()) {
+                continue;
+            }
+            if ($target instanceof SubscriberGroup) {
+                return true;
+            }
+            if ($target instanceof SubscriberSubGroup && ! $target->isArchived()
+                && ! in_array($target->slug, ['rating-unsubscribed', 'rating-suppressed'], true)
+                && $subscriber->subGroups()->whereKey($target->getKey())->exists()) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    public function includesPrivateMember(Campaign $campaign, Subscriber $subscriber): bool
+    {
+        return $campaign->audience_scope === 'organisation_private'
+            && $this->includesSubscriber($campaign, $subscriber);
     }
 
     /**
@@ -104,6 +117,7 @@ class AudienceResolver
     private function resolveGroup(SubscriberGroup $group): Collection
     {
         return Subscriber::active()
+            ->whereNotIn('id', $this->optedOutSubscriberIds((int) $group->organisation_id))
             ->whereDoesntHave('groupEngagements', fn ($q) => $q
                 ->where('subscriber_group_id', $group->getKey())->whereIn('rating', ['unsubscribed', 'suppressed']))
             ->whereHas('allSubGroups', function ($q) use ($group) {
@@ -121,15 +135,26 @@ class AudienceResolver
         }
 
         return Subscriber::active()
+            ->whereNotIn('id', $this->optedOutSubscriberIds((int) $subGroup->group?->organisation_id))
             ->whereDoesntHave('groupEngagements', fn ($q) => $q
                 ->where('subscriber_group_id', $subGroup->subscriber_group_id)->whereIn('rating', ['unsubscribed', 'suppressed']))
-            ->when($subGroup->group?->isPrivateAudience(), fn ($query) => $query
-                ->whereHas('subGroups', fn ($members) => $members
-                    ->where('subscriber_group_id', $subGroup->subscriber_group_id)
-                    ->where('purpose', 'preference')))
+            ->whereHas('subGroups', fn ($members) => $members
+                ->where('subscriber_group_id', $subGroup->subscriber_group_id)
+                ->where('purpose', 'preference'))
             ->whereHas('subGroups', function ($q) use ($subGroup) {
                 $q->where('subscriber_sub_groups.id', $subGroup->id);
             })
             ->pluck('id');
+    }
+
+    private function optedOutSubscriberIds(int $organisationId)
+    {
+        return \Illuminate\Support\Facades\DB::table('organisation_subscriber_opt_outs')
+            ->where('organisation_id', $organisationId)->select('subscriber_id');
+    }
+
+    private function optedOut(int $organisationId, int $subscriberId): bool
+    {
+        return app(OrganisationMailOptOut::class)->has($organisationId, $subscriberId);
     }
 }

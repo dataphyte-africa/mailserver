@@ -355,7 +355,7 @@
             <div class="subscriber-cp-actions">
                 <a href="{{ cp_route('newsletter.subscribers.import.form') }}"
                    class="subscriber-cp-button">Import CSV</a>
-                <a href="{{ cp_route('newsletter.subscribers.export') . '?' . http_build_query(request()->only('search', 'status', 'sub_group', 'sort', 'direction')) }}"
+                <a href="{{ cp_route('newsletter.subscribers.export') . '?' . http_build_query(request()->only('search', 'audience_group', 'rating', 'sort', 'direction')) }}"
                    class="subscriber-cp-button">Export CSV</a>
                 <a href="{{ cp_route('newsletter.subscribers.create') }}"
                    class="subscriber-cp-button-primary">Add Subscriber</a>
@@ -388,33 +388,27 @@
                        class="input-text">
             </div>
             <div class="subscriber-cp-filter-field">
-                <label class="subscriber-cp-label">Status</label>
-                <select name="status" class="input-text">
-                    <option value="">All statuses</option>
-                    @foreach($statuses as $statusValue => $statusLabel)
-                        <option value="{{ $statusValue }}" @selected(request('status') === $statusValue)>
-                            {{ $statusLabel }}
+                <label class="subscriber-cp-label">Audience</label>
+                <select name="audience_group" class="input-text">
+                    <option value="">All audiences</option>
+                    @foreach($audienceGroups as $group)
+                        <option value="{{ $group->id }}" @selected(request('audience_group') == $group->id)>
+                            {{ $group->name }}{{ $group->product_id === null && $group->organisation_id === null ? ' (historical)' : '' }}
                         </option>
                     @endforeach
                 </select>
             </div>
             <div class="subscriber-cp-filter-field">
-                <label class="subscriber-cp-label">Sub-group</label>
-                <select name="sub_group" class="input-text">
-                    <option value="">All groups</option>
-                    @foreach($subGroups->groupBy('group.name') as $groupName => $subs)
-                        <optgroup label="{{ $groupName }}">
-                            @foreach($subs as $subGroup)
-                                <option value="{{ $subGroup->id }}" @selected(request('sub_group') == $subGroup->id)>
-                                    {{ $subGroup->name }}
-                                </option>
-                            @endforeach
-                        </optgroup>
+                <label class="subscriber-cp-label">Rating</label>
+                <select name="rating" class="input-text">
+                    <option value="">All ratings</option>
+                    @foreach($ratings as $value => $label)
+                        <option value="{{ $value }}" @selected(request('rating') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
             <button type="submit" class="subscriber-cp-button-primary">Filter</button>
-            @if(request()->hasAny(['search','status','sub_group']))
+            @if(request()->hasAny(['search','audience_group','rating']))
                 <a href="{{ cp_route('newsletter.subscribers.index') }}" class="subscriber-cp-button">Clear</a>
             @endif
         </form>
@@ -435,17 +429,8 @@
                             Name{!! $sortIndicator('name') !!}
                         </a>
                     </th>
-                    <th>
-                        <a href="{{ $sortLink('status') }}" class="subscriber-cp-sort">
-                            Status{!! $sortIndicator('status') !!}
-                        </a>
-                    </th>
-                    <th class="subscriber-subgroup-col">Sub-groups</th>
-                    <th>
-                        <a href="{{ $sortLink('engagement_rating') }}" class="subscriber-cp-sort">
-                            Rating{!! $sortIndicator('engagement_rating') !!}
-                        </a>
-                    </th>
+                    <th class="subscriber-subgroup-col">Audience</th>
+                    <th>Rating</th>
                     <th class="subscriber-cp-text-right">
                         <a href="{{ $sortLink('campaigns_count') }}" class="subscriber-cp-sort">
                             Campaigns{!! $sortIndicator('campaigns_count') !!}
@@ -490,39 +475,25 @@
                             </a>
                         </td>
                         <td class="subscriber-name-col">{{ $subscriber->full_name }}</td>
-                        <td>
-                            @php
-                                $statusClasses = match ($subscriber->status) {
-                                    'active' => 'subscriber-cp-badge-active',
-                                    'pending' => 'subscriber-cp-badge-pending',
-                                    'bounced', 'complained' => 'subscriber-cp-badge-danger',
-                                    'unsubscribed' => 'subscriber-cp-badge-muted',
-                                    default => 'subscriber-cp-badge-muted',
-                                };
-                            @endphp
-                            <span class="subscriber-cp-badge {{ $statusClasses }}">
-                                {{ ucfirst($subscriber->status) }}
-                            </span>
-                        </td>
+                        @php
+                            $audiences = $subscriber->subGroups->pluck('group')->filter()->unique('id');
+                            $terminalRatings = $subscriber->groupEngagements->whereIn('rating', ['unsubscribed', 'suppressed']);
+                            $audiences = $audiences->merge($audienceGroups->whereIn('id', $terminalRatings->pluck('subscriber_group_id')))->unique('id');
+                        @endphp
                         <td class="subscriber-cp-text-muted subscriber-subgroup-col subscriber-cp-wrap">
-                            {{ $subscriber->subGroups->pluck('name')->implode(', ') ?: '—' }}
+                            @forelse($audiences as $audience)
+                                <div>{{ $audience->name }}</div>
+                            @empty
+                                —
+                            @endforelse
                         </td>
-                        <td>
-                            @php
-                                $rating = $subscriber->engagement_rating ?: '—';
-                                $ratingClasses = match ($subscriber->engagement_rating) {
-                                    'high' => 'subscriber-cp-badge-high',
-                                    'moderate' => 'subscriber-cp-badge-moderate',
-                                    'low' => 'subscriber-cp-badge-low',
-                                    'inactive' => 'subscriber-cp-badge-inactive',
-                                    'unsubscribed' => 'subscriber-cp-badge-muted',
-                                    'suppressed' => 'subscriber-cp-badge-suppressed',
-                                    default => 'subscriber-cp-badge-muted',
-                                };
-                            @endphp
-                            <span class="subscriber-cp-badge {{ $ratingClasses }}">
-                                {{ $rating === '—' ? $rating : ucfirst($rating) }}
-                            </span>
+                        <td class="subscriber-cp-text-strong subscriber-cp-wrap">
+                            @forelse($audiences as $audience)
+                                @php($audienceRating = $subscriber->groupEngagements->firstWhere('subscriber_group_id', $audience->id)?->rating)
+                                <div>{{ $ratings[$audienceRating] ?? 'New / Unrated' }}</div>
+                            @empty
+                                —
+                            @endforelse
                         </td>
                         <td class="subscriber-cp-text-strong subscriber-cp-text-right">{{ $subscriber->campaigns_count }}</td>
                         <td class="subscriber-cp-text-strong subscriber-cp-text-right">{{ $subscriber->delivered_count }}</td>

@@ -28,22 +28,28 @@
 
         <form id="preference-form" method="post" action="{{ $formUrl }}">
             @csrf
-            <div class="preference-toolbar"><h2>Newsletter choices</h2><button type="button" id="uncheck-all">Uncheck all</button></div>
+            <div class="preference-toolbar"><h2>Product newsletters</h2><button type="button" id="uncheck-all">Uncheck all products</button></div>
             @forelse($groups as $group)
                 <fieldset class="preference-group">
-                    <legend>{{ $group->name }} <small>{{ $group->product?->name }}</small></legend>
+                    <legend>{{ $group->product?->name ?? $group->name }}</legend>
                     @if($group->description)<p>{{ $group->description }}</p>@endif
-                    @foreach($group->subGroups as $subGroup)
-                        <label class="preference-choice">
-                            <input type="checkbox" name="sub_groups[]" value="{{ $subGroup->id }}" @checked(in_array((int) $subGroup->id, $activeSubGroupIds, true))>
-                            <span>{{ $subGroup->name }}</span>
-                        </label>
-                    @endforeach
+                    <label class="preference-choice">
+                        <input type="checkbox" name="audience_groups[]" value="{{ $group->id }}" @checked($group->subGroups->pluck('id')->intersect($activeSubGroupIds)->isNotEmpty())>
+                        <span>Receive {{ $group->product?->name ?? $group->name }} emails</span>
+                    </label>
                 </fieldset>
             @empty
                 <p class="preference-empty">There are no current or public newsletter choices for this organisation.</p>
             @endforelse
-            <p class="preference-note">Your address remains subscribed to any checked choices. Saving with none checked removes all {{ $organisation->name }} subscriptions, not subscriptions to other organisations.</p>
+            <p class="preference-note">Unchecking every product choice stops public product newsletters. It does not change private audiences.</p>
+            <fieldset class="preference-group">
+                <legend>Stop all non-essential emails</legend>
+                <label class="preference-choice">
+                    <input type="checkbox" name="organisation_opt_out" value="1" @checked($organisationOptedOut)>
+                    <span>I do not want to receive any newsletters, promotional emails, or product updates from {{ $organisation->name }}.</span>
+                </label>
+                <p>Essential messages such as application receipts are unaffected.</p>
+            </fieldset>
             <button class="preference-submit" type="submit">Save my choices</button>
             @if($mode !== 'unsubscribe')<a class="preference-website" href="{{ $unsubscribeUrl }}">Manage or unsubscribe</a>@endif
         </form>
@@ -60,6 +66,6 @@
         @endif
     </div>
 </main>
-<script>document.getElementById('uncheck-all').addEventListener('click',function(){document.querySelectorAll('#preference-form input[type=checkbox]').forEach(function(input){input.checked=false;});});</script>
+<script>document.getElementById('uncheck-all').addEventListener('click',function(){document.querySelectorAll('#preference-form input[name="audience_groups[]"]').forEach(function(input){input.checked=false;});});</script>
 </body>
 </html>

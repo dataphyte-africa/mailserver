@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\SubscriberEngagementService;
+use App\Services\Newsletter\SubscriberAudienceFilter;
 use App\Services\Platform\CpOperatorScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -149,6 +150,7 @@ class ImportController extends Controller
     public function export(Request $request)
     {
         $scope = app(CpOperatorScope::class);
+        $audienceFilter = app(SubscriberAudienceFilter::class);
         $query = $scope->subscriberQuery($request->user())
             ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))), 'subGroups.group'])
             ->withCount([
@@ -163,11 +165,7 @@ class ImportController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('sub_group')) {
-            $query->whereHas('subGroups', fn ($q) =>
-                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))
-            );
-        }
+        $audienceFilter->apply($query, $request, $audienceFilter->visibleGroups($request));
 
         if ($request->filled('search')) {
             $search = $request->search;

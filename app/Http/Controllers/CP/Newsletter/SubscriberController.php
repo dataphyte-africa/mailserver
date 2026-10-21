@@ -7,6 +7,8 @@ use App\Models\CampaignLinkClick;
 use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\PendingSubscriberLifecycleService;
+use App\Services\Newsletter\GroupEngagementService;
+use App\Services\Newsletter\SubscriberAudienceFilter;
 use App\Services\Newsletter\SubscriberEngagementService;
 use App\Services\Newsletter\SubscriptionFormService;
 use App\Services\Platform\CpOperatorScope;
@@ -27,8 +29,12 @@ class SubscriberController extends Controller
     public function index(Request $request)
     {
         $scope = app(CpOperatorScope::class);
+        $audienceFilter = app(SubscriberAudienceFilter::class);
+        $audienceGroups = $audienceFilter->visibleGroups($request);
+        $visibleGroupIds = $audienceGroups->modelKeys();
         $query = $scope->subscriberQuery($request->user())
             ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))), 'subGroups.group'])
+            ->with(['groupEngagements' => fn ($q) => $q->whereIn('subscriber_group_id', $visibleGroupIds)])
             ->withCount([
                 'campaignSends as campaigns_count' => fn ($q) => $this->scopeSends($q, $request),
                 'campaignSends as delivered_count' => fn ($q) => $this->scopeSends($q, $request)->whereIn('status', ['delivered', 'opened', 'clicked']),
@@ -42,11 +48,7 @@ class SubscriberController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('sub_group')) {
-            $query->whereHas('subGroups', fn ($q) =>
-                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))
-            );
-        }
+        $audienceFilter->apply($query, $request, $audienceGroups);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -105,18 +107,17 @@ class SubscriberController extends Controller
             }
         }
         $isSuper = $scope->isSuper($request->user());
-        $visibleGroupIds = $isSuper ? [] : $scope->restrictVisibleGroups(\App\Models\SubscriberGroup::query(), $request->user())->pluck('id')->all();
         $sharedIds = $isSuper ? [] : Subscriber::query()
             ->whereIn('id', collect($subscribers->items())->pluck('id')->all())
             ->whereHas('allSubGroups.group', fn ($q) => $q
                 ->where(fn ($groups) => $groups->whereNotIn('subscriber_groups.id', $visibleGroupIds)
                     ->orWhere(fn ($legacy) => $legacy->whereNull('product_id')->whereNull('organisation_id'))))
             ->pluck('id')->all();
-        $subGroups = $this->visibleSubGroups();
+        $ratings = GroupEngagementService::SEGMENTS;
         $statuses = self::STATUSES;
         $pendingLifecycles = $this->pendingLifecycleSnapshots(collect($subscribers->items()));
 
-        return view('newsletter.cp.subscribers.index', compact('subscribers', 'subGroups', 'sort', 'direction', 'statuses', 'pendingLifecycles', 'isSuper', 'sharedIds'));
+        return view('newsletter.cp.subscribers.index', compact('subscribers', 'audienceGroups', 'ratings', 'sort', 'direction', 'statuses', 'pendingLifecycles', 'isSuper', 'sharedIds'));
     }
 
     public function create()
@@ -335,20 +336,6 @@ class SubscriberController extends Controller
             ->where('purpose', 'preference')
             ->whereNull('archived_at')
             ->whereHas('group', fn ($query) => $query->whereNull('archived_at')->when(! $isSuper, fn ($q) => $q->whereIn('product_id', $productIds)))
-            ->orderBy('subscriber_group_id')
-            ->get();
-    }
-
-    private function visibleSubGroups(): Collection
-    {
-        $scope = app(CpOperatorScope::class);
-
-        return SubscriberSubGroup::query()
-            ->with('group')
-            ->where('purpose', 'preference')
-            ->whereNull('archived_at')
-            ->whereHas('group', fn ($group) => $scope->restrictVisibleGroups(
-                $group->whereNull('archived_at'), request()->user()))
             ->orderBy('subscriber_group_id')
             ->get();
     }

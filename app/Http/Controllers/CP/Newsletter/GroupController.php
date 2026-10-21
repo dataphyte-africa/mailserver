@@ -9,6 +9,8 @@ use App\Models\Organisation;
 use App\Models\Subscriber;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\GroupEngagementService;
+use App\Services\Newsletter\OrganisationMailOptOut;
+use App\Services\Newsletter\AudienceGrowthService;
 use App\Services\Platform\CpOperatorScope;
 use App\Services\Newsletter\CollectionRegistry;
 use App\Services\Newsletter\ScopedSubscriberGroupDeletionService;
@@ -33,6 +35,11 @@ class GroupController extends Controller
             ->where('preference.purpose', 'preference')
             ->whereNull('membership.unsubscribed_at')
             ->where('subscribers.status', 'active')
+            ->whereNotExists(fn ($query) => $query->selectRaw('1')
+                ->from('organisation_subscriber_opt_outs as opt_out')
+                ->join('subscriber_groups as owned_group', 'owned_group.organisation_id', '=', 'opt_out.organisation_id')
+                ->whereColumn('owned_group.id', 'preference.subscriber_group_id')
+                ->whereColumn('opt_out.subscriber_id', 'subscribers.id'))
             ->selectRaw('preference.subscriber_group_id, COUNT(DISTINCT subscribers.id) AS total')
             ->groupBy('preference.subscriber_group_id')->pluck('total', 'subscriber_group_id');
         $engagements = SubscriberGroupEngagement::query()
@@ -132,6 +139,8 @@ class GroupController extends Controller
                 'group' => $group,
                 'product' => null,
                 'members' => $members,
+                'growth' => app(AudienceGrowthService::class)->forGroup($group),
+                'ratingCounts' => $this->ratingCounts($group),
             ]);
         }
 
@@ -147,14 +156,24 @@ class GroupController extends Controller
             'Audience product collection is unavailable.'
         );
 
-        $group->load(['subGroups' => fn ($q) => $q->where('purpose', 'preference')
-            ->withCount(['subscribers' => fn ($members) => $members->where('subscribers.status', 'active')])]);
-
         return view('newsletter.cp.groups.edit', [
             'group' => $group,
             'product' => $product,
             'collectionLabel' => $collectionOptions[$product->primary_collection_handle],
+            'growth' => app(AudienceGrowthService::class)->forGroup($group),
+            'ratingCounts' => $this->ratingCounts($group),
         ]);
+    }
+
+    private function ratingCounts(SubscriberGroup $group)
+    {
+        return SubscriberGroupEngagement::query()
+            ->where('subscriber_group_id', $group->getKey())
+            ->where(fn ($ratings) => $ratings->whereIn('rating', ['unsubscribed', 'suppressed'])
+                ->orWhere(fn ($members) => $members->where('is_member', true)
+                    ->whereHas('subscriber', fn ($subscriber) => $subscriber->where('status', 'active'))))
+            ->selectRaw('rating, COUNT(*) AS total')
+            ->groupBy('rating')->pluck('total', 'rating');
     }
 
     public function update(
@@ -323,6 +342,9 @@ class GroupController extends Controller
             );
             if (in_array($subscriber->status, ['unsubscribed', 'bounced', 'complained', 'erased'], true)) {
                 throw ValidationException::withMessages(['email' => 'This address is unsubscribed or suppressed and cannot be added.']);
+            }
+            if (app(OrganisationMailOptOut::class)->has((int) $group->organisation_id, (int) $subscriber->getKey())) {
+                throw ValidationException::withMessages(['email' => 'This address opted out of this organisation.']);
             }
             $members = $group->subGroups()->where('slug', 'members')->where('purpose', 'preference')->firstOrFail();
             $existing = $subscriber->allSubGroups()->whereKey($members->getKey())->first();

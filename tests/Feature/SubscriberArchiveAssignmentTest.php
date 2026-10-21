@@ -6,6 +6,7 @@ use App\Http\Controllers\CP\Newsletter\ImportController;
 use App\Http\Controllers\CP\Newsletter\SubscriberController;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
+use App\Models\SubscriberGroupEngagement;
 use App\Models\SubscriberSubGroup;
 use App\Widgets\NewsletterWidget;
 use Illuminate\Http\Request;
@@ -120,6 +121,59 @@ class SubscriberArchiveAssignmentTest extends TestCase
         $this->assertSame(1, $subscribers->total());
         $this->assertSame('pending@example.test', $subscribers->first()->email);
         $this->assertArrayHasKey('pending', $response->getData()['statuses']);
+    }
+
+    public function test_index_filters_by_audience_and_its_own_rating_without_listing_legacy_preferences(): void
+    {
+        $first = $this->createSubGroup(['name' => 'Regular']);
+        $second = $this->createSubGroup(['name' => 'Priority Updates']);
+        $matched = Subscriber::factory()->active()->create(['email' => 'matched@example.test']);
+        $other = Subscriber::factory()->active()->create(['email' => 'other@example.test']);
+        $matched->subGroups()->attach([$first->id, $second->id], ['subscribed_at' => now()]);
+        $other->subGroups()->attach($first->id, ['subscribed_at' => now()]);
+        SubscriberGroupEngagement::query()->create([
+            'subscriber_id' => $matched->id, 'subscriber_group_id' => $first->subscriber_group_id,
+            'rating' => 'high', 'score' => 10, 'is_member' => true, 'first_joined_at' => now(),
+        ]);
+        SubscriberGroupEngagement::query()->create([
+            'subscriber_id' => $matched->id, 'subscriber_group_id' => $second->subscriber_group_id,
+            'rating' => 'low', 'score' => 0, 'is_member' => true, 'first_joined_at' => now(),
+        ]);
+        SubscriberGroupEngagement::query()->create([
+            'subscriber_id' => $other->id, 'subscriber_group_id' => $first->subscriber_group_id,
+            'rating' => 'low', 'score' => 0, 'is_member' => true, 'first_joined_at' => now(),
+        ]);
+
+        $response = (new SubscriberController)->index($this->request('GET', [
+            'audience_group' => $first->subscriber_group_id, 'rating' => 'high',
+        ]));
+
+        $this->assertSame([$matched->id], $response->getData()['subscribers']->pluck('id')->all());
+        $html = $response->render();
+        $this->assertStringContainsString('name="audience_group"', $html);
+        $this->assertStringContainsString('name="rating"', $html);
+        $this->assertStringNotContainsString('name="sub_group"', $html);
+        $this->assertStringNotContainsString('>Regular</option>', $html);
+        $this->assertStringNotContainsString('>Priority Updates</option>', $html);
+
+        $wrongAudience = (new SubscriberController)->index($this->request('GET', [
+            'audience_group' => $second->subscriber_group_id, 'rating' => 'high',
+        ]));
+        $this->assertSame(0, $wrongAudience->getData()['subscribers']->total());
+
+        $export = (new ImportController)->export($this->request('GET', [
+            'audience_group' => $first->subscriber_group_id, 'rating' => 'high',
+        ]));
+        ob_start();
+        $export->sendContent();
+        $csv = ob_get_clean();
+        $this->assertStringContainsString('matched@example.test', $csv);
+        $this->assertStringNotContainsString('other@example.test', $csv);
+
+        $invalid = (new SubscriberController)->index($this->request('GET', [
+            'audience_group' => '99999999',
+        ]));
+        $this->assertSame(0, $invalid->getData()['subscribers']->total());
     }
 
     public function test_update_preserves_pending_subscriber_status(): void

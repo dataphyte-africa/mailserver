@@ -63,9 +63,8 @@ class SendNewsletterEmailJob implements ShouldQueue
             return;
         }
 
-        if ($campaign->audience_scope === 'organisation_private'
-            && ! app(AudienceResolver::class)->includesPrivateMember($campaign->load('audiences.targetable'), $subscriber)) {
-            $send->update(['status' => 'skipped', 'bounce_reason' => 'No longer eligible for private audience']);
+        if (! app(AudienceResolver::class)->includesSubscriber($campaign->load('audiences.targetable'), $subscriber)) {
+            $send->update(['status' => 'skipped', 'bounce_reason' => 'No longer eligible for this audience']);
             return;
         }
 

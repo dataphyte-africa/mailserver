@@ -39,6 +39,17 @@ class SubscriberEnrollmentService
                     'email' => ['This address cannot be subscribed through a public form.'],
                 ]);
             }
+            if ($wasExisting && $selectedIds !== []) {
+                $organisationIds = \App\Models\SubscriberSubGroup::query()->whereKey($selectedIds)
+                    ->with('group')->get()->pluck('group.organisation_id')->filter()->unique();
+                foreach ($organisationIds as $organisationId) {
+                    if (app(OrganisationMailOptOut::class)->has((int) $organisationId, (int) $subscriber->getKey())) {
+                        throw ValidationException::withMessages([
+                            'email' => ['This address opted out of this organisation. Use your preferences link to opt back in.'],
+                        ]);
+                    }
+                }
+            }
             $previousFirstName = $subscriber->first_name;
             $previousLastName = $subscriber->last_name;
             $previousManagedIds = $wasExisting

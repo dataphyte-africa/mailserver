@@ -11,7 +11,7 @@
             <div class="newsletter-engagement-heading">
                 <div>
                     <h2 id="engagement-rules-title" class="newsletter-engagement-title">How ratings work</h2>
-                    <p class="newsletter-engagement-copy">The score uses the 10 most recent campaign sends. A click earns 5 points, an open earns 2, a failed or bounced send loses 2, and any other send earns 0. A click takes precedence over an open on the same send.</p>
+                    <p class="newsletter-engagement-copy">The score uses the 10 most recent campaign sends. A click earns 5 points, an open earns 2, and a failed or bounced send loses 2. A delivered email with no recorded open or click earns 0. A click takes precedence over an open on the same send.</p>
                 </div>
                 <form method="GET" action="{{ cp_route('newsletter.engagement.index') }}" class="newsletter-engagement-organisation">
                     <label for="organisation_id">Organisation</label>

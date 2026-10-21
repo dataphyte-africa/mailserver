@@ -5,8 +5,12 @@ namespace Tests\Feature;
 use App\Jobs\Newsletter\ResumeFailedCampaignSendsJob;
 use App\Jobs\Newsletter\SendNewsletterEmailJob;
 use App\Models\Campaign;
+use App\Models\CampaignAudience;
 use App\Models\CampaignSend;
+use App\Models\Organisation;
 use App\Models\Subscriber;
+use App\Models\SubscriberGroup;
+use App\Models\SubscriberSubGroup;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Artisan;
@@ -89,6 +93,26 @@ class NewsletterCampaignLifecycleTest extends BaseTestCase
         ]);
 
         $subscriber = Subscriber::factory()->create();
+        $organisation = Organisation::query()->create([
+            'name' => 'Retry Test', 'slug' => 'retry-test', 'status' => 'active',
+            'primary_collection_handle' => 'insight_newsletters',
+        ]);
+        $group = SubscriberGroup::factory()->create([
+            'organisation_id' => $organisation->id,
+            'product_id' => null,
+            'audience_scope' => 'organisation_private',
+        ]);
+        $members = SubscriberSubGroup::factory()->create([
+            'subscriber_group_id' => $group->id, 'purpose' => 'preference', 'slug' => 'members',
+        ]);
+        $subscriber->allSubGroups()->attach($members->id, ['subscribed_at' => now()]);
+        $campaign->update(['organisation_id' => $organisation->id, 'audience_scope' => 'organisation_private']);
+        CampaignAudience::query()->create([
+            'campaign_id' => $campaign->id,
+            'targetable_type' => $group->getMorphClass(),
+            'targetable_id' => $group->id,
+            'send_to_all' => true,
+        ]);
 
         $send = CampaignSend::factory()->for($campaign)->for($subscriber)->failed()->create([
             'elastic_email_transaction_id' => null,
