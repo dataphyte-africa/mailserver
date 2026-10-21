@@ -194,18 +194,35 @@ class PreferencesController extends Controller
             ->unique()
             ->values();
 
-        return Organisation::query()->where('status', 'active')->whereKey($ids)->orderBy('name')->get();
+        $legacyHandles = $subscriber->allSubGroups()
+            ->where('purpose', 'preference')
+            ->whereHas('group', fn ($group) => $group->whereNull('organisation_id')->whereNull('product_id'))
+            ->with('group')->get()->pluck('group.collection_handle')->filter()->unique()
+            ->filter(fn ($handle) => Organisation::query()->where('status', 'active')
+                ->where('primary_collection_handle', $handle)->count() === 1);
+        $legacyOrganisationIds = Organisation::query()->where('status', 'active')
+            ->whereIn('primary_collection_handle', $legacyHandles)->pluck('id');
+
+        return Organisation::query()->where('status', 'active')
+            ->whereKey($ids->merge($legacyOrganisationIds)->unique())->orderBy('name')->get();
     }
 
     private function activeIds(Subscriber $subscriber, Organisation $organisation): array
     {
+        $legacyIsUnambiguous = Organisation::query()->where('status', 'active')
+            ->where('primary_collection_handle', $organisation->primary_collection_handle)->count() === 1;
+
         return $subscriber->subGroups()
             ->where('purpose', 'preference')
             ->whereHas('group', fn ($query) => $query
-                ->where('organisation_id', $organisation->getKey())
-                ->whereHas('product', fn ($product) => $product
-                    ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
-                    ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle')))
+                ->where(fn ($groups) => $groups
+                    ->where(fn ($owned) => $owned->where('organisation_id', $organisation->getKey())
+                        ->whereHas('product', fn ($product) => $product
+                            ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
+                            ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle')))
+                    ->when($legacyIsUnambiguous, fn ($owned) => $owned->orWhere(fn ($legacy) => $legacy
+                        ->whereNull('organisation_id')->whereNull('product_id')
+                        ->where('collection_handle', $organisation->primary_collection_handle)))))
             ->pluck('subscriber_sub_groups.id')->map(fn ($id) => (int) $id)->all();
     }
 
@@ -245,7 +262,6 @@ class PreferencesController extends Controller
         $visibleIds = array_unique(array_merge($activeIds, $this->publishedIds($organisation)));
 
         return SubscriberGroup::query()
-            ->where('organisation_id', $organisation->getKey())
             ->whereHas('subGroups', fn ($query) => $query->whereKey($visibleIds))
             ->with(['product', 'subGroups' => fn ($query) => $query->whereKey($visibleIds)->orderBy('name')])
             ->orderBy('name')->get();

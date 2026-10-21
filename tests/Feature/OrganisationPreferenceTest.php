@@ -107,6 +107,55 @@ class OrganisationPreferenceTest extends TestCase
             ->assertDontSee('Data Dive Updates')->assertDontSee('Weekly Updates');
     }
 
+    public function test_legacy_preferences_are_visible_only_to_existing_members_and_can_be_removed(): void
+    {
+        [$organisation, $productChoice] = $this->audience('Insight', 'insight_newsletters', 'Data Dive', true);
+        $legacy = SubscriberGroup::factory()->create([
+            'organisation_id' => null, 'product_id' => null,
+            'name' => 'Insight Subscribers', 'slug' => 'insight-subscribers',
+            'collection_handle' => 'insight_newsletters', 'is_public_preference' => false,
+        ]);
+        $webinars = SubscriberSubGroup::factory()->create([
+            'subscriber_group_id' => $legacy->id, 'name' => 'Webinars', 'slug' => 'webinars',
+        ]);
+        $subscriber = Subscriber::factory()->create(['status' => 'active']);
+        $subscriber->allSubGroups()->attach($webinars->id, ['subscribed_at' => now()]);
+        $urls = app(NewsletterPublicUrlService::class);
+
+        $this->get($urls->preferencesUrl($subscriber, 'insight_newsletters', $organisation))
+            ->assertOk()->assertSee('Webinars')->assertSee('Data Dive');
+        $this->get($urls->preferencesUrl(Subscriber::factory()->create(), 'insight_newsletters', $organisation))
+            ->assertOk()->assertDontSee('Webinars');
+        $this->post($urls->preferencesUpdateUrl($subscriber, 'insight_newsletters', $organisation), [
+            'sub_groups' => [$productChoice->id],
+        ])->assertOk();
+
+        $this->assertFalse($subscriber->subGroups()->whereKey($webinars->id)->exists());
+        $this->assertTrue($subscriber->subGroups()->whereKey($productChoice->id)->exists());
+    }
+
+    public function test_unowned_legacy_preferences_are_hidden_when_collection_ownership_is_ambiguous(): void
+    {
+        [$organisation] = $this->audience('Insight', 'insight_newsletters', 'Data Dive', true);
+        Organisation::query()->create([
+            'name' => 'Other Insight', 'slug' => 'other-insight', 'status' => 'active',
+            'primary_collection_handle' => 'insight_newsletters',
+        ]);
+        $legacy = SubscriberGroup::factory()->create([
+            'organisation_id' => null, 'product_id' => null,
+            'collection_handle' => 'insight_newsletters',
+        ]);
+        $webinars = SubscriberSubGroup::factory()->create([
+            'subscriber_group_id' => $legacy->id, 'name' => 'Webinars', 'slug' => 'webinars',
+        ]);
+        $subscriber = Subscriber::factory()->create(['status' => 'active']);
+        $subscriber->allSubGroups()->attach($webinars->id, ['subscribed_at' => now()]);
+
+        $this->get(app(NewsletterPublicUrlService::class)
+            ->preferencesUrl($subscriber, 'insight_newsletters', $organisation))
+            ->assertOk()->assertDontSee('Webinars');
+    }
+
     private function audience(string $name, string $handle, string $productName, bool $public, ?Organisation $organisation = null): array
     {
         $organisation ??= Organisation::query()->create([
