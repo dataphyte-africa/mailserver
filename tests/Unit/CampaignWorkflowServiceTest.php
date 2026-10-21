@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class CampaignWorkflowServiceTest extends TestCase
 {
-    public function test_campaigns_must_be_approved_before_regular_send(): void
+    public function test_draft_campaign_can_be_sent_or_scheduled_without_approval(): void
     {
         $workflow = new CampaignWorkflowService;
         $author = new WorkflowUser([]);
@@ -18,8 +18,10 @@ class CampaignWorkflowServiceTest extends TestCase
         $draft = new Campaign;
         $draft->status = CampaignWorkflowService::DRAFT;
 
-        $this->expectException(ValidationException::class);
         $workflow->assertCanSend($author, $draft);
+        $workflow->assertCanSchedule($author, $draft);
+        $this->assertSame(CampaignWorkflowService::DRAFT, $workflow->statusForAuthorAction($author, 'send', $draft));
+        $this->assertSame(CampaignWorkflowService::SCHEDULED, $workflow->statusForAuthorAction($author, 'schedule', $draft));
     }
 
     public function test_approved_campaign_can_be_sent_by_regular_operator(): void
@@ -58,12 +60,12 @@ class CampaignWorkflowServiceTest extends TestCase
         $this->assertSame(CampaignWorkflowService::SCHEDULED, $workflow->statusForAuthorAction($super, 'schedule', $campaign));
     }
 
-    public function test_sender_role_does_not_bypass_campaign_approval(): void
+    public function test_sent_campaign_cannot_be_sent_again(): void
     {
         $workflow = new CampaignWorkflowService;
         $sender = new WorkflowUser(['sender']);
         $campaign = new Campaign;
-        $campaign->status = CampaignWorkflowService::DRAFT;
+        $campaign->status = CampaignWorkflowService::SENT;
 
         $this->expectException(ValidationException::class);
         $workflow->assertCanSend($sender, $campaign);

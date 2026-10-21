@@ -67,6 +67,7 @@ class CampaignAudienceOwnershipService
             $product,
             false,
             $subGroupAudiences->pluck('targetable_id')->all(),
+            true,
         );
     }
 
@@ -132,6 +133,7 @@ class CampaignAudienceOwnershipService
         Product $product,
         bool $sendToAll,
         array $subGroupIds,
+        bool $allowLegacyPreference = false,
     ): ValidatedCampaignAudience {
         $organisation = $this->activeOrganisationFor($product);
 
@@ -173,6 +175,9 @@ class CampaignAudienceOwnershipService
             /** @var SubscriberSubGroup $subGroup */
             $subGroup = $subGroups->get($id);
             $this->assertGroupOwnedBy($subGroup->group, $product, $organisation, 'sub_groups');
+            if (! $allowLegacyPreference && $subGroup->purpose !== 'engagement') {
+                throw new CampaignAudienceOwnershipException('sub_groups', 'Select an eligible rating subgroup.');
+            }
             if ($subGroup->purpose === 'engagement' && in_array($subGroup->slug, ['rating-unsubscribed', 'rating-suppressed'], true)) {
                 throw new CampaignAudienceOwnershipException('sub_groups', 'Unsubscribed or suppressed subscribers cannot be targeted.');
             }

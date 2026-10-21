@@ -23,39 +23,35 @@ class CampaignWorkflowService
     {
         return match ($action) {
             'submit_review' => self::IN_REVIEW,
-            'schedule' => $this->canBypassApproval($operator) || $campaign?->status === self::APPROVED
-                ? self::SCHEDULED
-                : $this->reject('Campaign must be approved before it can be scheduled.'),
-            'send' => $this->canBypassApproval($operator) || in_array($campaign?->status, [self::APPROVED, self::SCHEDULED], true)
-                ? ($campaign?->status ?? self::DRAFT)
-                : $this->reject('Campaign must be approved before it can be sent.'),
+            'schedule' => self::SCHEDULED,
+            'send' => self::DRAFT,
             default => self::DRAFT,
         };
     }
 
     public function assertCanEdit(Campaign $campaign): void
     {
-        if (! in_array($campaign->status, [self::DRAFT, self::CHANGES_REQUESTED, self::APPROVED, self::SCHEDULED], true)) {
-            $this->reject('Only draft, changes requested, approved, or scheduled campaigns can be edited.');
+        if (! in_array($campaign->status, [self::DRAFT, self::IN_REVIEW, self::CHANGES_REQUESTED, self::APPROVED, self::SCHEDULED], true)) {
+            $this->reject('Only unsent campaigns can be edited.');
         }
     }
 
     public function assertCanSchedule(?Authenticatable $operator, Campaign $campaign): void
     {
-        if ($campaign->status === self::APPROVED || $this->canBypassApproval($operator)) {
+        if (in_array($campaign->status, [self::DRAFT, self::IN_REVIEW, self::CHANGES_REQUESTED, self::APPROVED, self::SCHEDULED], true)) {
             return;
         }
 
-        $this->reject('Campaign must be approved before it can be scheduled.');
+        $this->reject('Only unsent campaigns can be scheduled.');
     }
 
     public function assertCanSend(?Authenticatable $operator, Campaign $campaign): void
     {
-        if (in_array($campaign->status, [self::APPROVED, self::SCHEDULED], true) || $this->canBypassApproval($operator)) {
+        if (in_array($campaign->status, [self::DRAFT, self::IN_REVIEW, self::CHANGES_REQUESTED, self::APPROVED, self::SCHEDULED], true)) {
             return;
         }
 
-        $this->reject('Campaign must be approved before it can be sent.');
+        $this->reject('Only unsent campaigns can be sent.');
     }
 
     public function assertCanRequestChanges(?Authenticatable $operator, Campaign $campaign): void

@@ -16,8 +16,7 @@
     </div>
 @endif
 
-<form method="POST" action="{{ cp_route('newsletter.campaigns.update', $campaign) }}"
-      x-data="campaignForm()">
+<form method="POST" action="{{ cp_route('newsletter.campaigns.update', $campaign) }}">
     @csrf
     @method('PUT')
 
@@ -48,9 +47,7 @@
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-grey-80 mb-1">Collection <span class="text-red">*</span></label>
-                    <select id="collection-select" name="collection" x-model="collection"
-                            class="input-text w-full"
-                            onchange="onCollectionChange(this.value)">
+                    <select id="collection-select" name="collection" class="input-text w-full">
                         @foreach($collections as $value => $label)
                             <option value="{{ $value }}"
                                 {{ old('collection', $campaign->collection) === $value ? 'selected' : '' }}>
@@ -62,16 +59,19 @@
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-grey-80 mb-1">Content Entry</label>
-                    <select id="entry-select" name="entry_id"
-                            class="input-text w-full"
-                            onchange="onEntryChange(this.value)">
+                    <select id="entry-select" name="entry_id" class="input-text w-full">
                         <option value="">— No entry linked —</option>
+                        @foreach($entries[$collectionHandle] ?? [] as $entryOption)
+                            <option value="{{ $entryOption['id'] }}" @selected((string) old('entry_id', $campaign->entry_id) === (string) $entryOption['id'])>
+                                {{ $entryOption['date'] }} — {{ $entryOption['title'] }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-grey-80 mb-1">Subject Line <span class="text-red">*</span></label>
-                    <input type="text" id="subject-input" name="subject" x-model="subject" class="input-text w-full">
+                    <input type="text" id="subject-input" name="subject" value="{{ old('subject', $campaign->subject) }}" class="input-text w-full">
                 </div>
             </div>
 
@@ -109,7 +109,7 @@
                 <p class="text-sm mb-3">{{ $campaign->audience_scope === 'organisation_private' ? 'Private organisation audience' : 'Product subscribers' }}</p>
                 @if($campaign->audience_scope === 'organisation_private')
                     <label class="block text-sm font-medium mb-1">Private audience</label>
-                    <select name="private_group_id" x-model="privateGroupId" class="input-text w-full mb-4">
+                    <select name="private_group_id" class="input-text w-full mb-4">
                         @foreach($privateGroups as $group)
                             <option value="{{ $group->id }}" @selected((string) old('private_group_id', $selectedPrivateGroupId) === (string) $group->id)>{{ $group->name }}</option>
                         @endforeach
@@ -119,19 +119,19 @@
                 <label class="flex items-center gap-2 mb-4 cursor-pointer">
                     <input type="hidden" name="send_to_all" value="0">
                     <input type="checkbox" name="send_to_all" value="1"
-                           x-model="sendToAll" class="toggle-input">
+                           @checked(old('send_to_all', $sendToAll)) class="toggle-input">
                     <span class="text-sm font-medium">Send to All</span>
                 </label>
 
                 @if($campaign->audience_scope === 'organisation_private')
-                <div x-show="!sendToAll">
+                <div>
                     @foreach($privateGroups as $group)
-                        <div x-show="String(privateGroupId) === @js((string) $group->id)">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-grey-60 mb-1">{{ $group->name }}</p>
                             @foreach($group->subGroups as $sub)
                                 <label class="flex items-center gap-2 py-1 cursor-pointer">
                                     <input type="checkbox" name="sub_groups[]" value="{{ $sub->id }}"
-                                           @checked(in_array($sub->id, $selectedSubGroupIds))
-                                           :disabled="sendToAll || String(privateGroupId) !== @js((string) $group->id)" class="checkbox">
+                                           @checked(in_array($sub->id, old('sub_groups', $selectedSubGroupIds))) class="checkbox">
                                     <span class="text-sm">{{ $sub->name }}</span>
                                 </label>
                             @endforeach
@@ -139,9 +139,10 @@
                     @endforeach
                 </div>
                 @else
-                <div x-show="!sendToAll">
+                <div>
                     @foreach($subGroups as $group)
-                    <div class="mb-3" x-show="groupMatchesProduct(@js($group->product_id), @js($group->slug), @js($group->collection_handle))">
+                    @continue((int) $group->product_id !== (int) $product->id || $group->collection_handle !== $collectionHandle)
+                    <div class="mb-3">
                         <p class="text-xs font-semibold uppercase tracking-wide text-grey-60 mb-1">
                             {{ $group->name }}
                         </p>
@@ -149,7 +150,7 @@
                         <label class="flex items-center gap-2 py-1 cursor-pointer">
                             <input type="checkbox" name="sub_groups[]"
                                    value="{{ $sub->id }}"
-                                   {{ in_array($sub->id, $selectedSubGroupIds) ? 'checked' : '' }}
+                                   @checked(in_array($sub->id, old('sub_groups', $selectedSubGroupIds)))
                                    class="checkbox">
                             <span class="text-sm">{{ $sub->name }}</span>
                         </label>
@@ -166,42 +167,37 @@
                 <div class="space-y-2 mb-4">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="action" value="draft"
-                               x-model="action" class="radio">
+                               @checked(old('action', 'draft') === 'draft') class="radio">
                         <span class="text-sm">Save as Draft</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="action" value="submit_review"
-                               x-model="action" class="radio">
-                        <span class="text-sm">Submit for Review</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="action" value="schedule"
-                               x-model="action" class="radio">
-                        <span class="text-sm">Schedule <span class="text-grey-50 font-normal">(approved or super admin)</span></span>
+                               @checked(old('action') === 'schedule') class="radio">
+                        <span class="text-sm">Schedule</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="action" value="send"
-                               x-model="action" class="radio">
+                               @checked(old('action') === 'send') class="radio">
                         <span class="text-sm font-medium text-red">Send Now</span>
                     </label>
                 </div>
 
-                <div x-show="action === 'schedule'" class="mb-4">
+                <div class="mb-4">
                     <label class="block text-sm font-medium text-grey-80 mb-1">Send at <span class="text-red">*</span></label>
                     <input type="datetime-local" name="scheduled_at"
                            value="{{ old('scheduled_at', $campaign->scheduled_at?->format('Y-m-d\TH:i')) }}"
                            class="input-text w-full text-sm">
                 </div>
 
-                <div x-show="action === 'send'"
-                     class="bg-red-100 border border-red-300 rounded p-3 mb-4 text-xs text-red-800">
-                    This will immediately send to all selected audiences.
+                <div class="bg-blue-100 border border-blue-300 rounded p-3 mb-4 text-xs text-blue-800">
+                    Proofread the campaign and send a test email from the <a href="{{ cp_route('newsletter.campaigns.show', $campaign) }}" class="underline font-semibold">campaign page</a> before sending or scheduling. Send Now starts delivery to the selected audience immediately.
                 </div>
+                <label class="flex items-start gap-2 mb-4 text-sm">
+                    <input type="checkbox" name="send_confirmation" value="1" @checked(old('send_confirmation')) class="checkbox mt-1">
+                    <span>I have checked the content and recipients and confirm this campaign is ready to send or schedule. Required for Send Now and Schedule.</span>
+                </label>
 
-                <button type="submit" class="btn-primary w-full"
-                        :class="{ 'bg-red border-red': action === 'send' }">
-                    <span x-text="action === 'send' ? 'Send Campaign' : (action === 'schedule' ? 'Update Schedule' : (action === 'submit_review' ? 'Submit for Review' : 'Save Draft'))"></span>
-                </button>
+                <button type="submit" class="btn-primary w-full">Save campaign</button>
             </div>
 
             {{-- Danger --}}
@@ -220,82 +216,5 @@
         </div>
     </div>
 </form>
-
-<script>
-const ALL_ENTRIES    = @json($entries);
-const COLLECTION_META = @json($collectionMeta);
-const OLD_ENTRY_ID   = '{{ old('entry_id', $campaign->entry_id ?? '') }}';
-const OLD_COLLECTION = '{{ old('collection', $campaign->collection) }}';
-
-function onCollectionChange(collection) {
-    populateEntries(collection, '');
-}
-
-function onEntryChange(entryId) {
-    if (!entryId) return;
-    const collection = document.getElementById('collection-select').value;
-    const entries    = ALL_ENTRIES[collection] || [];
-    const entry      = entries.find(e => e.id === entryId);
-    if (entry && entry.subject) {
-        const subjectInput = document.getElementById('subject-input');
-        if (subjectInput && !subjectInput.value) {
-            subjectInput.value = entry.subject;
-        }
-    }
-}
-
-function populateEntries(collection, selectedId) {
-    const select  = document.getElementById('entry-select');
-    const entries = ALL_ENTRIES[collection] || [];
-    select.innerHTML = '<option value="">— No entry linked —</option>';
-    entries.forEach(function(entry) {
-        const opt   = document.createElement('option');
-        opt.value   = entry.id;
-        const tag   = entry.blueprint ? '[' + entry.blueprint + '] ' : '';
-        opt.text    = tag + (entry.date ? entry.date + ' — ' : '') + entry.title;
-        opt.selected = entry.id === selectedId;
-        select.appendChild(opt);
-    });
-    if (entries.length === 0) {
-        const opt    = document.createElement('option');
-        opt.disabled = true;
-        opt.text     = '(No published entries for this collection)';
-        select.appendChild(opt);
-    }
-}
-
-// Populate immediately on page load with the campaign's current values
-document.addEventListener('DOMContentLoaded', function () {
-    if (OLD_COLLECTION) {
-        populateEntries(OLD_COLLECTION, OLD_ENTRY_ID);
-    }
-});
-
-function campaignForm() {
-    return {
-        productId: @js((string) $product->getKey()),
-        privateGroupId: @js((string) old('private_group_id', $selectedPrivateGroupId)),
-        collection: OLD_COLLECTION,
-        subject: '{{ old('subject', addslashes($campaign->subject ?? '')) }}',
-        sendToAll: {{ $sendToAll ? 'true' : 'false' }},
-        action: '{{ old('action', 'draft') }}',
-
-        groupMatchesCollection(groupSlug, groupCollectionHandle = null) {
-            if (!this.collection) return true;
-            if (groupCollectionHandle) {
-                return groupCollectionHandle === this.collection;
-            }
-
-            return COLLECTION_META[this.collection]?.group_slug === groupSlug;
-        },
-
-        groupMatchesProduct(groupProductId, groupSlug, groupCollectionHandle = null) {
-            if (String(groupProductId) !== String(this.productId)) return false;
-
-            return this.groupMatchesCollection(groupSlug, groupCollectionHandle);
-        },
-    }
-}
-</script>
 
 @endsection

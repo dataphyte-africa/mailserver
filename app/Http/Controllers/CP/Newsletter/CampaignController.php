@@ -38,7 +38,10 @@ class CampaignController extends Controller
 
     public function index(Request $request, CpOperatorScope $scope)
     {
-        $query = $scope->campaignQuery($request->user())->latest();
+        $query = $scope->campaignQuery($request->user())
+            ->orderByDesc('sent_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
 
         if ($status = $request->input('status')) {
             $query->where('status', $status);
@@ -113,7 +116,8 @@ class CampaignController extends Controller
             'send_to_all'  => 'nullable|boolean',
             'sub_groups'   => 'nullable|array',
             'sub_groups.*' => 'integer|exists:subscriber_sub_groups,id',
-            'action'       => 'required|in:draft,submit_review,schedule,send',
+            'action'       => 'required|in:draft,schedule,send',
+            'send_confirmation' => 'required_if:action,send,schedule|accepted_if:action,send,schedule',
             'scheduled_at' => 'required_if:action,schedule|nullable|date|after:now',
         ]);
 
@@ -276,7 +280,7 @@ class CampaignController extends Controller
         }
 
         abort_if($product === null, 403, 'Campaign is outside your active product scope.');
-        abort_if(! in_array($campaign->status, ['draft', 'scheduled']), 403, 'Only draft or scheduled campaigns can be edited.');
+        abort_if(! in_array($campaign->status, ['draft', 'in_review', 'changes_requested', 'approved', 'scheduled'], true), 403, 'Only unsent campaigns can be edited.');
 
         $collectionOptions = $this->collectionOptions();
         $collectionHandle = $product->primary_collection_handle;
@@ -298,6 +302,7 @@ class CampaignController extends Controller
         return view('newsletter.cp.campaigns.edit', [
             'campaign'            => $campaign,
             'product'             => $product,
+            'collectionHandle'    => $collectionHandle,
             'collections'         => [$collectionHandle => $collectionOptions[$collectionHandle]],
             'collectionMeta'      => $this->collectionMeta(),
             'subGroups'           => $this->subGroupTree([$product->getKey()]),
@@ -388,7 +393,8 @@ class CampaignController extends Controller
             'send_to_all'  => 'nullable|boolean',
             'sub_groups'   => 'nullable|array',
             'sub_groups.*' => 'integer|exists:subscriber_sub_groups,id',
-            'action'       => 'required|in:draft,submit_review,schedule,send',
+            'action'       => 'required|in:draft,schedule,send',
+            'send_confirmation' => 'required_if:action,send,schedule|accepted_if:action,send,schedule',
             'scheduled_at' => 'required_if:action,schedule|nullable|date|after:now',
         ]);
 
@@ -530,6 +536,7 @@ class CampaignController extends Controller
 
     public function send(Campaign $campaign, Request $request, CampaignWorkflowService $workflow)
     {
+        $request->validate(['send_confirmation' => 'required|accepted']);
         if ($campaign->audience_scope === 'organisation_private') {
             $product = app(ScopedCampaignProductSelector::class)->resolveCampaign($request->user(), $campaign);
             abort_unless($product !== null, 403);
@@ -537,6 +544,10 @@ class CampaignController extends Controller
             $this->validateEntryForProduct($campaign->entry_id, $product);
         }
         $workflow->assertCanSend($request->user(), $campaign);
+
+        if ($campaign->status !== 'draft') {
+            $campaign->update(['status' => 'draft', 'scheduled_at' => null]);
+        }
 
         DispatchCampaignJob::dispatch($campaign->id)->onQueue('campaigns');
         $this->markCampaignAsQueuedForDispatch($campaign);
@@ -836,8 +847,8 @@ class CampaignController extends Controller
         $query = SubscriberGroup::query()
             ->whereNull('archived_at')
             ->with(['subGroups' => fn ($query) => $query->whereNull('archived_at')
-                ->where(fn ($segments) => $segments->where('purpose', 'preference')
-                    ->orWhereNotIn('slug', ['rating-unsubscribed', 'rating-suppressed']))]);
+                ->where('purpose', 'engagement')
+                ->whereNotIn('slug', ['rating-unsubscribed', 'rating-suppressed'])]);
 
         if ($productIds !== null) {
             $query->ownedByProducts($productIds);

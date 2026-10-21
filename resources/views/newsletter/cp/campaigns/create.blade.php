@@ -211,14 +211,9 @@
                         <span class="text-sm">Save as Draft</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="action" value="submit_review"
-                               x-model="action" class="radio">
-                        <span class="text-sm">Submit for Review</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="action" value="schedule"
                                x-model="action" class="radio">
-                        <span class="text-sm">Schedule <span class="text-grey-50 font-normal">(approved or super admin)</span></span>
+                        <span class="text-sm">Schedule</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="action" value="send"
@@ -240,10 +235,15 @@
                      class="bg-red-100 border border-red-300 rounded p-3 mb-4 text-xs text-red-800">
                     This will immediately send to all selected audiences. This cannot be undone.
                 </div>
+                <p class="text-xs text-grey-60 mb-3">Proofread the campaign and send a test email before sending or scheduling.</p>
+                <label class="flex items-start gap-2 mb-4 text-sm">
+                    <input type="checkbox" name="send_confirmation" value="1" @checked(old('send_confirmation')) class="checkbox mt-1">
+                    <span>I have checked the content and recipients and confirm this campaign is ready to send or schedule. Required for Send Now and Schedule.</span>
+                </label>
 
                 <button type="submit" class="btn-primary w-full"
                         :class="{ 'bg-red border-red hover:bg-red-dark': action === 'send' }">
-                    <span x-text="action === 'send' ? 'Send Campaign' : (action === 'schedule' ? 'Schedule Campaign' : (action === 'submit_review' ? 'Submit for Review' : 'Save Draft'))"></span>
+                    <span x-text="action === 'send' ? 'Send Campaign' : (action === 'schedule' ? 'Schedule Campaign' : 'Save Draft')">Save Draft</span>
                 </button>
             </div>
 

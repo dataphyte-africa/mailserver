@@ -62,7 +62,7 @@
         @endphp
         <span class="badge {{ $badge }} text-sm px-3 py-1">{{ str_replace('_', ' ', ucfirst($campaign->status)) }}</span>
 
-        @if(! $legacyReadOnly && in_array($campaign->status, ['draft','changes_requested','approved','scheduled']))
+        @if(! $legacyReadOnly && in_array($campaign->status, ['draft','in_review','changes_requested','approved','scheduled']))
             <a href="{{ cp_route('newsletter.campaigns.edit', $campaign) }}"
                class="btn">Edit</a>
         @endif
@@ -101,26 +101,14 @@
             </div>
         </div>
 
-        @if($campaign->status === 'in_review')
-            <form method="POST" action="{{ cp_route('newsletter.campaigns.request-changes', $campaign) }}">
-                @csrf
-                <button type="submit" class="btn">
-                    Request Changes
-                </button>
-            </form>
-            <form method="POST" action="{{ cp_route('newsletter.campaigns.approve', $campaign) }}">
-                @csrf
-                <button type="submit" class="btn-primary">
-                    Approve
-                </button>
-            </form>
-        @endif
-
-        @if(in_array($campaign->status, ['approved','scheduled']))
+        @if(in_array($campaign->status, ['draft','in_review','changes_requested','approved','scheduled']))
             <form method="POST" action="{{ cp_route('newsletter.campaigns.send', $campaign) }}">
                 @csrf
+                <label class="flex items-start gap-2 text-sm mb-2">
+                    <input type="checkbox" name="send_confirmation" value="1" required class="checkbox mt-1">
+                    <span>I have proofread this campaign, checked its audience, and confirm it is ready to send. Consider sending a test email first.</span>
+                </label>
                 <button type="submit"
-                        onclick="return confirm('Send this campaign now to all selected audiences?')"
                         class="btn-primary bg-red border-red hover:bg-red-dark">
                     Send Now
                 </button>

@@ -68,6 +68,7 @@ class CampaignAudienceOwnershipServiceTest extends TestCase
             $table->foreignId('subscriber_group_id');
             $table->string('name');
             $table->string('slug');
+            $table->string('purpose')->default('engagement');
             $table->timestamp('archived_at')->nullable();
             $table->foreignId('archived_by')->nullable();
             $table->timestamps();
@@ -163,6 +164,18 @@ class CampaignAudienceOwnershipServiceTest extends TestCase
             ['subscriber_sub_group'],
             CampaignAudience::query()->distinct()->pluck('targetable_type')->all(),
         );
+    }
+
+    public function test_legacy_preference_subgroup_cannot_be_newly_targeted(): void
+    {
+        $product = $this->createProduct('product-one');
+        $group = $this->createGroup($product, 'group-one');
+        $legacy = $this->createSubGroup($group, 'regular');
+        $legacy->update(['purpose' => 'preference']);
+
+        $this->expectOwnershipFailure('sub_groups', function () use ($product, $legacy) {
+            $this->service->validateForProduct($product, false, [$legacy->id]);
+        });
     }
 
     public function test_subgroup_selection_fails_for_missing_or_cross_product_ownership(): void
@@ -398,6 +411,7 @@ class CampaignAudienceOwnershipServiceTest extends TestCase
             'subscriber_group_id' => $group->getKey(),
             'name' => $slug,
             'slug' => $slug,
+            'purpose' => 'engagement',
         ]);
     }
 
