@@ -265,7 +265,7 @@ class FocalPointApplicationTest extends TestCase
             $this->assertTrue(app(FocalPointApplicationService::class)->isReady());
             $this->get(route('focal-points.applications.show'))->assertOk()
                 ->assertSee('id="submit-button"', false)
-                ->assertDontSee('id="submit-button" disabled', false)
+                ->assertSee('id="submit-button" disabled', false)
                 ->assertDontSee('Draft for review');
         } finally {
             app()->detectEnvironment(fn () => $originalEnvironment);
@@ -353,6 +353,16 @@ class FocalPointApplicationTest extends TestCase
         $this->assertSame('ada@example.test', $draft->email);
         $this->assertSame(0, $draft->last_completed_step);
         $this->assertTrue($draft->expires_at->isFuture());
+    }
+
+    public function test_other_tools_is_required_before_the_coordination_step_can_be_saved(): void
+    {
+        $this->postJson(route('focal-points.applications.drafts.step'), [
+            'step' => 2,
+            ...Arr::only($this->payload(), ['recruitment_plan', 'reporting_plan', 'coordination_challenges', 'polling_unit_scenario', 'application_consent', 'cv', 'certificate']),
+            'tools' => ['other'],
+            'tools_other' => '',
+        ])->assertUnprocessable()->assertJsonValidationErrors('tools_other');
     }
 
     public function test_resume_link_is_single_use_and_does_not_reveal_draft_existence(): void

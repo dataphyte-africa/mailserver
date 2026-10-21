@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class FocalPointApplicationController extends Controller
@@ -107,6 +108,9 @@ class FocalPointApplicationController extends Controller
             default => throw ValidationException::withMessages(['step' => 'Choose a valid application section.']),
         };
         $validated = $request->validate(Arr::only($this->applications->rules(false), $fields));
+        if ($step === 2 && in_array('other', $validated['tools'] ?? [], true) && blank($validated['tools_other'] ?? null)) {
+            throw ValidationException::withMessages(['tools_other' => 'Describe the other tools you can use.']);
+        }
         $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
         if ($step === 2 && (! ($request->hasFile('cv') || $draft?->cv_drive_id) || ! ($request->hasFile('certificate') || $draft?->certificate_drive_id))) {
             throw ValidationException::withMessages(['documents' => 'Upload both documents before continuing.']);

@@ -12,7 +12,7 @@
         .intro{padding:10px 8px 0;margin-top:18px}.intro p{line-height:1.65}.intro p:first-child{margin-top:0}.intro p:last-child{margin-bottom:0}.note{font-weight:600;color:#2d4d81}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-top:18px;box-shadow:0 6px 24px #14294a0b}.entry-panel{margin-top:20px;padding:28px;background:#edf5ff;border:1px solid #c5d8f3;border-radius:16px;box-shadow:0 6px 24px #14294a0b}.entry-panel h2{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin:0 0 8px}.entry-panel p{margin:0 0 18px;color:var(--muted)}.entry-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.entry-controls label{margin:0;flex:1;min-width:240px}.entry-controls input{font-size:17px;min-height:50px}.entry-controls button{min-height:50px}.entry-note{margin:14px 0 0!important;font-size:13px}.entry-message{min-height:20px;margin:12px 0 0!important;font-size:13px}.save-status{min-height:22px;margin:14px 0 -9px;color:var(--muted);font-size:13px}.save-status[data-state=error]{color:var(--danger)}.saved-file{display:block;color:#1d6040;font-size:12px;margin-top:5px}
         .shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:18px;margin-right:18px}
         fieldset.step{border:0;padding:0;margin:0;min-width:0;scroll-margin-top:100px}fieldset.step[hidden]{display:none}legend{font-size:21px;font-weight:700;letter-spacing:-.02em;padding:0;margin-bottom:5px}.section-intro{color:var(--muted);font-size:14px;margin:0 0 20px}.grid{display:grid;grid-template-columns:1fr;gap:17px}.field{min-width:0}.field.wide{grid-column:1/-1}label,.label{font-size:14px;font-weight:600;display:block;margin-bottom:7px}.help{display:block;color:var(--muted);font-size:12px;margin-top:5px}.required{color:var(--danger)}input:not([type=radio]):not([type=checkbox]),select,textarea{width:100%;font:inherit;color:var(--ink);padding:10px 12px;border:1px solid #b7c6dc;border-radius:9px;background:#fff;min-height:44px}textarea{min-height:110px;resize:vertical}input:focus,select:focus,textarea:focus{outline:2px solid #4887ea;outline-offset:1px}.options{display:flex;gap:12px 20px;flex-wrap:wrap}.options label{font-weight:500;margin:0;display:flex;align-items:center;gap:8px}.options input{width:17px;height:17px}.question{border-top:1px solid var(--line);padding-top:20px;margin-top:5px}.error{color:var(--danger);font-size:13px;margin:5px 0 0}.alert{padding:15px 18px;border-radius:11px;margin-top:20px}.alert.error-box{background:#fff1f1;border:1px solid #ebc8cb;color:#751b29}.alert.success{background:#e9f7ef;border:1px solid #a3d5b6;color:#1d6040}.actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px}button{font:inherit;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;padding:11px 20px;font-weight:600}button.secondary{background:#fff;color:var(--ink)}button:hover{filter:brightness(1.12)}button:disabled{opacity:.55;cursor:not-allowed}.foot{color:var(--muted);font-size:13px;margin:32px 0;text-align:center}
-        .location-picker{position:relative}.location-picker.enhanced select{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0;pointer-events:none}.location-picker input[type=search]{padding-right:35px}.location-results{position:absolute;z-index:5;top:calc(100% + 4px);left:0;right:0;height:220px;max-height:45vh;overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #aebed6;border-radius:9px;box-shadow:0 12px 24px #14294a24}.location-results[hidden]{display:none}.location-option{display:block;width:100%;border:0;border-radius:0;background:#fff;color:var(--ink);padding:10px 12px;text-align:left;font-weight:500}.location-option:hover,.location-option.active{background:#e9f1ff;filter:none}.location-empty{padding:11px 12px;color:var(--muted)}.terms-scroll{height:320px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:#f8faff;padding:18px;line-height:1.55}.terms-scroll h2{font-size:17px;margin:20px 0 8px}.terms-scroll h2:first-child{margin-top:0}.terms-scroll p,.terms-scroll li{font-size:14px}.terms-scroll ul{padding-left:22px}.terms-accept{margin-top:20px;display:flex;align-items:flex-start;gap:10px;font-weight:500}.terms-accept input{margin-top:5px}.terms-accept.locked{color:var(--muted)}
+        .location-picker{position:relative}.location-picker.enhanced select{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0;pointer-events:none}.location-picker input[type=search]{padding-right:35px}.location-results{position:absolute;z-index:5;top:calc(100% + 4px);left:0;right:0;height:220px;max-height:45vh;overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #aebed6;border-radius:9px;box-shadow:0 12px 24px #14294a24}.location-results[hidden]{display:none}.location-option{display:block;width:100%;border:0;border-radius:0;background:#fff;color:var(--ink);padding:10px 12px;text-align:left;font-weight:500}.location-option:hover,.location-option.active{background:#e9f1ff;filter:none}.location-empty{padding:11px 12px;color:var(--muted)}.terms-scroll{height:320px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:#f8faff;padding:18px;line-height:1.55}.terms-scroll h2{font-size:17px;margin:20px 0 8px}.terms-scroll h2:first-child{margin-top:0}.terms-scroll p,.terms-scroll li{font-size:14px}.terms-scroll ul{padding-left:22px}.terms-accept{margin-top:20px;display:flex;align-items:flex-start;gap:10px;font-weight:500}.terms-accept input{margin-top:5px}.terms-accept.locked{color:var(--muted)}button:disabled{background:#8d97a9;border-color:#8d97a9;color:#fff;opacity:1;filter:none}
         @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px}}@media(max-width:639px){.shell{padding-bottom:48px}.head{min-height:0;align-items:flex-start;flex-direction:column;gap:10px;padding:13px 18px}.logo{width:175px}.head-nav{width:100%;justify-content:flex-start;gap:2px}.head-nav button{font-size:12px;padding:7px 9px}.head .eyebrow{text-align:left}.hero{padding:23px 20px}.intro{padding:8px 5px 0}.entry-panel,.panel{padding:20px 17px}.entry-controls button{width:100%}.shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:12px;margin-right:12px}fieldset.step{scroll-margin-top:115px}.actions button{padding:10px 14px}}
     </style>
 </head>
@@ -137,9 +137,9 @@
                             <label><input type="checkbox" name="tools[]" value="{{ $value }}" @checked(in_array($value, old('tools', [])))> {{ $label }}</label>
                         @endforeach
                     </div></div>
-                    <div class="field wide"><label for="tools_other">Other tools</label><input id="tools_other" name="tools_other" value="{{ old('tools_other') }}"></div>
-                    <div class="field"><label for="cv">CV, maximum two pages <span class="required">*</span></label><input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" required><span class="help">PDF, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="cv-saved" @if(! $draft?->cv_filename) hidden @endif>{{ $draft?->cv_filename ? 'Saved: '.$draft->cv_filename.' Select a new file to replace it.' : '' }}</span></div>
-                    <div class="field"><label for="certificate">Highest-qualification certificate <span class="required">*</span></label><input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required><span class="help">PDF, image, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="certificate-saved" @if(! $draft?->certificate_filename) hidden @endif>{{ $draft?->certificate_filename ? 'Saved: '.$draft->certificate_filename.' Select a new file to replace it.' : '' }}</span></div>
+                    <div class="field wide" id="tools-other-field" @if(! in_array('other', old('tools', []))) hidden @endif><label for="tools_other">Other tools <span class="required">*</span></label><input id="tools_other" name="tools_other" value="{{ old('tools_other') }}" @if(in_array('other', old('tools', []))) required @else disabled @endif></div>
+                    <div class="field"><label for="cv">CV, maximum two pages <span class="required">*</span></label><input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" @required(! $draft?->cv_filename)><span class="help">PDF, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="cv-saved" @if(! $draft?->cv_filename) hidden @endif>{{ $draft?->cv_filename ? 'Saved: '.$draft->cv_filename.' Select a new file to replace it.' : '' }}</span></div>
+                    <div class="field"><label for="certificate">Highest-qualification certificate <span class="required">*</span></label><input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" @required(! $draft?->certificate_filename)><span class="help">PDF, image, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="certificate-saved" @if(! $draft?->certificate_filename) hidden @endif>{{ $draft?->certificate_filename ? 'Saved: '.$draft->certificate_filename.' Select a new file to replace it.' : '' }}</span></div>
                     <div class="field wide"><label style="display:flex;align-items:flex-start;gap:10px;font-weight:500"><input type="checkbox" name="application_consent" value="1" @checked(old('application_consent')) required style="margin-top:5px"> I consent to Dataphyte Foundation processing my answers and uploaded documents to assess this application and contact me about its outcome. <span class="required">*</span></label></div>
                 </div>
             </fieldset>
@@ -153,7 +153,7 @@
                 <label class="terms-accept locked" id="terms-accept-label"><input type="checkbox" id="tor_accepted" name="tor_accepted" value="1" required disabled @checked(old('tor_accepted'))> I have read and agree to the Terms of Reference. <span class="required">*</span></label>
             </fieldset>
             <p class="save-status" id="save-status" aria-live="polite"></p>
-            <div class="actions"><button type="button" class="secondary" id="back-button" hidden>Back</button><button type="button" id="next-button">Continue</button><button type="submit" id="submit-button" @disabled(! $isReady) hidden>Submit application</button></div>
+            <div class="actions"><button type="button" class="secondary" id="back-button" hidden>Back</button><button type="button" id="next-button">Continue</button><button type="submit" id="submit-button" disabled hidden>Submit application</button></div>
         </form>
     @endif
 </main>
@@ -174,6 +174,8 @@
     const termsCheck = document.querySelector('#tor_accepted');
     const termsHelp = document.querySelector('#terms-help');
     const saveStatus = document.querySelector('#save-status');
+    const toolsOtherField = document.querySelector('#tools-other-field');
+    const toolsOther = document.querySelector('#tools_other');
     const entry = document.querySelector('#application-entry');
     const pending = document.querySelector('#pending-application');
     const entryEmail = document.querySelector('#entry-email');
@@ -200,13 +202,27 @@
         answer.addEventListener('change', sync);
         sync();
     }
+    const syncToolsOther = () => {
+        const selected = form.querySelector('[name="tools[]"][value="other"]').checked;
+        toolsOtherField.hidden = !selected;
+        toolsOther.disabled = !selected;
+        toolsOther.required = selected;
+        if (!selected) toolsOther.value = '';
+    };
+    form.querySelectorAll('[name="tools[]"]').forEach(field => field.addEventListener('change', syncToolsOther));
+    syncToolsOther();
+    const updateSubmitState = () => {
+        submit.disabled = !@json($isReady) || termsCheck.disabled || !termsCheck.checked;
+    };
     const unlockTerms = () => {
         if (terms.scrollTop + terms.clientHeight < terms.scrollHeight - 8) return;
         termsCheck.disabled = false;
         document.querySelector('#terms-accept-label').classList.remove('locked');
         termsHelp.textContent = 'You have reached the end. Confirm your agreement below.';
+        updateSubmitState();
     };
     terms.addEventListener('scroll', unlockTerms, {passive: true});
+    termsCheck.addEventListener('change', updateSubmitState);
     let current = 0;
     const setSaveStatus = (message, state = '') => {
         saveStatus.textContent = message;
@@ -277,6 +293,7 @@
         scrollLabelIntoView(index);
         back.hidden = index === 0; next.hidden = index === steps.length - 1; submit.hidden = index !== steps.length - 1;
         if (index === steps.length - 1) unlockTerms();
+        updateSubmitState();
         steps[index].scrollIntoView({behavior, block: 'start'});
     };
     const pickers = new Map();
@@ -484,6 +501,7 @@
     });
     startAgain.addEventListener('click', () => startFresh(pending.dataset.email));
     applyAnswers(serverDraft?.answers);
+    syncToolsOther();
     const localDraft = readLocal();
     if (localDraft) {
         applyAnswers(localDraft.answers);
@@ -495,6 +513,7 @@
         savedFile('certificate', serverDraft.certificateFilename);
         setSaveStatus('Saved application restored.');
     }
+    syncToolsOther();
     restore().then(() => {
         if (serverDraft) {
             show(current);
