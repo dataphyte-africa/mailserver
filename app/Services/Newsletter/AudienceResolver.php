@@ -62,13 +62,13 @@ class AudienceResolver
                 continue;
             }
             if ($subscriber->groupEngagements()->where('subscriber_group_id', $group->getKey())
-                ->where('rating', 'suppressed')->exists()) {
+                ->whereIn('rating', ['unsubscribed', 'suppressed'])->exists()) {
                 continue;
             }
             $isMember = $subscriber->subGroups()->where('subscriber_group_id', $group->getKey())
                 ->where('purpose', 'preference')->exists();
             if ($isMember && ($target instanceof SubscriberGroup || ($target instanceof SubscriberSubGroup
-                && $target->purpose === 'engagement' && $target->slug !== 'rating-suppressed'
+                && $target->purpose === 'engagement' && ! in_array($target->slug, ['rating-unsubscribed', 'rating-suppressed'], true)
                 && $subscriber->subGroups()->whereKey($target->getKey())->exists()))) {
                 return true;
             }
@@ -105,7 +105,7 @@ class AudienceResolver
     {
         return Subscriber::active()
             ->whereDoesntHave('groupEngagements', fn ($q) => $q
-                ->where('subscriber_group_id', $group->getKey())->where('rating', 'suppressed'))
+                ->where('subscriber_group_id', $group->getKey())->whereIn('rating', ['unsubscribed', 'suppressed']))
             ->whereHas('allSubGroups', function ($q) use ($group) {
                 $q->where('subscriber_group_id', $group->id)
                   ->where('purpose', 'preference')
@@ -116,13 +116,13 @@ class AudienceResolver
 
     private function resolveSubGroup(SubscriberSubGroup $subGroup): Collection
     {
-        if ($subGroup->purpose === 'engagement' && $subGroup->slug === 'rating-suppressed') {
+        if ($subGroup->purpose === 'engagement' && in_array($subGroup->slug, ['rating-unsubscribed', 'rating-suppressed'], true)) {
             return collect();
         }
 
         return Subscriber::active()
             ->whereDoesntHave('groupEngagements', fn ($q) => $q
-                ->where('subscriber_group_id', $subGroup->subscriber_group_id)->where('rating', 'suppressed'))
+                ->where('subscriber_group_id', $subGroup->subscriber_group_id)->whereIn('rating', ['unsubscribed', 'suppressed']))
             ->when($subGroup->group?->isPrivateAudience(), fn ($query) => $query
                 ->whereHas('subGroups', fn ($members) => $members
                     ->where('subscriber_group_id', $subGroup->subscriber_group_id)

@@ -84,7 +84,7 @@ class CampaignController extends Controller
             'privateGroups' => app(ScopedSubscriberGroupProductSelector::class)->groupsFor($request->user())
                 ->filter(fn ($group) => $group->isPrivateAudience() && ! $group->isArchived())
                 ->load(['subGroups' => fn ($query) => $query->where('purpose', 'engagement')
-                    ->where('slug', '!=', 'rating-suppressed')->whereNull('archived_at')]),
+                    ->whereNotIn('slug', ['rating-unsubscribed', 'rating-suppressed'])->whereNull('archived_at')]),
             'collections' => array_intersect_key($collectionOptions, array_flip($scopedCollectionHandles)),
             'collectionMeta' => $this->collectionMeta(),
             'subGroups'   => $this->subGroupTree($scopedProducts->modelKeys()),
@@ -306,7 +306,7 @@ class CampaignController extends Controller
                     && ! $group->isArchived()
                     && (int) $group->organisation_id === (int) $product->organisation_id)
                 ->load(['subGroups' => fn ($query) => $query->where('purpose', 'engagement')
-                    ->where('slug', '!=', 'rating-suppressed')->whereNull('archived_at')]),
+                    ->whereNotIn('slug', ['rating-unsubscribed', 'rating-suppressed'])->whereNull('archived_at')]),
             'selectedPrivateGroupId' => $audience->group?->getKey() ?? $audience->subGroups->first()?->subscriber_group_id,
             'entries'             => $this->allEntries([$collectionHandle]),
             'selectedSubGroupIds' => $audience->subGroups->modelKeys(),
@@ -837,7 +837,7 @@ class CampaignController extends Controller
             ->whereNull('archived_at')
             ->with(['subGroups' => fn ($query) => $query->whereNull('archived_at')
                 ->where(fn ($segments) => $segments->where('purpose', 'preference')
-                    ->orWhere('slug', '!=', 'rating-suppressed'))]);
+                    ->orWhereNotIn('slug', ['rating-unsubscribed', 'rating-suppressed']))]);
 
         if ($productIds !== null) {
             $query->ownedByProducts($productIds);

@@ -30,11 +30,12 @@
                         <tr><th scope="row">Moderate</th><td>Score of at least 4 and engagement within 90 days</td></tr>
                         <tr><th scope="row">Inactive</th><td>No engagement across 10 sends, or last engagement more than 90 days ago</td></tr>
                         <tr><th scope="row">Low</th><td>Everything else, including a subscriber with little activity</td></tr>
-                        <tr><th scope="row">Suppressed</th><td>Subscriber is unsubscribed, hard-bounced, or complained</td></tr>
+                        <tr><th scope="row">Unsubscribed</th><td>Subscriber chose to stop receiving emails</td></tr>
+                        <tr><th scope="row">Suppressed</th><td>Subscriber hard-bounced or complained</td></tr>
                     </tbody>
                 </table>
             </div>
-            <p class="newsletter-engagement-note">A subscriber with no campaign sends starts as New / Unrated. A single temporary delivery failure does not permanently suppress them. Opens can be affected by email privacy features, so clicks are stronger evidence of engagement. Suppressed subscribers cannot be selected for campaigns.</p>
+            <p class="newsletter-engagement-note">A subscriber with no campaign sends starts as New / Unrated. A single temporary delivery failure does not permanently suppress them. Opens can be affected by email privacy features, so clicks are stronger evidence of engagement. Unsubscribed and suppressed subscribers cannot be selected for campaigns.</p>
         </section>
 
         <section class="newsletter-groups-card newsletter-engagement-card" aria-labelledby="engagement-recalculation-title">

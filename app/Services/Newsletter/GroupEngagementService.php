@@ -16,6 +16,7 @@ class GroupEngagementService
         'moderate' => 'Moderate',
         'low' => 'Low',
         'inactive' => 'Inactive',
+        'unsubscribed' => 'Unsubscribed',
         'suppressed' => 'Suppressed',
     ];
 

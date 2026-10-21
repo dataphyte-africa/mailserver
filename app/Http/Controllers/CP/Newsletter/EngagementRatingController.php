@@ -30,7 +30,7 @@ class EngagementRatingController extends Controller
         $counts = SubscriberGroupEngagement::query()
             ->selectRaw('subscriber_group_id, rating, COUNT(*) AS total')
             ->whereIn('subscriber_group_id', $groups->modelKeys())
-            ->where(fn ($query) => $query->where('rating', 'suppressed')
+            ->where(fn ($query) => $query->whereIn('rating', ['unsubscribed', 'suppressed'])
                 ->orWhere(fn ($members) => $members->where('is_member', true)
                     ->whereHas('subscriber', fn ($subscriber) => $subscriber->where('status', 'active'))))
             ->groupBy('subscriber_group_id', 'rating')->get()

@@ -122,4 +122,37 @@ class GroupEngagementServiceTest extends TestCase
         $this->expectException(CampaignAudienceOwnershipException::class);
         app(CampaignAudienceOwnershipService::class)->validateForProduct($product, false, [$suppressed->id]);
     }
+
+    public function test_unsubscribed_and_delivery_suppression_have_separate_non_targetable_segments(): void
+    {
+        $organisation = Organisation::query()->create([
+            'name' => 'Engagement Split', 'slug' => 'engagement-split', 'status' => 'active',
+            'primary_collection_handle' => 'insight_newsletters',
+        ]);
+        $product = Product::query()->create([
+            'organisation_id' => $organisation->id, 'name' => 'Split Product',
+            'slug' => 'engagement-split-product', 'status' => 'active', 'product_type' => 'newsletter',
+            'primary_collection_handle' => 'insight_newsletters',
+        ]);
+        $group = SubscriberGroup::factory()->create([
+            'organisation_id' => $organisation->id,
+            'product_id' => $product->id,
+            'collection_handle' => $product->primary_collection_handle,
+        ]);
+        $preference = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->id]);
+        $ratings = app(GroupEngagementService::class);
+
+        foreach (['unsubscribed' => 'unsubscribed', 'bounced' => 'suppressed', 'complained' => 'suppressed'] as $status => $expected) {
+            $subscriber = Subscriber::factory()->create(['status' => $status]);
+            $subscriber->allSubGroups()->attach($preference->id, ['subscribed_at' => now()]);
+            $ratings->sync($subscriber, $group);
+
+            $this->assertSame($expected, $subscriber->groupEngagements()->where('subscriber_group_id', $group->id)->firstOrFail()->rating);
+            $this->assertTrue($subscriber->allSubGroups()->where('slug', 'rating-'.$expected)->exists());
+        }
+
+        $unsubscribed = $group->subGroups()->where('slug', 'rating-unsubscribed')->firstOrFail();
+        $this->expectException(CampaignAudienceOwnershipException::class);
+        app(CampaignAudienceOwnershipService::class)->validateForProduct($product, false, [$unsubscribed->id]);
+    }
 }

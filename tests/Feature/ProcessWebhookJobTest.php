@@ -425,7 +425,7 @@ class ProcessWebhookJobTest extends TestCase
 
         ProcessWebhookJob::dispatchSync($log->id);
 
-        $this->assertEquals('unsubscribed', $subscriber->fresh()->status);
+        $this->assertEquals('complained', $subscriber->fresh()->status);
     }
 
     public function test_real_lowercase_unsubscribed_payload_family_suppresses_subscriber(): void

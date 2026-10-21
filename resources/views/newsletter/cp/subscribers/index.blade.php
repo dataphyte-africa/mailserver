@@ -515,6 +515,7 @@
                                     'moderate' => 'subscriber-cp-badge-moderate',
                                     'low' => 'subscriber-cp-badge-low',
                                     'inactive' => 'subscriber-cp-badge-inactive',
+                                    'unsubscribed' => 'subscriber-cp-badge-muted',
                                     'suppressed' => 'subscriber-cp-badge-suppressed',
                                     default => 'subscriber-cp-badge-muted',
                                 };

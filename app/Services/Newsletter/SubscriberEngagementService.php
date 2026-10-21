@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 class SubscriberEngagementService
 {
     private const WINDOW_SIZE = 10;
-    private const SUPPRESSED_STATUSES = ['unsubscribed', 'bounced', 'complained'];
+    private const SUPPRESSED_STATUSES = ['bounced', 'complained'];
 
     public function compute(Subscriber $subscriber): array
     {
@@ -45,10 +45,10 @@ class SubscriberEngagementService
 
         $lastEngagedAt = filled($lastEngagedAt) ? Carbon::parse($lastEngagedAt) : null;
 
-        if (in_array($subscriber->status, self::SUPPRESSED_STATUSES, true)) {
+        if ($subscriber->status === 'unsubscribed' || in_array($subscriber->status, self::SUPPRESSED_STATUSES, true)) {
             return [
                 'engagement_score' => 0,
-                'engagement_rating' => 'suppressed',
+                'engagement_rating' => $subscriber->status === 'unsubscribed' ? 'unsubscribed' : 'suppressed',
                 'last_engaged_at' => $lastEngagedAt,
             ];
         }

@@ -255,11 +255,13 @@ class ProcessWebhookJob implements ShouldQueue
 
         // Suppress the subscriber globally
         $subscriber = $send->subscriber;
-        if ($subscriber && $subscriber->status !== 'unsubscribed') {
-            $updates = ['status' => 'unsubscribed'];
+        if ($subscriber && ($event === 'complained'
+            ? ! in_array($subscriber->status, ['complained', 'erased'], true)
+            : ! in_array($subscriber->status, ['unsubscribed', 'complained', 'bounced', 'erased'], true))) {
+            $updates = ['status' => $event === 'complained' ? 'complained' : 'unsubscribed'];
             $eventDate = $this->eventDate($log);
 
-            if ($eventDate) {
+            if ($event === 'unsubscribed' && $eventDate) {
                 $updates['unsubscribed_at'] = $eventDate;
             }
 
@@ -386,11 +388,14 @@ class ProcessWebhookJob implements ShouldQueue
             'bounced' => in_array($subscriber->status, ['pending', 'active'], true)
                 ? $subscriber->update(['status' => 'bounced'])
                 : null,
-            'unsubscribed', 'complained' => $subscriber->status !== 'unsubscribed'
+            'unsubscribed' => ! in_array($subscriber->status, ['unsubscribed', 'complained', 'bounced', 'erased'], true)
                 ? $subscriber->update([
                     'status' => 'unsubscribed',
                     'unsubscribed_at' => $eventDate,
                 ])
+                : null,
+            'complained' => ! in_array($subscriber->status, ['complained', 'erased'], true)
+                ? $subscriber->update(['status' => 'complained'])
                 : null,
             default => null,
         };

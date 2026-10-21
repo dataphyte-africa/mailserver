@@ -117,7 +117,7 @@ class CampaignAudienceOwnershipService
             throw new CampaignAudienceOwnershipException('sub_groups', 'Select at least one eligible rating subgroup.');
         }
         $segments = $group->subGroups()->whereKey($ids)->where('purpose', 'engagement')
-            ->where('slug', '!=', 'rating-suppressed')->whereNull('archived_at')->get();
+            ->whereNotIn('slug', ['rating-unsubscribed', 'rating-suppressed'])->whereNull('archived_at')->get();
         if ($segments->count() !== $ids->count()) {
             throw new CampaignAudienceOwnershipException('sub_groups', 'One or more selected rating subgroups are unavailable.');
         }
@@ -173,8 +173,8 @@ class CampaignAudienceOwnershipService
             /** @var SubscriberSubGroup $subGroup */
             $subGroup = $subGroups->get($id);
             $this->assertGroupOwnedBy($subGroup->group, $product, $organisation, 'sub_groups');
-            if ($subGroup->purpose === 'engagement' && $subGroup->slug === 'rating-suppressed') {
-                throw new CampaignAudienceOwnershipException('sub_groups', 'Suppressed subscribers cannot be targeted.');
+            if ($subGroup->purpose === 'engagement' && in_array($subGroup->slug, ['rating-unsubscribed', 'rating-suppressed'], true)) {
+                throw new CampaignAudienceOwnershipException('sub_groups', 'Unsubscribed or suppressed subscribers cannot be targeted.');
             }
             $orderedSubGroups->push($subGroup);
         }

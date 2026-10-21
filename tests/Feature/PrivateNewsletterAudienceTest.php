@@ -36,7 +36,7 @@ class PrivateNewsletterAudienceTest extends TestCase
         $this->assertNull($group->product_id);
         $this->assertSame('organisation_private', $group->audience_scope);
         $this->assertFalse($group->is_public_preference);
-        $this->assertSame(7, $group->subGroups()->count());
+        $this->assertSame(8, $group->subGroups()->count());
 
         $this->post(cp_route('newsletter.groups.members.store', $group), [
             'email' => 'private@example.test',

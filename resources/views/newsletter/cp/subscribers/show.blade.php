@@ -23,6 +23,7 @@
                             'moderate' => 'bg-blue-100 text-blue-700',
                             'low' => 'bg-gray-100 text-gray-600',
                             'inactive' => 'bg-yellow-100 text-yellow-700',
+                            'unsubscribed' => 'bg-gray-100 text-gray-600',
                             'suppressed' => 'bg-red-100 text-red-600',
                             default => 'bg-gray-50 text-gray-400',
                         };

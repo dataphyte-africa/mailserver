@@ -87,6 +87,7 @@ class SubscriberController extends Controller
                     WHEN 'moderate' THEN 4
                     WHEN 'low' THEN 3
                     WHEN 'inactive' THEN 2
+                    WHEN 'unsubscribed' THEN 1
                     WHEN 'suppressed' THEN 1
                     ELSE 0
                 END {$direction}
