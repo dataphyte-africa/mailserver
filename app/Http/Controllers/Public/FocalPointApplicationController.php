@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Mail\FocalPointApplicationReceivedMail;
 use App\Mail\FocalPointApplicationResumeMail;
+use App\Models\FocalPointApplication;
 use App\Models\FocalPointApplicationDraft;
 use App\Services\Foundation\FocalPointApplicationContent;
 use App\Services\Foundation\FocalPointApplicationDraftService;
@@ -58,6 +59,11 @@ class FocalPointApplicationController extends Controller
         abort_unless($this->applications->isOpen(), 410, 'Applications have closed.');
         abort_unless($this->applications->isReady(), 503, 'Applications are not accepting document uploads yet.');
 
+        if ($this->hasSubmittedApplication((string) $request->input('email'))) {
+            return back()->withInput($request->except(['cv', 'certificate']))
+                ->withErrors(['email' => 'An application has already been submitted with this email address. Check your inbox for the confirmation email.']);
+        }
+
         $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
         $usesDraft = $draft && Str::lower((string) $request->input('email')) === $draft->email && $this->drafts->hasDocuments($draft);
         $validated = $request->validate($this->applications->rules(! $usesDraft));
@@ -108,6 +114,9 @@ class FocalPointApplicationController extends Controller
             default => throw ValidationException::withMessages(['step' => 'Choose a valid application section.']),
         };
         $validated = $request->validate(Arr::only($this->applications->rules(false), $fields));
+        if ($step === 0 && $this->hasSubmittedApplication($validated['email'])) {
+            throw ValidationException::withMessages(['email' => 'An application has already been submitted with this email address. Check your inbox for the confirmation email.']);
+        }
         if ($step === 2 && in_array('other', $validated['tools'] ?? [], true) && blank($validated['tools_other'] ?? null)) {
             throw ValidationException::withMessages(['tools_other' => 'Describe the other tools you can use.']);
         }
@@ -141,13 +150,15 @@ class FocalPointApplicationController extends Controller
     public function lookupDraft(Request $request): JsonResponse
     {
         $email = Str::lower((string) $request->validate(['email' => ['required', 'email:rfc', 'max:255']])['email']);
+        $hasDraft = FocalPointApplicationDraft::query()
+            ->where('email', $email)
+            ->where('expires_at', '>', now())
+            ->exists();
 
         return response()->json([
             // The public entry flow intentionally tells an applicant when this email has an active draft.
-            'has_draft' => FocalPointApplicationDraft::query()
-                ->where('email', $email)
-                ->where('expires_at', '>', now())
-                ->exists(),
+            'has_draft' => $hasDraft,
+            'has_submission' => ! $hasDraft && $this->hasSubmittedApplication($email),
         ]);
     }
 
@@ -172,6 +183,13 @@ class FocalPointApplicationController extends Controller
             'cv_filename' => $draft->cv_filename,
             'certificate_filename' => $draft->certificate_filename,
         ];
+    }
+
+    private function hasSubmittedApplication(string $email): bool
+    {
+        return filled($email) && FocalPointApplication::query()
+            ->where('email', Str::lower($email))
+            ->exists();
     }
 
     public function states(): JsonResponse

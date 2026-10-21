@@ -400,6 +400,25 @@ class FocalPointApplicationTest extends TestCase
             ->assertOk()->assertJsonPath('has_draft', false);
     }
 
+    public function test_submitted_email_cannot_start_another_application(): void
+    {
+        FocalPointApplication::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'full_name' => 'Ada Observer', 'answers' => [],
+            'cv_drive_id' => 'cv-id', 'cv_drive_url' => 'https://drive.google.com/file/d/cv-id/view', 'cv_filename' => 'cv.pdf',
+            'certificate_drive_id' => 'certificate-id', 'certificate_drive_url' => 'https://drive.google.com/file/d/certificate-id/view', 'certificate_filename' => 'certificate.pdf',
+        ]);
+
+        $this->postJson(route('focal-points.applications.drafts.lookup'), ['email' => 'ada@example.test'])
+            ->assertOk()->assertJsonPath('has_draft', false)->assertJsonPath('has_submission', true);
+
+        $this->postJson(route('focal-points.applications.drafts.step'), [
+            ...Arr::only($this->payload(), ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027']),
+            'step' => 0,
+        ])->assertUnprocessable()->assertJsonValidationErrors('email');
+
+        $this->assertDatabaseCount('focal_point_application_drafts', 0);
+    }
+
     public function test_final_submission_can_use_confirmed_draft_documents_without_reuploading(): void
     {
         $draft = FocalPointApplicationDraft::query()->create([

@@ -75,6 +75,10 @@
             <p class="entry-note">You need access to this email inbox to continue the pending application.</p>
             <p id="pending-message" class="entry-message" aria-live="polite"></p>
         </section>
+        <section class="entry-panel" id="submitted-application" hidden aria-labelledby="submitted-application-title">
+            <h2 id="submitted-application-title">Application already submitted</h2>
+            <p>An application has already been submitted with this email address. Check your inbox for the confirmation email.</p>
+        </section>
         <form class="panel" action="{{ route('focal-points.applications.store') }}" method="post" enctype="multipart/form-data" id="application-form" data-draft-step-url="{{ route('focal-points.applications.drafts.step') }}" data-draft-lookup-url="{{ route('focal-points.applications.drafts.lookup') }}" data-resume-request-url="{{ route('focal-points.applications.drafts.resume.request') }}" @unless($showApplicationForm) hidden @endunless novalidate>
             @csrf
             <input type="hidden" name="tor_version" value="{{ $torVersion }}">
@@ -178,6 +182,7 @@
     const toolsOther = document.querySelector('#tools_other');
     const entry = document.querySelector('#application-entry');
     const pending = document.querySelector('#pending-application');
+    const submitted = document.querySelector('#submitted-application');
     const entryEmail = document.querySelector('#entry-email');
     const entryMessage = document.querySelector('#entry-message');
     const pendingMessage = document.querySelector('#pending-message');
@@ -461,6 +466,7 @@
         nav.hidden = false;
         entry.hidden = true;
         pending.hidden = true;
+        submitted.hidden = true;
         form.querySelector('#email').value = email;
         show(0);
         form.querySelector('#full_name').focus();
@@ -476,8 +482,15 @@
             if (payload.has_draft) {
                 entry.hidden = true;
                 pending.hidden = false;
+                submitted.hidden = true;
                 pending.dataset.email = entryEmail.value;
                 pendingMessage.textContent = '';
+                return;
+            }
+            if (payload.has_submission) {
+                entry.hidden = true;
+                pending.hidden = true;
+                submitted.hidden = false;
                 return;
             }
             startFresh(entryEmail.value);
