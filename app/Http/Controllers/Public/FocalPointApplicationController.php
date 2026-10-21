@@ -122,7 +122,7 @@ class FocalPointApplicationController extends Controller
     {
         $email = Str::lower((string) $request->validate(['email' => ['required', 'email:rfc', 'max:255']])['email']);
         $draft = FocalPointApplicationDraft::query()
-            ->where('email', $email)->where('expires_at', '>', now())->latest()->first();
+            ->where('email', $email)->where('expires_at', '>', now())->orderByDesc('id')->first();
 
         if ($draft) {
             $token = $this->drafts->createResumeToken($draft);
@@ -132,6 +132,19 @@ class FocalPointApplicationController extends Controller
         }
 
         return response()->json(['message' => 'If an unfinished application matches that email, a resume link has been sent.']);
+    }
+
+    public function lookupDraft(Request $request): JsonResponse
+    {
+        $email = Str::lower((string) $request->validate(['email' => ['required', 'email:rfc', 'max:255']])['email']);
+
+        return response()->json([
+            // The public entry flow intentionally tells an applicant when this email has an active draft.
+            'has_draft' => FocalPointApplicationDraft::query()
+                ->where('email', $email)
+                ->where('expires_at', '>', now())
+                ->exists(),
+        ]);
     }
 
     public function resume(Request $request, string $uuid, string $token): RedirectResponse

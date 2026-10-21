@@ -377,6 +377,19 @@ class FocalPointApplicationTest extends TestCase
             ->assertRedirect(route('focal-points.applications.show'))->assertSessionHasErrors('resume');
     }
 
+    public function test_email_entry_identifies_an_active_draft_before_offering_a_resume_link(): void
+    {
+        FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => ['full_name' => 'Ada Observer'],
+            'expires_at' => now()->addDays(14),
+        ]);
+
+        $this->postJson(route('focal-points.applications.drafts.lookup'), ['email' => 'ada@example.test'])
+            ->assertOk()->assertJsonPath('has_draft', true);
+        $this->postJson(route('focal-points.applications.drafts.lookup'), ['email' => 'new@example.test'])
+            ->assertOk()->assertJsonPath('has_draft', false);
+    }
+
     public function test_final_submission_can_use_confirmed_draft_documents_without_reuploading(): void
     {
         $draft = FocalPointApplicationDraft::query()->create([
