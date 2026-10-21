@@ -25,6 +25,9 @@ class FocalPointApplicationResumeMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'emails.foundation.focal-point-application-resume');
+        return new Content(
+            view: 'emails.foundation.focal-point-application-resume',
+            with: ['logoUrl' => asset('assets/foundation/Dataphyte%20Foundation%20Logo.png')],
+        );
     }
 }

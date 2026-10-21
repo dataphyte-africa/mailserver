@@ -31,6 +31,7 @@ class FocalPointApplicationReceivedMail extends Mailable
     {
         return new Content(
             view: 'emails.foundation.focal-point-application-received',
+            with: ['logoUrl' => asset('assets/foundation/Dataphyte%20Foundation%20Logo.png')],
         );
     }
 
