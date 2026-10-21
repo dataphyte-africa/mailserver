@@ -8,7 +8,7 @@
 <body style="margin:0;padding:32px 16px;background:#eef3f9;color:#17233d;font-family:Arial,sans-serif;">
     <table role="presentation" style="width:100%;max-width:600px;margin:0 auto;border-collapse:collapse;background:#fff;">
         <tr>
-            <td style="padding:24px 32px;background:#fff;border-bottom:4px solid #17345e;"><img src="{{ $logoUrl }}" width="280" alt="Dataphyte Foundation" style="display:block;width:280px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;"></td>
+            <td style="padding:24px 32px;background:#fff;border-bottom:4px solid #17345e;"><img src="{{ $logoUrl }}" width="190" alt="Dataphyte Foundation" style="display:block;width:190px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;"></td>
         </tr>
         <tr>
             <td style="padding:32px;font-size:16px;line-height:1.6;">
