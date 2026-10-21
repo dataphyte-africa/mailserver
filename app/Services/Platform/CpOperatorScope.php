@@ -64,16 +64,31 @@ class CpOperatorScope
 
     public function restrictCampaigns(Builder $query, ?Authenticatable $operator): Builder
     {
-        return $this->isSuper($operator) ? $query : $query
-            ->whereIn('product_id', $this->productIds($operator))
-            ->whereHas('product', fn ($product) => $product
-                ->whereColumn('products.organisation_id', 'campaigns.organisation_id')
-                ->whereColumn('products.primary_collection_handle', 'campaigns.collection'));
+        if ($this->isSuper($operator)) {
+            return $query;
+        }
+
+        $productIds = $this->productIds($operator);
+        $legacyCollections = $this->legacyCollectionHandles($operator);
+
+        return $query->where(fn (Builder $campaigns) => $campaigns
+            ->where(fn (Builder $owned) => $owned->whereIn('product_id', $productIds)
+                ->whereHas('product', fn ($product) => $product
+                    ->whereColumn('products.organisation_id', 'campaigns.organisation_id')
+                    ->whereColumn('products.primary_collection_handle', 'campaigns.collection')))
+            ->orWhere(fn (Builder $legacy) => $legacy->whereNull('product_id')
+                ->whereNull('organisation_id')->whereIn('collection', $legacyCollections)));
     }
 
     public function canCampaign(?Authenticatable $operator, Campaign $campaign): bool
     {
         return $this->isSuper($operator) || $this->campaignQuery($operator)->whereKey($campaign->getKey())->exists();
+    }
+
+    public function isVisibleLegacyCampaign(?Authenticatable $operator, Campaign $campaign): bool
+    {
+        return $campaign->product_id === null && $campaign->organisation_id === null
+            && in_array($campaign->collection, $this->legacyCollectionHandles($operator), true);
     }
 
     public function canGroup(?Authenticatable $operator, SubscriberGroup $group): bool
@@ -129,11 +144,53 @@ class CpOperatorScope
     {
         $query = Subscriber::query();
 
-        return $this->isSuper($operator) ? $query : $query->whereHas('allSubGroups.group', fn ($group) => $group
-            ->whereIn('product_id', $this->productIds($operator))
-            ->whereHas('product', fn ($product) => $product
-                ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
-                ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle')));
+        return $this->isSuper($operator) ? $query : $query->whereHas('allSubGroups.group',
+            fn ($group) => $this->restrictVisibleGroups($group, $operator));
+    }
+
+    public function restrictVisibleGroups(Builder $query, ?Authenticatable $operator): Builder
+    {
+        if ($this->isSuper($operator)) {
+            return $query;
+        }
+
+        $productIds = $this->productIds($operator);
+        $legacyCollections = $this->legacyCollectionHandles($operator);
+
+        return $query->where(fn (Builder $groups) => $groups
+            ->where(fn (Builder $owned) => $owned->whereIn('product_id', $productIds)
+                ->whereHas('product', fn ($product) => $product
+                    ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
+                    ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle')))
+            ->orWhere(fn (Builder $legacy) => $legacy->where('audience_scope', 'product_public')
+                ->whereNull('product_id')->whereNull('organisation_id')
+                ->whereIn('collection_handle', $legacyCollections))
+            ->orWhere(fn (Builder $private) => $private->where('audience_scope', 'organisation_private')
+                ->whereNull('product_id')->whereIn('organisation_id', $this->organisationIds($operator))));
+    }
+
+    public function isVisibleLegacyGroup(?Authenticatable $operator, SubscriberGroup $group): bool
+    {
+        return $group->audience_scope === 'product_public'
+            && $group->product_id === null && $group->organisation_id === null
+            && in_array($group->collection_handle, $this->legacyCollectionHandles($operator), true);
+    }
+
+    /** Legacy rows have no owner; expose them only when a whole collection belongs to one accessible organisation. */
+    public function legacyCollectionHandles(?Authenticatable $operator): array
+    {
+        if ($this->isSuper($operator)) {
+            return [];
+        }
+
+        $accessible = $this->productIds($operator);
+
+        return Product::query()->whereNotNull('primary_collection_handle')
+            ->get(['id', 'organisation_id', 'primary_collection_handle'])
+            ->groupBy('primary_collection_handle')
+            ->filter(fn ($products) => $products->pluck('organisation_id')->unique()->count() === 1
+                && $products->pluck('id')->diff($accessible)->isEmpty())
+            ->keys()->all();
     }
 
     public function canSubscriber(?Authenticatable $operator, Subscriber $subscriber): bool

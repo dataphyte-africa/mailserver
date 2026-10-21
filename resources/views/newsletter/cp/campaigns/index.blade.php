@@ -97,7 +97,7 @@
                     @endif
                 </td>
                 <td class="campaign-index-actions-cell">
-                    @if(in_array($campaign->status, ['draft','scheduled']))
+                    @if(in_array($campaign->status, ['draft','scheduled']) && ! app(\App\Services\Platform\CpOperatorScope::class)->isVisibleLegacyCampaign(request()->user(), $campaign))
                         <a href="{{ cp_route('newsletter.campaigns.edit', $campaign) }}"
                            class="campaign-index-link campaign-index-action-link">Edit</a>
                     @endif

@@ -27,6 +27,89 @@ use Tests\TestCase;
 
 class CpOperatorIsolationTest extends TestCase
 {
+    public function test_legacy_collection_records_require_access_to_every_product_in_one_organisation(): void
+    {
+        $this->withoutMiddleware(CountUsers::class);
+        $this->withoutMiddleware(\Statamic\Http\Middleware\CP\Authorize::class);
+        $first = $this->product('Legacy First', 'insight_newsletters');
+        $second = Product::query()->create([
+            'organisation_id' => $first->organisation_id, 'name' => 'Legacy Second', 'slug' => 'legacy-second',
+            'status' => 'active', 'product_type' => 'newsletter',
+            'primary_collection_handle' => 'insight_newsletters', 'blueprint_handle' => 'legacy-second',
+        ]);
+        $foreign = $this->product('Legacy Foreign', 'foundation_newsletters');
+        $legacyGroup = SubscriberGroup::query()->create([
+            'name' => 'Historical Insight Audience', 'slug' => 'historical-insight-audience',
+            'collection_handle' => 'insight_newsletters',
+        ]);
+        $foreignGroup = SubscriberGroup::query()->create([
+            'name' => 'Historical Foundation Audience', 'slug' => 'historical-foundation-audience',
+            'collection_handle' => 'foundation_newsletters',
+        ]);
+        $legacySubscriber = $this->subscriber($legacyGroup);
+        $foreignSubscriber = $this->subscriber($foreignGroup);
+        $legacyCampaign = Campaign::query()->create([
+            'name' => 'Historical Insight Campaign', 'collection' => 'insight_newsletters',
+            'subject' => 'Legacy', 'status' => 'draft',
+        ]);
+        $foreignCampaign = Campaign::query()->create([
+            'name' => 'Historical Foundation Campaign', 'collection' => 'foundation_newsletters',
+            'subject' => 'Legacy', 'status' => 'draft',
+        ]);
+
+        $user = StatamicUser::make()->id((string) Str::uuid())->email('legacy-scope-'.Str::random(8).'@example.test');
+        $user->assignRole('scoped_operator');
+        $user->save();
+
+        try {
+            $identity = app(StatamicUserIdentityBridgeInterface::class)->provision($user);
+            ProductUserScope::query()->create([
+                'user_id' => $identity->id, 'product_id' => $first->id,
+                'scope_role' => 'product_operator', 'status' => 'active',
+            ]);
+            $scope = app(CpOperatorScope::class);
+            $this->assertSame([], $scope->legacyCollectionHandles($user));
+            $this->assertFalse($scope->canSubscriber($user, $legacySubscriber));
+            $this->assertFalse($scope->canCampaign($user, $legacyCampaign));
+
+            OrganisationUserScope::query()->create([
+                'user_id' => $identity->id, 'organisation_id' => $first->organisation_id,
+                'scope_role' => 'organisation_operator', 'status' => 'active',
+            ]);
+            $this->assertContains('insight_newsletters', $scope->legacyCollectionHandles($user));
+            $this->assertTrue($scope->canSubscriber($user, $legacySubscriber));
+            $this->assertTrue($scope->canCampaign($user, $legacyCampaign));
+            $this->assertFalse($scope->canSubscriber($user, $foreignSubscriber));
+            $this->assertFalse($scope->canCampaign($user, $foreignCampaign));
+            $this->assertFalse($scope->canGroup($user, $legacyGroup));
+
+            $this->actingAs($user, config('statamic.users.guards.cp', 'web'));
+            $this->get(cp_route('newsletter.subscribers.index'))->assertOk()
+                ->assertSee($legacySubscriber->email)->assertDontSee($foreignSubscriber->email)
+                ->assertDontSee(cp_route('newsletter.subscribers.edit', $legacySubscriber));
+            $this->get(cp_route('newsletter.campaigns.index'))->assertOk()
+                ->assertSee($legacyCampaign->name)->assertDontSee($foreignCampaign->name);
+            $this->get(cp_route('newsletter.groups.index'))->assertOk()
+                ->assertSee($legacyGroup->name)->assertDontSee($foreignGroup->name);
+            $this->get(cp_route('newsletter.subscribers.show', $legacySubscriber))->assertOk();
+            $this->get(cp_route('newsletter.subscribers.edit', $legacySubscriber))->assertForbidden();
+            $this->get(cp_route('newsletter.campaigns.show', $legacyCampaign))->assertOk();
+            $legacyCampaign->update(['status' => 'sent', 'sent_at' => now()]);
+            $this->get(cp_route('newsletter.analytics.index'))->assertOk()
+                ->assertSee($legacyCampaign->name)->assertDontSee($foreignCampaign->name)
+                ->assertSee('last 90 days');
+            $this->post(cp_route('newsletter.campaigns.send', $legacyCampaign))->assertForbidden();
+            $this->get(cp_route('newsletter.campaigns.show', $foreignCampaign))->assertForbidden();
+
+            $foreign->update(['primary_collection_handle' => 'insight_newsletters']);
+            $this->assertNotContains('insight_newsletters', $scope->legacyCollectionHandles($user));
+            $this->assertFalse($scope->canSubscriber($user, $legacySubscriber));
+            $this->assertFalse($scope->canCampaign($user, $legacyCampaign));
+        } finally {
+            $user->delete();
+        }
+    }
+
     public function test_product_blueprint_create_and_store_require_a_scoped_blueprint(): void
     {
         $product = $this->product('Policy', 'policy_point_newsletters');

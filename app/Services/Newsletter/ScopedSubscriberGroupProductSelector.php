@@ -62,6 +62,10 @@ class ScopedSubscriberGroupProductSelector
                     $private->where('audience_scope', 'organisation_private')
                         ->whereNull('product_id')
                         ->whereIn('organisation_id', $this->scope->organisationIds($operator));
+                })->orWhere(function (Builder $legacy) use ($operator): void {
+                    $legacy->where('audience_scope', 'product_public')
+                        ->whereNull('product_id')->whereNull('organisation_id')
+                        ->whereIn('collection_handle', $this->scope->legacyCollectionHandles($operator));
                 });
             })
             ->orderBy('subscriber_groups.name')

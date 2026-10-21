@@ -25,6 +25,7 @@
         'sort' => $sort,
         'direction' => $direction,
     ]);
+    $legacyReadOnly = app(\App\Services\Platform\CpOperatorScope::class)->isVisibleLegacyCampaign(request()->user(), $campaign);
 @endphp
 
 {{-- Header --}}
@@ -61,7 +62,7 @@
         @endphp
         <span class="badge {{ $badge }} text-sm px-3 py-1">{{ str_replace('_', ' ', ucfirst($campaign->status)) }}</span>
 
-        @if(in_array($campaign->status, ['draft','changes_requested','approved','scheduled']))
+        @if(! $legacyReadOnly && in_array($campaign->status, ['draft','changes_requested','approved','scheduled']))
             <a href="{{ cp_route('newsletter.campaigns.edit', $campaign) }}"
                class="btn">Edit</a>
         @endif
@@ -73,6 +74,7 @@
             Preview &rarr;
         </a>
 
+        @if(! $legacyReadOnly)
         {{-- Test send --}}
         <div class="relative">
             <button onclick="document.getElementById('test-send-panel').classList.toggle('hidden')"
@@ -123,6 +125,9 @@
                     Send Now
                 </button>
             </form>
+        @endif
+        @else
+            <span class="text-sm text-grey-60">Historical campaign · read only</span>
         @endif
     </div>
 </div>
@@ -435,7 +440,7 @@
         </div>
 
         {{-- Reset stuck campaign --}}
-        @if(in_array($campaign->status, ['sending','failed']))
+        @if(! $legacyReadOnly && in_array($campaign->status, ['sending','failed']))
         <div class="card p-6 border-yellow-400">
             <h2 class="text-sm font-semibold text-yellow-dark mb-2">Stuck?</h2>
             <p class="text-xs text-grey-60 mb-3">If this campaign is stuck in "{{ $campaign->status }}" (e.g. queue worker not running), reset it to draft and send again.</p>
@@ -450,7 +455,7 @@
         </div>
         @endif
 
-        @if(($stats['total_failed'] ?? 0) > 0)
+        @if(! $legacyReadOnly && ($stats['total_failed'] ?? 0) > 0)
         <div class="card p-6 border-blue-300">
             <h2 class="text-sm font-semibold text-blue mb-2">Retry Failed Sends</h2>
             <p class="text-xs text-grey-60 mb-3">
@@ -468,7 +473,7 @@
         @endif
 
         {{-- Danger zone --}}
-        @if(in_array($campaign->status, ['draft','changes_requested','approved','scheduled']))
+        @if(! $legacyReadOnly && in_array($campaign->status, ['draft','changes_requested','approved','scheduled']))
         <div class="card p-6 border-red-300">
             <h2 class="text-sm font-semibold text-red mb-3">Danger Zone</h2>
             <form method="POST" action="{{ cp_route('newsletter.campaigns.destroy', $campaign) }}">

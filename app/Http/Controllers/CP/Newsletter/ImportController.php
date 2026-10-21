@@ -149,9 +149,8 @@ class ImportController extends Controller
     public function export(Request $request)
     {
         $scope = app(CpOperatorScope::class);
-        $productIds = $scope->productIds($request->user());
         $query = $scope->subscriberQuery($request->user())
-            ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))), 'subGroups.group'])
+            ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))), 'subGroups.group'])
             ->withCount([
                 'campaignSends as campaigns_count' => fn ($q) => $this->scopeSends($q, $request),
                 'campaignSends as delivered_count' => fn ($q) => $this->scopeSends($q, $request)->whereIn('status', ['delivered', 'opened', 'clicked']),
@@ -166,7 +165,7 @@ class ImportController extends Controller
 
         if ($request->filled('sub_group')) {
             $query->whereHas('subGroups', fn ($q) =>
-                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))
+                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))
             );
         }
 

@@ -35,6 +35,7 @@
                         @endif
                     </div>
                     <div class="newsletter-groups-actions">
+                        @if(! app(\App\Services\Platform\CpOperatorScope::class)->isVisibleLegacyGroup(request()->user(), $group))
                         <a href="{{ cp_route('newsletter.groups.edit', $group) }}"
                            class="newsletter-groups-button">Manage</a>
                         @if($group->isArchived())
@@ -55,6 +56,9 @@
                             @csrf @method('DELETE')
                             <button type="submit" class="newsletter-groups-button newsletter-groups-button-danger">Delete</button>
                         </form>
+                        @else
+                            <span class="newsletter-groups-meta">Historical audience · read only</span>
+                        @endif
                     </div>
                 </div>
 

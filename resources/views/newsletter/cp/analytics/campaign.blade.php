@@ -66,12 +66,14 @@
     </div>
     <div class="analytics-campaign-hero-actions">
         <a href="{{ cp_route('newsletter.campaigns.show', $campaign) }}" class="analytics-campaign-button">View campaign</a>
+        @if(! app(\App\Services\Platform\CpOperatorScope::class)->isVisibleLegacyCampaign(request()->user(), $campaign))
         <form method="POST" action="{{ cp_route('newsletter.analytics.campaign.sync', $campaign) }}">
             @csrf
             <button type="submit" class="analytics-campaign-button analytics-campaign-button-primary">
                 {{ in_array($syncStatus, ['queued', 'processing', 'failed'], true) ? 'Re-queue sync' : 'Sync stats' }}
             </button>
         </form>
+        @endif
     </div>
 </div>
 

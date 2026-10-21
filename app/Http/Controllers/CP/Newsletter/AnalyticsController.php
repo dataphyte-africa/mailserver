@@ -23,7 +23,7 @@ class AnalyticsController extends Controller
     public function index(Request $request, CpOperatorScope $scope)
     {
         $collection = $request->input('collection');
-        $days       = (int) ($request->input('days', 30));
+        $days       = (int) ($request->input('days', 90));
 
         // Aggregate stats per campaign (last N days)
         $campaignQuery = $scope->campaignQuery($request->user())

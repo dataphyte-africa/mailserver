@@ -32,13 +32,16 @@ class EnforceCpOwnership
         }
         if ($campaign instanceof Campaign) {
             abort_unless($this->scope->canCampaign($operator, $campaign), 403);
+            $legacyCampaign = $this->scope->isVisibleLegacyCampaign($operator, $campaign);
+            abort_if($legacyCampaign && ! $request->isMethod('GET'), 403);
             if (filled($campaign->entry_id)) {
                 $entry = Entry::find($campaign->entry_id);
                 $campaign->loadMissing('product');
-                abort_unless($entry && $campaign->product
-                    && $entry->collectionHandle() === $campaign->collection
+                $ownedEntryMatches = $campaign->product
                     && (! filled($campaign->product->blueprint_handle)
-                        || $entry->blueprint()?->handle() === $campaign->product->blueprint_handle), 403);
+                        || $entry?->blueprint()?->handle() === $campaign->product->blueprint_handle);
+                abort_unless($entry && $entry->collectionHandle() === $campaign->collection
+                    && ($legacyCampaign || $ownedEntryMatches), 403);
             }
         }
 

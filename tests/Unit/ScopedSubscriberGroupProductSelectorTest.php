@@ -243,7 +243,7 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
         $this->createGroup($allowed, $unscoped->organisation_id);
         $wrongCollection = $this->createGroup($allowed);
         $wrongCollection->update(['collection_handle' => $unscoped->primary_collection_handle]);
-        SubscriberGroup::query()->create([
+        $legacy = SubscriberGroup::query()->create([
             'name' => 'Unowned',
             'slug' => 'unowned',
             'collection_handle' => $allowed->primary_collection_handle,
@@ -251,7 +251,7 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
 
         $groups = $this->selector->groupsFor($this->statamicUser('statamic-123'));
 
-        $this->assertSame([$visible->getKey()], $groups->modelKeys());
+        $this->assertSame([$visible->getKey(), $legacy->getKey()], $groups->modelKeys());
         $this->assertTrue($this->selector->groupsFor($this->statamicUser('missing-link'))->isEmpty());
     }
 

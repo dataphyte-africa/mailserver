@@ -27,9 +27,8 @@ class SubscriberController extends Controller
     public function index(Request $request)
     {
         $scope = app(CpOperatorScope::class);
-        $productIds = $scope->productIds($request->user());
         $query = $scope->subscriberQuery($request->user())
-            ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))), 'subGroups.group'])
+            ->with(['subGroups' => fn ($q) => $q->when(! $scope->isSuper($request->user()), fn ($q) => $q->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))), 'subGroups.group'])
             ->withCount([
                 'campaignSends as campaigns_count' => fn ($q) => $this->scopeSends($q, $request),
                 'campaignSends as delivered_count' => fn ($q) => $this->scopeSends($q, $request)->whereIn('status', ['delivered', 'opened', 'clicked']),
@@ -45,7 +44,7 @@ class SubscriberController extends Controller
 
         if ($request->filled('sub_group')) {
             $query->whereHas('subGroups', fn ($q) =>
-                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))
+                $q->where('subscriber_sub_groups.id', $request->sub_group)->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, $request->user()))
             );
         }
 
@@ -105,11 +104,14 @@ class SubscriberController extends Controller
             }
         }
         $isSuper = $scope->isSuper($request->user());
+        $visibleGroupIds = $isSuper ? [] : $scope->restrictVisibleGroups(\App\Models\SubscriberGroup::query(), $request->user())->pluck('id')->all();
         $sharedIds = $isSuper ? [] : Subscriber::query()
             ->whereIn('id', collect($subscribers->items())->pluck('id')->all())
-            ->whereHas('allSubGroups.group', fn ($q) => $q->whereNotIn('product_id', $productIds))
+            ->whereHas('allSubGroups.group', fn ($q) => $q
+                ->where(fn ($groups) => $groups->whereNotIn('subscriber_groups.id', $visibleGroupIds)
+                    ->orWhere(fn ($legacy) => $legacy->whereNull('product_id')->whereNull('organisation_id'))))
             ->pluck('id')->all();
-        $subGroups   = $this->assignableSubGroups();
+        $subGroups = $this->visibleSubGroups();
         $statuses = self::STATUSES;
         $pendingLifecycles = $this->pendingLifecycleSnapshots(collect($subscribers->items()));
 
@@ -163,9 +165,8 @@ class SubscriberController extends Controller
     public function show(Subscriber $subscriber)
     {
         $scope = app(CpOperatorScope::class);
-        $productIds = $scope->productIds(request()->user());
         $this->pendingLifecycles()->syncState($subscriber);
-        $subscriber->load(['subGroups' => fn ($q) => $q->when(! $scope->isSuper(request()->user()), fn ($q) => $q->whereHas('group', fn ($g) => $g->whereIn('product_id', $productIds))), 'subGroups.group'])
+        $subscriber->load(['subGroups' => fn ($q) => $q->when(! $scope->isSuper(request()->user()), fn ($q) => $q->whereHas('group', fn ($g) => $scope->restrictVisibleGroups($g, request()->user()))), 'subGroups.group'])
             ->loadCount([
                 'campaignSends as campaigns_count' => fn ($q) => $this->scopeSends($q, request()),
                 'campaignSends as delivered_count' => fn ($q) => $this->scopeSends($q, request())->whereIn('status', ['delivered', 'opened', 'clicked']),
@@ -205,8 +206,11 @@ class SubscriberController extends Controller
         ];
         $pendingLifecycle = $this->pendingLifecycles()->snapshot($subscriber);
         $isSuper = $scope->isSuper(request()->user());
-        $canEdit = $isSuper || ! $subscriber->allSubGroups()
-            ->whereHas('group', fn ($q) => $q->whereNotIn('product_id', $productIds))->exists();
+        $hasLegacyMembership = $subscriber->allSubGroups()->whereHas('group', fn ($q) => $q
+            ->whereNull('product_id')->whereNull('organisation_id'))->exists();
+        $canEdit = $isSuper || (! $hasLegacyMembership && ! $subscriber->allSubGroups()
+            ->whereHas('group', fn ($q) => $q->whereNotIn('subscriber_groups.id',
+                $scope->restrictVisibleGroups(\App\Models\SubscriberGroup::query(), request()->user())->pluck('id')->all()))->exists());
         if (! $isSuper) {
             $subscriber->setAttribute('engagement_rating', null);
             $subscriber->setAttribute('engagement_score', null);
@@ -334,6 +338,20 @@ class SubscriberController extends Controller
             ->get();
     }
 
+    private function visibleSubGroups(): Collection
+    {
+        $scope = app(CpOperatorScope::class);
+
+        return SubscriberSubGroup::query()
+            ->with('group')
+            ->where('purpose', 'preference')
+            ->whereNull('archived_at')
+            ->whereHas('group', fn ($group) => $scope->restrictVisibleGroups(
+                $group->whereNull('archived_at'), request()->user()))
+            ->orderBy('subscriber_group_id')
+            ->get();
+    }
+
     /**
      * @param  array<int, mixed>  $ids
      */
@@ -405,8 +423,11 @@ class SubscriberController extends Controller
         if ($scope->isSuper(request()->user())) {
             return;
         }
-        $productIds = $scope->productIds(request()->user());
-        abort_if($subscriber->allSubGroups()->whereHas('group', fn ($q) => $q->whereNotIn('product_id', $productIds))->exists(), 403,
+        abort_if($subscriber->allSubGroups()->whereHas('group', fn ($q) => $q
+            ->whereNull('product_id')->whereNull('organisation_id'))->exists(), 403,
+            'Legacy subscribers are read-only until their audience ownership is repaired.');
+        $visibleGroupIds = $scope->restrictVisibleGroups(\App\Models\SubscriberGroup::query(), request()->user())->pluck('id')->all();
+        abort_if($subscriber->allSubGroups()->whereHas('group', fn ($q) => $q->whereNotIn('subscriber_groups.id', $visibleGroupIds))->exists(), 403,
             'This subscriber also belongs to another product. Ask a super admin to update the shared profile.');
     }
 }
