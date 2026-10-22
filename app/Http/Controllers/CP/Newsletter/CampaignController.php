@@ -91,7 +91,7 @@ class CampaignController extends Controller
             'collections' => array_intersect_key($collectionOptions, array_flip($scopedCollectionHandles)),
             'collectionMeta' => $this->collectionMeta(),
             'subGroups'   => $this->subGroupTree($scopedProducts->modelKeys()),
-            'entries'     => $this->allEntries($scopedCollectionHandles),
+            'entriesByProduct' => $this->entriesByProduct($scopedProducts),
         ]);
     }
 
@@ -313,7 +313,7 @@ class CampaignController extends Controller
                 ->load(['subGroups' => fn ($query) => $query->where('purpose', 'engagement')
                     ->whereNotIn('slug', ['rating-unsubscribed', 'rating-suppressed'])->whereNull('archived_at')]),
             'selectedPrivateGroupId' => $audience->group?->getKey() ?? $audience->subGroups->first()?->subscriber_group_id,
-            'entries'             => $this->allEntries([$collectionHandle]),
+            'entries'             => $this->allEntries([$collectionHandle], $product),
             'selectedSubGroupIds' => $audience->subGroups->modelKeys(),
             'sendToAll'           => $audience->sendsToAll(),
         ]);
@@ -659,9 +659,11 @@ class CampaignController extends Controller
             ),
             $recommendedRssItemLimit,
         );
+        $byline = $entry?->get('byline') ?: $entry?->get('author');
 
         $html = view($template, [
             'entryTitle'           => $entry?->get('title') ?? $campaign->name,
+            'productName'         => $campaign->product?->name ?? $organisation?->name,
             'subject'             => $this->normalizeSubjectText($campaign->subject ?? '(No subject)'),
             'preheader'           => $entry?->get('preheader') ?? '',
             'heroImageUrl'        => $heroUrl,
@@ -685,7 +687,7 @@ class CampaignController extends Controller
                 ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
                 ->values()
                 ->all(),
-            'author'              => $entry?->get('author') ?? $sender['from_name'],
+            'author'              => is_string($byline) && trim($byline) !== '' ? $byline : $sender['from_name'],
             'fromName'            => $sender['from_name'],
             'sentDate'            => now()->format('F j, Y'),
             'collectionLogo'      => $collectionLogo,
@@ -720,8 +722,8 @@ class CampaignController extends Controller
             . 'font-family:system-ui,sans-serif;font-size:13px;display:flex;'
             . 'align-items:center;justify-content:space-between;position:sticky;top:0;z-index:9999;">'
             . '<span>👁 Preview: <strong>' . e($campaign->name) . '</strong>'
-            . ' &nbsp;·&nbsp; Template: <code style="background:rgba(255,255,255,.2);'
-            . 'padding:1px 5px;border-radius:3px;">' . e($template) . '</code></span>'
+            . ' &nbsp;·&nbsp; Product: <code style="background:rgba(255,255,255,.2);'
+            . 'padding:1px 5px;border-radius:3px;">' . e($campaign->product?->name ?? $template) . '</code></span>'
             . '<span style="opacity:.8;font-size:12px;">Links disabled in preview</span>'
             . '</div>';
 
@@ -744,7 +746,7 @@ class CampaignController extends Controller
 
         try {
             Mail::to($email)->send(
-                new NewsletterMailable($campaign, $subscriber, 'test-' . time())
+                new NewsletterMailable($campaign, $subscriber, 'test-' . time(), false, true)
             );
 
             return redirect(cp_route('newsletter.campaigns.show', $campaign))
@@ -845,6 +847,11 @@ class CampaignController extends Controller
     private function subGroupTree(?array $productIds = null): \Illuminate\Support\Collection
     {
         $query = SubscriberGroup::query()
+            ->where('audience_scope', 'product_public')
+            ->whereNotNull('product_id')
+            ->whereHas('product', fn ($product) => $product
+                ->whereColumn('products.organisation_id', 'subscriber_groups.organisation_id')
+                ->whereColumn('products.primary_collection_handle', 'subscriber_groups.collection_handle'))
             ->whereNull('archived_at')
             ->with(['subGroups' => fn ($query) => $query->whereNull('archived_at')
                 ->where('purpose', 'engagement')
@@ -860,17 +867,20 @@ class CampaignController extends Controller
     /**
      * @param  array<int, string>|null  $collectionHandles
      */
-    private function allEntries(?array $collectionHandles = null): array
+    private function allEntries(?array $collectionHandles = null, ?\App\Models\Product $product = null): array
     {
         $entries = [];
 
         foreach ($collectionHandles ?? array_keys($this->collectionOptions()) as $collection) {
             $query = Entry::query()->where('collection', $collection);
+            if ($product !== null) {
+                $query->where('blueprint', $product->blueprint_handle);
+            }
             $blueprints = app(CpOperatorScope::class)->blueprintHandlesForCollection(request()->user(), $collection);
             if ($blueprints !== null) {
                 $query->whereIn('blueprint', $blueprints);
             }
-            $collectionEntries = $query->orderBy('date', 'desc')->get();
+            $collectionEntries = $query->orderBy('date', 'desc')->get()->unique(fn ($entry) => $entry->id());
 
             foreach ($collectionEntries as $entry) {
                 $entries[$collection][] = [
@@ -878,9 +888,36 @@ class CampaignController extends Controller
                     'title'     => $this->normalizeSubjectText($entry->get('title') ?: $entry->get('subject') ?: '(Untitled)'),
                     'subject'   => $this->normalizeSubjectText($entry->get('subject') ?? ''),
                     'date'      => optional($entry->date())->format('M j, Y') ?? '',
-                    'blueprint' => $entry->blueprint()?->title() ?? $entry->blueprint()?->handle() ?? '',
+                    'blueprint' => $product?->name ?? $entry->blueprint()?->title() ?? $entry->blueprint()?->handle() ?? '',
                 ];
             }
+        }
+
+        return $entries;
+    }
+
+    private function entriesByProduct(\Illuminate\Support\Collection $products): array
+    {
+        $entries = [];
+
+        foreach ($products as $product) {
+            $entries[$product->id] = [
+                'name' => $product->organisation->name.' / '.$product->name,
+                'organisation_id' => $product->organisation_id,
+                'collection' => $product->primary_collection_handle,
+                'entries' => Entry::query()
+                    ->where('collection', $product->primary_collection_handle)
+                    ->where('blueprint', $product->blueprint_handle)
+                    ->orderBy('date', 'desc')
+                    ->get()
+                    ->unique(fn ($entry) => $entry->id())
+                    ->map(fn ($entry) => [
+                        'id' => $entry->id(),
+                        'title' => $this->normalizeSubjectText($entry->get('title') ?: $entry->get('subject') ?: '(Untitled)'),
+                        'subject' => $this->normalizeSubjectText($entry->get('subject') ?? ''),
+                        'date' => optional($entry->date())->format('M j, Y') ?? '',
+                    ])->values()->all(),
+            ];
         }
 
         return $entries;

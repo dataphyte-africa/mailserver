@@ -20,7 +20,10 @@ class PreferencesController extends Controller
     {
         abort_unless($urls->hasValidSignature($request), 403, 'This preferences link has expired or is invalid.');
 
-        $subscriber = Subscriber::query()->where('confirmation_token', $token)->firstOrFail();
+        $subscriber = Subscriber::query()->where('confirmation_token', $token)->first();
+        if (! $subscriber) {
+            return view('newsletter.public.missing-subscriber-link', compact('mode'));
+        }
         if (! filled($request->query('organisation')) && ! filled($request->query('collection'))) {
             $legacyOrganisations = $this->legacyOrganisations($subscriber);
             if ($legacyOrganisations->count() !== 1) {

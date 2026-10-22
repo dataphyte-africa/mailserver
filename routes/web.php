@@ -75,6 +75,10 @@ Route::prefix('applications/2027-state-focal-points')->name('focal-points.applic
 // Unsubscribe — signed URL, no auth required
 Route::get('/newsletter-archive/issues/{campaign}', [NewsletterArchiveController::class, 'show'])
     ->whereNumber('campaign')->name('newsletter.archive.show');
+Route::get('/newsletter-test/{campaign}/preview', [NewsletterArchiveController::class, 'testPreview'])
+    ->whereNumber('campaign')->name('newsletter.test.preview');
+Route::get('/newsletter-test/{campaign}/{action}', [NewsletterArchiveController::class, 'testAction'])
+    ->whereNumber('campaign')->whereIn('action', ['preferences', 'unsubscribe'])->name('newsletter.test.action');
 Route::get('/newsletter-archive/{organisation}/{collection}/{product?}', [NewsletterArchiveController::class, 'index'])
     ->whereNumber('organisation')->whereNumber('product')->name('newsletter.archive.index');
 

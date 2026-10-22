@@ -18,6 +18,17 @@ use Tests\TestCase;
 
 class OrganisationPreferenceTest extends TestCase
 {
+    public function test_old_signed_test_links_without_a_saved_subscriber_explain_the_problem(): void
+    {
+        $token = 'unsaved-test-recipient';
+
+        $this->get(URL::signedRoute('newsletter.preferences.show', ['token' => $token]))
+            ->assertOk()->assertSee('does not identify a saved subscriber');
+        $this->get(URL::signedRoute('newsletter.unsubscribe.show', ['token' => $token]))
+            ->assertOk()->assertSee('No subscription has been changed');
+        $this->get(route('newsletter.preferences.show', ['token' => $token]))->assertForbidden();
+    }
+
     public function test_unsubscribe_shows_organisation_choices_and_partial_save_keeps_other_memberships(): void
     {
         [$insight, $dataDive] = $this->audience('Insight', 'insight_newsletters', 'Data Dive', true);

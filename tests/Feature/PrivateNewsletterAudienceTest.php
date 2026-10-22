@@ -6,6 +6,7 @@ use App\Exceptions\Newsletter\CampaignAudienceOwnershipException;
 use App\Models\Campaign;
 use App\Models\CampaignAudience;
 use App\Models\CampaignSend;
+use App\Models\EntryModel;
 use App\Models\Organisation;
 use App\Models\Product;
 use App\Models\Subscriber;
@@ -240,9 +241,26 @@ class PrivateNewsletterAudienceTest extends TestCase
         $this->withoutMiddleware(\Statamic\Http\Middleware\CP\CountUsers::class);
         [$organisation, $template] = $this->organisationAndTemplate();
         $group = $this->privateGroup($organisation);
+        $public = SubscriberGroup::factory()->create([
+            'organisation_id' => $organisation->id,
+            'product_id' => $template->id,
+            'audience_scope' => 'product_public',
+            'collection_handle' => $template->primary_collection_handle,
+            'name' => 'Public Insight Readers',
+        ]);
+        SubscriberGroup::factory()->create([
+            'organisation_id' => null,
+            'product_id' => null,
+            'audience_scope' => 'product_public',
+            'name' => 'Historical Legacy Readers',
+        ]);
 
         $this->get(cp_route('newsletter.campaigns.create'))->assertOk()
-            ->assertSee('Private organisation audience')->assertSee($group->name);
+            ->assertSee('<optgroup label="Public audiences">', false)
+            ->assertSee('<optgroup label="Private audiences">', false)
+            ->assertSee('public:'.$public->id)
+            ->assertSee('private:'.$group->id)
+            ->assertDontSee('Historical Legacy Readers');
         $this->post(cp_route('newsletter.campaigns.store'), [
             'product_id' => $template->id,
             'audience_scope' => 'organisation_private',
@@ -260,6 +278,47 @@ class PrivateNewsletterAudienceTest extends TestCase
         $this->assertSame($group->id, $campaign->audiences()->firstOrFail()->targetable_id);
         $this->get(cp_route('newsletter.campaigns.edit', $campaign))->assertOk()
             ->assertSee('Private organisation audience');
+    }
+
+    public function test_campaign_content_is_grouped_by_product_not_shared_collection_blueprint_title(): void
+    {
+        $this->actingAs(StatamicUser::findByEmail('admin@mailserver.test'), config('statamic.users.guards.cp', 'web'));
+        $this->withoutMiddleware(\Statamic\Http\Middleware\CP\CountUsers::class);
+        [$organisation, $updates] = $this->organisationAndTemplate();
+        $marina = Product::query()->create([
+            'organisation_id' => $organisation->id, 'name' => 'Marina and Maitama',
+            'slug' => 'private-insight-marina', 'status' => 'active', 'product_type' => 'newsletter',
+            'primary_collection_handle' => 'insight_newsletters', 'blueprint_handle' => 'marina_maitama',
+        ]);
+        \Statamic\Facades\Collection::make('insight_newsletters')->title('Insight Newsletters')->save();
+        EntryModel::query()->create([
+            'site' => 'default', 'collection' => 'insight_newsletters', 'blueprint' => 'insight_updates',
+            'slug' => 'updates-campaign-content', 'date' => '2026-10-22', 'published' => true,
+            'data' => ['title' => 'Updates issue'],
+        ]);
+        EntryModel::query()->create([
+            'site' => 'default', 'collection' => 'insight_newsletters', 'blueprint' => 'marina_maitama',
+            'slug' => 'marina-campaign-content', 'date' => '2026-10-22', 'published' => true,
+            'data' => ['title' => 'Marina issue'],
+        ]);
+
+        $response = $this->get(cp_route('newsletter.campaigns.create'))->assertOk()
+            ->assertDontSee('Email template')
+            ->assertDontSee('Select a collection');
+        $entries = $response->viewData('entriesByProduct');
+        $this->assertSame('Private Insight / Insight Updates', $entries[$updates->id]['name']);
+        $this->assertSame(['Updates issue'], array_column($entries[$updates->id]['entries'], 'title'));
+        $this->assertSame('Private Insight / Marina and Maitama', $entries[$marina->id]['name']);
+        $this->assertSame(['Marina issue'], array_column($entries[$marina->id]['entries'], 'title'));
+
+        $campaign = Campaign::factory()->create([
+            'organisation_id' => $organisation->id, 'product_id' => $updates->id,
+            'collection' => 'insight_newsletters', 'status' => 'draft',
+        ]);
+        $editEntries = $this->get(cp_route('newsletter.campaigns.edit', $campaign))
+            ->assertOk()->viewData('entries');
+        $this->assertSame(['Updates issue'], array_column($editEntries['insight_newsletters'], 'title'));
+        $this->assertSame('Insight Updates', $editEntries['insight_newsletters'][0]['blueprint']);
     }
 
     private function organisationAndTemplate(): array

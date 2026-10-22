@@ -68,6 +68,43 @@ class NewsletterArchiveTest extends TestCase
             ->assertDontSee(route('newsletter.archive.show', $sending), false);
     }
 
+    public function test_test_email_links_are_signed_read_only_and_preview_draft_content(): void
+    {
+        [$organisation, $product, $entry] = $this->fixtures();
+        $draft = $this->campaign($organisation, $product, $entry, 'draft');
+        $synthetic = new Subscriber(['email' => 'editor@example.test']);
+        $synthetic->id = 0;
+        $mail = new NewsletterMailable($draft, $synthetic, 'test-1', false, true);
+        $links = $mail->content()->with;
+
+        $this->assertStringContainsString('/newsletter-test/', $links['browserUrl']);
+        $this->assertStringContainsString('/newsletter-test/', $links['preferencesUrl']);
+        $this->assertStringContainsString('/newsletter-test/', $links['unsubscribeUrl']);
+        $this->assertSame('', (string) $synthetic->confirmation_token);
+        $this->assertArrayNotHasKey('List-Unsubscribe', $mail->headers()->text);
+        $this->get($links['browserUrl'])->assertOk()->assertSee('draft issue')
+            ->assertSee('Subscription links are read-only previews')
+            ->assertDontSee('Test preview only');
+        $this->get($links['preferencesUrl'])->assertOk()->assertSee('do not change anyone');
+        $this->get($links['unsubscribeUrl'])->assertOk()->assertSee('do not change anyone');
+        $this->get(route('newsletter.test.preview', $draft))->assertForbidden();
+        $this->get(route('newsletter.archive.show', $draft))->assertNotFound();
+    }
+
+    public function test_archive_lists_legacy_sent_campaigns_without_broken_issue_links(): void
+    {
+        [$organisation, $product, $entry] = $this->fixtures();
+        $legacy = $this->campaign($organisation, $product, $entry, 'sent');
+        $legacy->update(['entry_id' => null, 'subject' => 'Legacy Foundation issue']);
+
+        $this->get(route('newsletter.archive.index', [$organisation, 'insight_newsletters', $product]))
+            ->assertOk()
+            ->assertSee('Legacy Foundation issue')
+            ->assertSee('Full issue content is unavailable')
+            ->assertDontSee(route('newsletter.archive.show', $legacy), false);
+        $this->get(route('newsletter.archive.show', $legacy))->assertNotFound();
+    }
+
     public function test_legacy_campaign_without_organisation_can_render_a_test_email(): void
     {
         [$organisation, $product, $entry] = $this->fixtures();

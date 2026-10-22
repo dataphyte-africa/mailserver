@@ -19,7 +19,7 @@
 @endif
 
 <form method="POST" action="{{ cp_route('newsletter.campaigns.store') }}"
-      x-data="campaignForm()">
+      x-data="campaignForm()" x-init="refreshEntries(OLD_ENTRY_ID)">
     @csrf
 
     <div class="flex gap-6">
@@ -41,50 +41,21 @@
                     <p class="text-xs text-grey-60 mt-1">For internal reference only. Not shown to subscribers.</p>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-grey-80 mb-1">
-                        Email template <span class="text-red">*</span>
-                    </label>
-                    <select name="product_id" x-model="productId" class="input-text w-full">
-                        <option value="">— Select a template —</option>
-                        @foreach($products as $product)
-                            <option value="{{ $product->id }}" {{ (string) old('product_id') === (string) $product->id ? 'selected' : '' }}>
-                                {{ $product->organisation->name }} / {{ $product->name }}
-                                ({{ $collections[$product->primary_collection_handle] ?? $product->primary_collection_handle }})
-                            </option>
-                        @endforeach
-                    </select>
-                    <p class="text-xs text-grey-60 mt-1">Choose a content blueprint, such as Insight Updates. This does not subscribe private contacts to a product.</p>
-                </div>
+                <input type="hidden" name="product_id" x-bind:value="productId">
+                <input type="hidden" name="collection" x-bind:value="collection">
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-grey-80 mb-1">
-                        Collection <span class="text-red">*</span>
+                        Newsletter Content
                     </label>
-                    <select id="collection-select" name="collection" x-model="collection"
-                            class="input-text w-full"
-                            onchange="onCollectionChange(this.value)">
-                        <option value="">— Select a collection —</option>
-                        @foreach($collections as $value => $label)
-                            <option value="{{ $value }}" {{ old('collection') === $value ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-grey-80 mb-1">
-                        Content Entry
-                        <span class="text-xs text-grey-50 font-normal ml-1">(select collection first)</span>
-                    </label>
-                    <select id="entry-select" name="entry_id"
-                            class="input-text w-full"
-                            onchange="onEntryChange(this.value)">
-                        <option value="">— Select a collection first —</option>
+                    <select id="entry-select" name="entry_id" x-model="entryId"
+                            x-on:change="onEntryChange($event.target.value)"
+                            x-bind:required="audienceScope === 'organisation_private' || action !== 'draft'"
+                            class="input-text w-full">
+                        <option value="">— Select newsletter content —</option>
                     </select>
                     <p class="text-xs text-grey-60 mt-1">
-                        Link to a Statamic entry to pull subject &amp; content, or leave blank and fill below.
+                        Entries are grouped by product. Select one to use its existing template and content.
                     </p>
                 </div>
 
@@ -136,22 +107,26 @@
             <div class="card p-6">
                 <h2 class="text-lg font-semibold mb-3">Audience</h2>
 
-                <label class="block text-sm font-medium mb-1">Audience type</label>
-                <select name="audience_scope" x-model="audienceScope" class="input-text w-full mb-3">
-                    <option value="product_public">Product subscribers</option>
-                    <option value="organisation_private">Private organisation audience</option>
-                </select>
-
-                <div x-show="audienceScope === 'organisation_private'" class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Private audience</label>
-                    <select name="private_group_id" x-model="privateGroupId" :disabled="audienceScope !== 'organisation_private'" class="input-text w-full">
-                        <option value="">— Select an audience —</option>
-                        @foreach($privateGroups as $group)
-                            <option value="{{ $group->id }}" :disabled="!groupMatchesOrganisation(@js($group->organisation_id))">{{ $group->organisation?->name }} / {{ $group->name }}</option>
+                <label class="block text-sm font-medium mb-1" for="audience-select">Select audience</label>
+                <select id="audience-select" x-model="selectedAudience" x-on:change="onAudienceChange()"
+                        x-bind:required="action !== 'draft'" class="input-text w-full mb-3">
+                    <option value="">— Select an audience —</option>
+                    <optgroup label="Public audiences">
+                        @foreach($subGroups as $group)
+                            <option value="public:{{ $group->id }}">{{ $group->organisation?->name }} / {{ $group->name }}</option>
                         @endforeach
-                    </select>
-                    <p class="text-xs text-grey-60 mt-1">Only members of this organisation's private audience are eligible.</p>
-                </div>
+                    </optgroup>
+                    <optgroup label="Private audiences">
+                        @foreach($privateGroups as $group)
+                            <option value="private:{{ $group->id }}">{{ $group->organisation?->name }} / {{ $group->name }}</option>
+                        @endforeach
+                    </optgroup>
+                </select>
+                <input type="hidden" name="audience_scope" x-bind:value="audienceScope">
+                <input type="hidden" name="private_group_id" x-bind:value="privateGroupId" x-bind:disabled="audienceScope !== 'organisation_private'">
+                <p class="text-xs text-grey-60 mb-4" x-show="audienceScope === 'organisation_private'">
+                    Choose newsletter content from the same organisation. Selecting a private audience does not subscribe its members to a product.
+                </p>
 
                 {{-- Send to all toggle --}}
                 <label class="flex items-center gap-2 mb-4 cursor-pointer">
@@ -168,7 +143,7 @@
                 {{-- Sub-group checkboxes --}}
                 <div x-show="!sendToAll && audienceScope === 'product_public'">
                     @foreach($subGroups as $group)
-                    <div class="mb-3" x-show="groupMatchesProduct(@js($group->product_id), @js($group->slug), @js($group->collection_handle))">
+                    <div class="mb-3" x-show="selectedAudience === @js('public:'.$group->id)">
                         <p class="text-xs font-semibold uppercase tracking-wide text-grey-60 mb-1">
                             {{ $group->name }}
                         </p>
@@ -176,7 +151,7 @@
                         <label class="flex items-center gap-2 py-1 cursor-pointer">
                             <input type="checkbox" name="sub_groups[]"
                                    value="{{ $sub->id }}"
-                                   :disabled="audienceScope !== 'product_public' || sendToAll"
+                                   x-bind:disabled="selectedAudience !== @js('public:'.$group->id) || sendToAll"
                                    class="checkbox">
                             <span class="text-sm">{{ $sub->name }}</span>
                         </label>
@@ -191,7 +166,7 @@
                             @foreach($group->subGroups as $sub)
                                 <label class="flex items-center gap-2 py-1 cursor-pointer">
                                     <input type="checkbox" name="sub_groups[]" value="{{ $sub->id }}"
-                                           :disabled="audienceScope !== 'organisation_private' || sendToAll || String(privateGroupId) !== @js((string) $group->id)" class="checkbox">
+                                           x-bind:disabled="selectedAudience !== @js('private:'.$group->id) || sendToAll" class="checkbox">
                                     <span class="text-sm">{{ $sub->name }}</span>
                                 </label>
                             @endforeach
@@ -242,7 +217,7 @@
                 </label>
 
                 <button type="submit" class="btn-primary w-full"
-                        :class="{ 'bg-red border-red hover:bg-red-dark': action === 'send' }">
+                        x-bind:class="{ 'bg-red border-red hover:bg-red-dark': action === 'send' }">
                     <span x-text="action === 'send' ? 'Send Campaign' : (action === 'schedule' ? 'Schedule Campaign' : 'Save Draft')">Save Draft</span>
                 </button>
             </div>
@@ -252,70 +227,26 @@
 </form>
 
 <script>
-// All entries keyed by collection — embedded server-side
-const ALL_ENTRIES = @json($entries);
+const PRODUCT_ENTRIES = @json($entriesByProduct);
 const COLLECTION_META = @json($collectionMeta);
-const PRODUCT_ORGANISATIONS = @json($products->pluck('organisation_id', 'id'));
+const PUBLIC_AUDIENCES = @json($subGroups->mapWithKeys(fn ($group) => [$group->id => ['product_id' => $group->product_id]]));
+const PRIVATE_AUDIENCES = @json($privateGroups->mapWithKeys(fn ($group) => [$group->id => ['organisation_id' => $group->organisation_id]]));
 
-// Restore any old() value after validation failure
-const OLD_ENTRY_ID   = '{{ old('entry_id', '') }}';
-const OLD_COLLECTION = '{{ old('collection', '') }}';
+const OLD_ENTRY_ID = @js((string) old('entry_id', ''));
 
-function onCollectionChange(collection) {
-    populateEntries(collection, OLD_COLLECTION === collection ? OLD_ENTRY_ID : '');
-}
-
-function onEntryChange(entryId) {
-    if (!entryId) return;
-    const collection = document.getElementById('collection-select').value;
-    const entries    = ALL_ENTRIES[collection] || [];
-    const entry      = entries.find(e => e.id === entryId);
-    if (entry && entry.subject) {
-        const subjectInput = document.getElementById('subject-input');
-        if (subjectInput && !subjectInput.value) {
-            subjectInput.value = entry.subject;
-        }
-    }
-}
-
-function populateEntries(collection, selectedId) {
-    const select  = document.getElementById('entry-select');
-    const entries = ALL_ENTRIES[collection] || [];
-
-    // Clear and rebuild options
-    select.innerHTML = '<option value="">— No entry linked —</option>';
-    entries.forEach(function(entry) {
-        const opt   = document.createElement('option');
-        opt.value   = entry.id;
-        const tag   = entry.blueprint ? '[' + entry.blueprint + '] ' : '';
-        opt.text    = tag + (entry.date ? entry.date + ' — ' : '') + entry.title;
-        opt.selected = entry.id === selectedId;
-        select.appendChild(opt);
-    });
-
-    if (entries.length === 0) {
-        const opt = document.createElement('option');
-        opt.disabled = true;
-        opt.text     = '(No published entries for this collection)';
-        select.appendChild(opt);
-    }
-}
-
-// Restore state after form validation failure
-document.addEventListener('DOMContentLoaded', function () {
-    if (OLD_COLLECTION) {
-        document.getElementById('collection-select').value = OLD_COLLECTION;
-        populateEntries(OLD_COLLECTION, OLD_ENTRY_ID);
-    }
-});
-
-// Alpine still handles audience group visibility + schedule radio
 function campaignForm() {
     return {
         productId: @js((string) old('product_id', '')),
         audienceScope: @js(old('audience_scope', 'product_public')),
         privateGroupId: @js((string) old('private_group_id', '')),
-        collection: OLD_COLLECTION,
+        selectedAudience: @js(old('audience_scope') === 'organisation_private'
+            ? (old('private_group_id') ? 'private:'.old('private_group_id') : '')
+            : (($oldPublicGroup = $subGroups->firstWhere('product_id', old('product_id')))
+                ? 'public:'.$oldPublicGroup->id : '')),
+        collection: @js((string) old('collection', '')),
+        entryId: OLD_ENTRY_ID,
+        entrySubject: '',
+        subject: @js(old('subject', '')),
         sendToAll: {{ old('send_to_all', 0) ? 'true' : 'false' }},
         action: '{{ old('action', 'draft') }}',
 
@@ -323,23 +254,86 @@ function campaignForm() {
             return COLLECTION_META[this.collection]?.from_email || '';
         },
 
-        groupMatchesCollection(groupSlug, groupCollectionHandle = null) {
-            if (!this.collection) return true;
-            if (groupCollectionHandle) {
-                return groupCollectionHandle === this.collection;
+        refreshEntries(selectedId = this.entryId) {
+            const [type, id] = this.selectedAudience.split(':');
+            const selectedProductId = type === 'public' ? String(PUBLIC_AUDIENCES[id]?.product_id || '') : '';
+            const selectedOrganisationId = type === 'private' ? String(PRIVATE_AUDIENCES[id]?.organisation_id || '') : '';
+            const select = document.getElementById('entry-select');
+            select.replaceChildren(new Option('— Select newsletter content —', ''));
+
+            for (const [productId, product] of Object.entries(PRODUCT_ENTRIES)) {
+                if ((selectedProductId && productId !== selectedProductId)
+                    || (selectedOrganisationId && String(product.organisation_id) !== selectedOrganisationId)) continue;
+
+                const group = document.createElement('optgroup');
+                group.label = product.name;
+                for (const entry of product.entries) {
+                    group.appendChild(new Option((entry.date ? entry.date + ' — ' : '') + entry.title, entry.id));
+                }
+                if (group.children.length) select.appendChild(group);
             }
 
-            return COLLECTION_META[this.collection]?.group_slug === groupSlug;
+            const available = [...select.options].some(option => option.value && option.value === selectedId);
+            if (!available && this.entryId && this.subject === this.entrySubject) this.subject = '';
+            this.entryId = available ? selectedId : '';
+            if (!available) this.entrySubject = '';
+            select.value = this.entryId;
         },
 
-        groupMatchesProduct(groupProductId, groupSlug, groupCollectionHandle = null) {
-            if (!this.productId || String(groupProductId) !== String(this.productId)) return false;
+        onEntryChange(entryId) {
+            if (!entryId) {
+                if (this.subject === this.entrySubject) this.subject = '';
+                this.entrySubject = '';
+                if (this.audienceScope === 'organisation_private') {
+                    this.productId = '';
+                    this.collection = '';
+                } else if (!this.selectedAudience) {
+                    this.productId = '';
+                    this.collection = '';
+                }
+                return;
+            }
 
-            return this.groupMatchesCollection(groupSlug, groupCollectionHandle);
+            for (const [productId, product] of Object.entries(PRODUCT_ENTRIES)) {
+                const entry = product.entries.find(item => item.id === entryId);
+                if (!entry) continue;
+
+                this.productId = productId;
+                this.collection = product.collection;
+                if ((!this.subject || this.subject === this.entrySubject) && entry.subject) this.subject = entry.subject;
+                this.entrySubject = entry.subject;
+                const [type, id] = this.selectedAudience.split(':');
+                if ((type === 'public' && String(PUBLIC_AUDIENCES[id]?.product_id) !== productId)
+                    || (type === 'private' && String(PRIVATE_AUDIENCES[id]?.organisation_id) !== String(product.organisation_id))) {
+                    this.selectedAudience = '';
+                    this.privateGroupId = '';
+                    this.audienceScope = 'product_public';
+                }
+                return;
+            }
         },
 
-        groupMatchesOrganisation(organisationId) {
-            return this.productId && String(PRODUCT_ORGANISATIONS[this.productId]) === String(organisationId);
+        onAudienceChange() {
+            const [type, id] = this.selectedAudience.split(':');
+            if (type === 'public' && PUBLIC_AUDIENCES[id]) {
+                this.audienceScope = 'product_public';
+                this.privateGroupId = '';
+                this.productId = String(PUBLIC_AUDIENCES[id].product_id);
+                this.collection = PRODUCT_ENTRIES[this.productId]?.collection || '';
+            } else if (type === 'private' && PRIVATE_AUDIENCES[id]) {
+                this.audienceScope = 'organisation_private';
+                this.privateGroupId = id;
+            } else {
+                this.audienceScope = 'product_public';
+                this.privateGroupId = '';
+            }
+            this.refreshEntries();
+            if (this.entryId) {
+                this.onEntryChange(this.entryId);
+            } else if (this.audienceScope === 'organisation_private') {
+                this.productId = '';
+                this.collection = '';
+            }
         },
     }
 }

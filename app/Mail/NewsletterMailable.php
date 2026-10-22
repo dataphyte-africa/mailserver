@@ -17,6 +17,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Queue\SerializesModels;
 use Statamic\Facades\AssetContainer;
 use Statamic\Facades\Entry;
@@ -31,6 +32,7 @@ class NewsletterMailable extends Mailable
         public readonly Subscriber $subscriber,
         public readonly string     $campaignSendId,
         public readonly bool       $publicArchive = false,
+        public readonly bool       $testEmail = false,
     ) {}
 
     public function hasEntry(): bool
@@ -144,6 +146,7 @@ class NewsletterMailable extends Mailable
             $recommendedRssItemLimit,
         );
         $marinaMaitamaSections = $this->extractDualPerspectiveSections($content);
+        $byline = $entry?->get('byline') ?: $entry?->get('author');
 
         return new Content(
             view: $template,
@@ -173,14 +176,17 @@ class NewsletterMailable extends Mailable
                     ->filter(fn ($item) => ($item['enabled'] ?? true) !== false)
                     ->values()
                     ->all(),
-                'author'             => $entry?->get('author') ?? $sender['from_name'],
+                'author'             => is_string($byline) && trim($byline) !== '' ? $byline : $sender['from_name'],
                 'fromName'           => $sender['from_name'],
                 'sentDate'           => $this->campaign->sent_at?->format('F j, Y') ?? now()->format('F j, Y'),
                 'collectionLogo'     => $collectionLogo,
                 'headerColor'        => $headerColor,
                 'footerConfig'       => $footerConfig,
                 'footerPartial'      => $footerPartial,
-                'browserUrl'         => $this->publicArchive || ! $organisation ? null : route('newsletter.archive.show', $this->campaign),
+                'testEmail'          => $this->testEmail,
+                'browserUrl'         => $this->publicArchive || ! $organisation ? null : ($this->testEmail
+                    ? $this->testUrl('newsletter.test.preview')
+                    : route('newsletter.archive.show', $this->campaign)),
                 'archiveUrl'         => ! $organisation ? null : route('newsletter.archive.index', [
                     'organisation' => $this->campaign->organisation_id,
                     'collection' => $collection,
@@ -191,8 +197,12 @@ class NewsletterMailable extends Mailable
                 'ctaUrl'             => app(NewsletterBanner::class)->linkUrl($entry?->get('cta_url')),
                 'foundationCtaText'  => $entry?->get('cta_text') ?? null,
                 'foundationCtaUrl'   => $entry?->get('cta_url') ?? null,
-                'unsubscribeUrl'     => $this->publicArchive ? null : $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign),
-                'preferencesUrl'     => $this->publicArchive ? null : $this->publicUrls()->preferencesUrl($this->subscriber, $this->campaign->collection, $this->campaign),
+                'unsubscribeUrl'     => $this->publicArchive ? null : ($this->testEmail
+                    ? $this->testUrl('newsletter.test.action', ['action' => 'unsubscribe'])
+                    : $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign)),
+                'preferencesUrl'     => $this->publicArchive ? null : ($this->testEmail
+                    ? $this->testUrl('newsletter.test.action', ['action' => 'preferences'])
+                    : $this->publicUrls()->preferencesUrl($this->subscriber, $this->campaign->collection, $this->campaign)),
                 // Subscriber personalisation variables (use in templates directly)
                 'subscriberFirstName' => $this->subscriber->first_name ?? '',
                 'subscriberLastName'  => $this->subscriber->last_name  ?? '',
@@ -214,6 +224,16 @@ class NewsletterMailable extends Mailable
                 'recommendedRssItems' => $recommendedRssItems,
             ],
         );
+    }
+
+    private function testUrl(string $route, array $parameters = []): string
+    {
+        $relative = URL::temporarySignedRoute($route, now()->addDays(7), [
+            'campaign' => $this->campaign->getKey(),
+            ...$parameters,
+        ], false);
+
+        return url($relative);
     }
 
     /* ------------------------------------------------------------------ */
@@ -304,8 +324,10 @@ class NewsletterMailable extends Mailable
             messageId:  null,
             references: [],
             text: [
-                'List-Unsubscribe'      => '<' . $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign) . '>',
-                'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+                ...($this->testEmail || $this->publicArchive ? [] : [
+                    'List-Unsubscribe' => '<' . $this->publicUrls()->unsubscribeUrl($this->subscriber, $this->campaign->collection, $this->campaign) . '>',
+                    'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
+                ]),
                 'X-Campaign-Id'         => (string) $this->campaign->id,
                 'X-Campaign-Send-Id'    => $this->campaignSendId,
             ],

@@ -36,7 +36,11 @@
 
             <tr>
                 <td style="padding:0 0 14px;text-align:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.7;color:#6b7280;">
-                    You're receiving this because you subscribed to {{ $fromName ?? config('app.name') }}.
+                    @if($testEmail ?? false)
+                        This is a test email. Subscription links are read-only previews.
+                    @else
+                        You're receiving this because you subscribed to {{ $fromName ?? config('app.name') }}.
+                    @endif
                 </td>
             </tr>
 

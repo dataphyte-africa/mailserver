@@ -29,7 +29,12 @@
     </header>
     @forelse($issues as $issue)
         <article>
-            <a href="{{ route('newsletter.archive.show', $issue) }}">{{ $issue->subject ?: $issue->name }}</a>
+            @if($issue->entry_id)
+                <a href="{{ route('newsletter.archive.show', $issue) }}">{{ $issue->subject ?: $issue->name }}</a>
+            @else
+                <strong style="font-size:1.45rem">{{ $issue->subject ?: $issue->name }}</strong>
+                <p>Full issue content is unavailable for this older campaign.</p>
+            @endif
             <time datetime="{{ $issue->sent_at->toDateString() }}">{{ $issue->sent_at->format('j F Y') }}</time>
         </article>
     @empty

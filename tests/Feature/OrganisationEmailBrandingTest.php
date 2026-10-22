@@ -240,6 +240,7 @@ class OrganisationEmailBrandingTest extends TestCase
             'data' => [
                 'title' => 'Foundation Update issue', 'subject' => 'Foundation Update issue',
                 'template' => 'emails.foundation.weekly', 'content' => '<p>Foundation update</p>',
+                'author' => ['statamic-user-id'], 'byline' => 'Foundation Editorial Team',
                 'hero_image_link_url' => 'https://example.org/foundation',
                 'cta_text' => 'Read the update', 'cta_url' => 'https://example.org/update',
             ],
@@ -255,11 +256,21 @@ class OrganisationEmailBrandingTest extends TestCase
         $content = $mail->content();
         $this->assertSame('emails.foundation.weekly', $content->view);
         $this->assertSame('Foundation Update', $content->with['productName']);
+        $this->assertSame('Foundation Editorial Team', $content->with['author']);
         $this->assertStringEndsWith('/storage/product-branding/update/banner.png', $content->with['heroImageUrl']);
         $this->assertSame('https://example.org/foundation', $content->with['heroImageLinkUrl']);
         $this->assertSame('https://example.org/update', $content->with['ctaUrl']);
         $this->assertStringContainsString('Read the update', $mail->render());
         $this->assertStringContainsString('View in browser', $mail->render());
         $this->assertStringContainsString('Past newsletters', $mail->render());
+
+        $this->actingAs(\Statamic\Facades\User::findByEmail('admin@mailserver.test'), config('statamic.users.guards.cp', 'web'));
+        $this->withoutMiddleware(\Statamic\Http\Middleware\CP\CountUsers::class);
+        $this->get(cp_route('newsletter.campaigns.preview', $campaign))
+            ->assertOk()
+            ->assertSee('Foundation Editorial Team')
+            ->assertSee('Product:')
+            ->assertSee('Foundation Update')
+            ->assertDontSee('Template: <code', false);
     }
 }

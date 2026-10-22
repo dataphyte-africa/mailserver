@@ -15,8 +15,7 @@ use Illuminate\Support\Facades\Mail;
  *   php artisan newsletter:test-send --campaign=5 --to=editor@dataphyte.com
  *   php artisan newsletter:test-send --campaign=5 --to=a@b.com,c@d.com
  *
- * The test uses a real (or synthetic) Subscriber record so all personalisation,
- * signed URLs, and UTM injection work exactly as in production.
+ * Test messages use read-only subscription links, even for existing subscribers.
  */
 class TestSend extends Command
 {
@@ -58,6 +57,7 @@ class TestSend extends Command
                     campaign: $campaign,
                     subscriber: $subscriber,
                     campaignSendId: 'test-' . now()->timestamp,
+                    testEmail: true,
                 );
 
                 Mail::to($email)->send($mailable);
@@ -78,8 +78,7 @@ class TestSend extends Command
     }
 
     /**
-     * Build an in-memory (unsaved) subscriber for the mailable so
-     * unsubscribe/preferences signed URLs still resolve.
+     * Build an in-memory recipient for test-only personalisation.
      */
     private function syntheticSubscriber(string $email): Subscriber
     {
@@ -91,7 +90,7 @@ class TestSend extends Command
             'confirmation_token' => \Illuminate\Support\Str::uuid()->toString(),
         ]);
 
-        // Give it a fake ID so signed-URL generation doesn't fail
+        // Test links never use this model's confirmation token.
         $subscriber->id = 0;
 
         return $subscriber;

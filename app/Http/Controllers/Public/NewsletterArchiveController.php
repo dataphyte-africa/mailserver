@@ -7,6 +7,7 @@ use App\Models\Campaign;
 use App\Models\Organisation;
 use App\Models\Product;
 use App\Models\Subscriber;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
@@ -23,7 +24,6 @@ class NewsletterArchiveController
             ->where('product_id', $product?->id)
             ->whereIn('status', ['sent', 'partial'])
             ->whereNotNull('sent_at')
-            ->whereNotNull('entry_id')
             ->latest('sent_at')
             ->paginate(20);
 
@@ -42,5 +42,27 @@ class NewsletterArchiveController
         abort_unless($mailable->hasEntry(), 404);
 
         return response($mailable->render())->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    public function testPreview(Request $request, Campaign $campaign): Response
+    {
+        abort_unless($request->hasValidSignature(false), 403);
+        abort_unless($campaign->entry_id && $campaign->organisation, 404);
+
+        $mailable = new NewsletterMailable($campaign, new Subscriber([
+            'email' => '',
+            'first_name' => 'Test',
+            'last_name' => 'Recipient',
+        ]), 'test-preview', false, true);
+        abort_unless($mailable->hasEntry(), 404);
+
+        return response($mailable->render())->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    public function testAction(Request $request, Campaign $campaign, string $action): View
+    {
+        abort_unless($request->hasValidSignature(false), 403);
+
+        return view('newsletter.public.test-action', compact('campaign', 'action'));
     }
 }
