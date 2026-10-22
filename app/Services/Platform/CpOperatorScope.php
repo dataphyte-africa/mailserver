@@ -183,13 +183,20 @@ class CpOperatorScope
             return [];
         }
 
-        $accessible = $this->productIds($operator);
+        $user = $this->identity->resolve($operator);
+        if (! $user) {
+            return [];
+        }
+
+        $organisationIds = $this->scopes->organisationIds($user);
+        $directProductIds = $this->scopes->productIds($user);
 
         return Product::query()->whereNotNull('primary_collection_handle')
             ->get(['id', 'organisation_id', 'primary_collection_handle'])
             ->groupBy('primary_collection_handle')
             ->filter(fn ($products) => $products->pluck('organisation_id')->unique()->count() === 1
-                && $products->pluck('id')->diff($accessible)->isEmpty())
+                && ($products->pluck('organisation_id')->every(fn ($id) => in_array((int) $id, $organisationIds, true))
+                    || $products->pluck('id')->diff($directProductIds)->isEmpty()))
             ->keys()->all();
     }
 

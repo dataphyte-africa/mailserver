@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use Statamic\Facades\User as StatamicUser;
+use Statamic\Facades\Entry as StatamicEntry;
 use Statamic\Facades\Role as StatamicRole;
 use Statamic\Events\EntryBlueprintFound;
 use Statamic\Fields\Blueprint;
@@ -76,6 +77,8 @@ class CpOperatorIsolationTest extends TestCase
                 'user_id' => $identity->id, 'organisation_id' => $first->organisation_id,
                 'scope_role' => 'organisation_operator', 'status' => 'active',
             ]);
+            $second->update(['status' => 'inactive']);
+            $this->assertNotContains($second->id, $scope->productIds($user));
             $this->assertContains('insight_newsletters', $scope->legacyCollectionHandles($user));
             $this->assertTrue($scope->canSubscriber($user, $legacySubscriber));
             $this->assertTrue($scope->canCampaign($user, $legacyCampaign));
@@ -145,7 +148,48 @@ class CpOperatorIsolationTest extends TestCase
 
         $this->assertNotNull($role);
         $this->assertTrue($role->hasPermission('access cp'));
+        $this->assertTrue($role->hasPermission('publish foundation_newsletters entries'));
         $this->assertFalse($role->isSuper());
+    }
+
+    public function test_publishing_is_limited_to_the_assigned_product_blueprint(): void
+    {
+        $organisation = Organisation::query()->create([
+            'name' => 'Publishing Scope', 'slug' => 'publishing-scope', 'status' => 'active',
+        ]);
+        $product = Product::query()->create([
+            'organisation_id' => $organisation->id, 'name' => 'Foundation Update',
+            'slug' => 'publishing-scope-foundation-update', 'status' => 'active',
+            'product_type' => 'newsletter', 'primary_collection_handle' => 'foundation_newsletters',
+            'blueprint_handle' => 'weekly',
+        ]);
+        $user = StatamicUser::make()->id((string) Str::uuid())->email('publish-scope-'.Str::random(8).'@example.test');
+        $user->assignRole('scoped_operator');
+        $user->save();
+
+        try {
+            $identity = app(StatamicUserIdentityBridgeInterface::class)->provision($user);
+            ProductUserScope::query()->create([
+                'user_id' => $identity->id, 'product_id' => $product->id,
+                'scope_role' => 'product_operator', 'status' => 'active',
+            ]);
+            $policy = app(ScopedEntryPolicy::class);
+            $collection = \Statamic\Facades\Collection::make('foundation_newsletters')
+                ->title('Foundation Newsletters');
+            $collection->save();
+            foreach (['weekly', 'activities'] as $handle) {
+                Blueprint::make($handle)->setNamespace('collections.foundation_newsletters')
+                    ->setContents(['sections' => ['main' => ['fields' => []]]])->save();
+            }
+
+            $this->assertTrue($policy->publish($user, $collection));
+            $this->assertTrue($policy->publish($user, StatamicEntry::make()
+                ->collection('foundation_newsletters')->blueprint('weekly')));
+            $this->assertFalse($policy->publish($user, StatamicEntry::make()
+                ->collection('foundation_newsletters')->blueprint('activities')));
+        } finally {
+            $user->delete();
+        }
     }
 
     public function test_organisation_operator_sees_only_owned_cp_data_and_direct_urls_are_guarded(): void

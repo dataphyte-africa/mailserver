@@ -11,3 +11,6 @@ scoped_operator:
     - edit insight_newsletters entries
     - edit foundation_newsletters entries
     - edit policy_point_newsletters entries
+    - publish insight_newsletters entries
+    - publish foundation_newsletters entries
+    - publish policy_point_newsletters entries

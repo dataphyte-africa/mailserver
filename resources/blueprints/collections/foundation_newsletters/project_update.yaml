@@ -100,7 +100,7 @@ tabs:
               type: text
               width: 100
               display: 'Author / Byline'
-            handle: author
+            handle: byline
           -
             field:
               type: text

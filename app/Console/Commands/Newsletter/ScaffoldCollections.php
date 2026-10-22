@@ -663,7 +663,7 @@ class ScaffoldCollections extends Command
                         ],
 
                         [
-                            'handle' => 'author',
+                            'handle' => 'byline',
                             'field'  => [
                                 'type'    => 'text',
                                 'display' => 'Author / Byline',
