@@ -149,6 +149,7 @@ class NewsletterMailable extends Mailable
             view: $template,
             with: [
                 'entryTitle'          => $entry?->get('title') ?? $this->campaign->name,
+                'productName'        => $this->campaign->product?->name ?? $organisation?->name,
                 'subject'            => $this->envelope()->subject,
                 'preheader'          => $entry?->get('preheader') ?? '',
                 'heroImageUrl'       => $heroUrl,

@@ -162,4 +162,104 @@ class OrganisationEmailBrandingTest extends TestCase
         $this->assertSame('https://example.org/issue.png', $with['heroImageUrl']);
         $this->assertSame('https://example.org/story', $with['heroImageLinkUrl']);
     }
+
+    public function test_foundation_activities_uses_its_own_layout_with_archive_and_issue_banner(): void
+    {
+        StatamicCollection::make('foundation_newsletters')->title('Foundation Newsletters')->save();
+        Blueprint::make('activities')->setNamespace('collections.foundation_newsletters')
+            ->setContents(['sections' => ['main' => ['fields' => []]]])->save();
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Foundation', 'slug' => 'foundation', 'status' => 'active',
+            'primary_collection_handle' => 'foundation_newsletters',
+            'banner_path' => 'organisation-branding/foundation/banner.png',
+        ]);
+        $product = Product::query()->create([
+            'organisation_id' => $organisation->id, 'name' => 'Behind the Bytes',
+            'slug' => 'foundation-newsletters-activities', 'status' => 'active',
+            'product_type' => 'newsletter', 'primary_collection_handle' => 'foundation_newsletters',
+            'blueprint_handle' => 'activities', 'banner_path' => 'product-branding/bytes/banner.png',
+        ]);
+        $entry = EntryModel::query()->create([
+            'site' => 'default', 'collection' => 'foundation_newsletters', 'blueprint' => 'activities',
+            'slug' => 'bytes-issue', 'date' => '2026-10-22', 'published' => true,
+            'data' => [
+                'title' => 'Behind the Bytes', 'subject' => 'Behind the Bytes',
+                'template' => 'emails.foundation.activities', 'content' => '<p>Foundation news</p>',
+                'hero_image_override_url' => 'https://example.org/bytes.png',
+                'hero_image_link_url' => 'https://example.org/story',
+                'cta_text' => 'Read more', 'cta_url' => 'https://example.org/more',
+            ],
+        ]);
+        $campaign = Campaign::query()->create([
+            'organisation_id' => $organisation->id, 'product_id' => $product->id,
+            'entry_id' => $entry->id, 'collection' => 'foundation_newsletters',
+            'name' => 'Behind the Bytes', 'subject' => 'Behind the Bytes', 'status' => 'sent',
+            'sent_at' => now(),
+        ]);
+
+        $mail = new NewsletterMailable($campaign, Subscriber::factory()->create(), 'foundation-test');
+        $content = $mail->content();
+        $this->assertSame('emails.foundation.activities', $content->view);
+        $this->assertSame('Behind the Bytes', $content->with['productName']);
+        $this->assertSame('https://example.org/bytes.png', $content->with['heroImageUrl']);
+        $this->assertSame('https://example.org/story', $content->with['heroImageLinkUrl']);
+        $this->assertStringContainsString('View in browser', $mail->render());
+        $this->assertStringContainsString('Past newsletters', $mail->render());
+        $this->assertStringContainsString('Read more', $mail->render());
+        $this->get(route('newsletter.archive.index', [$organisation, 'foundation_newsletters', $product]))
+            ->assertOk()->assertSee(route('newsletter.archive.show', $campaign), false);
+        $this->get(route('newsletter.archive.show', $campaign))->assertOk();
+
+        $campaign->update(['entry_id' => null]);
+        $fallback = (new NewsletterMailable($campaign->fresh(), Subscriber::factory()->create(), 'fallback'))->content()->with;
+        $this->assertStringEndsWith('/storage/product-branding/bytes/banner.png', $fallback['heroImageUrl']);
+        $product->update(['banner_path' => null]);
+        $organisationFallback = (new NewsletterMailable($campaign->fresh(), Subscriber::factory()->create(), 'organisation-fallback'))->content()->with;
+        $this->assertStringEndsWith('/storage/organisation-branding/foundation/banner.png', $organisationFallback['heroImageUrl']);
+    }
+
+    public function test_foundation_update_uses_its_own_template_and_product_customisation(): void
+    {
+        StatamicCollection::make('foundation_newsletters')->title('Foundation Newsletters')->save();
+        Blueprint::make('weekly')->setNamespace('collections.foundation_newsletters')
+            ->setContents(['sections' => ['main' => ['fields' => []]]])->save();
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Foundation', 'slug' => 'foundation', 'status' => 'active',
+            'primary_collection_handle' => 'foundation_newsletters',
+            'banner_path' => 'organisation-branding/foundation/banner.png',
+        ]);
+        $product = Product::query()->create([
+            'organisation_id' => $organisation->id, 'name' => 'Foundation Update',
+            'slug' => 'foundation-newsletters-weekly', 'status' => 'active',
+            'product_type' => 'newsletter', 'primary_collection_handle' => 'foundation_newsletters',
+            'blueprint_handle' => 'weekly', 'banner_path' => 'product-branding/update/banner.png',
+        ]);
+        $entry = EntryModel::query()->create([
+            'site' => 'default', 'collection' => 'foundation_newsletters', 'blueprint' => 'weekly',
+            'slug' => 'foundation-update-issue', 'date' => '2026-10-22', 'published' => true,
+            'data' => [
+                'title' => 'Foundation Update issue', 'subject' => 'Foundation Update issue',
+                'template' => 'emails.foundation.weekly', 'content' => '<p>Foundation update</p>',
+                'hero_image_link_url' => 'https://example.org/foundation',
+                'cta_text' => 'Read the update', 'cta_url' => 'https://example.org/update',
+            ],
+        ]);
+        $campaign = Campaign::query()->create([
+            'organisation_id' => $organisation->id, 'product_id' => $product->id,
+            'entry_id' => $entry->id, 'collection' => 'foundation_newsletters',
+            'name' => 'Foundation Update issue', 'subject' => 'Foundation Update issue',
+            'status' => 'sent', 'sent_at' => now(),
+        ]);
+
+        $mail = new NewsletterMailable($campaign, Subscriber::factory()->create(), 'foundation-update-test');
+        $content = $mail->content();
+        $this->assertSame('emails.foundation.weekly', $content->view);
+        $this->assertSame('Foundation Update', $content->with['productName']);
+        $this->assertStringEndsWith('/storage/product-branding/update/banner.png', $content->with['heroImageUrl']);
+        $this->assertSame('https://example.org/foundation', $content->with['heroImageLinkUrl']);
+        $this->assertSame('https://example.org/update', $content->with['ctaUrl']);
+        $this->assertStringContainsString('Read the update', $mail->render());
+        $this->assertStringContainsString('View in browser', $mail->render());
+        $this->assertStringContainsString('Past newsletters', $mail->render());
+    }
 }

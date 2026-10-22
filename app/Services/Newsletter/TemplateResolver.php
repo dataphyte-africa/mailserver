@@ -23,6 +23,12 @@ class TemplateResolver
 
         // 1. Stored field — set automatically by blueprint default on first save
         $stored = $entry->get('template');
+        if ($stored === 'emails.foundation.weekly'
+            && $entry->collectionHandle() === 'foundation_newsletters'
+            && $entry->blueprint()?->handle() === 'activities') {
+            return 'emails.foundation.activities';
+        }
+
         if ($stored && view()->exists($stored)) {
             return $stored;
         }

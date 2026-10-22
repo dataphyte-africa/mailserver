@@ -67,6 +67,21 @@ tabs:
             field:
               type: text
               width: 100
+              display: 'CTA Text'
+              instructions: 'Button label shown at the bottom of the email.'
+            handle: cta_text
+          -
+            field:
+              type: text
+              width: 100
+              display: 'CTA URL'
+              instructions: 'Destination URL used by the CTA button.'
+              input_type: url
+            handle: cta_url
+          -
+            field:
+              type: text
+              width: 100
               default: emails.foundation.activities
               display: 'Email Template'
               listable: false
@@ -109,4 +124,4 @@ tabs:
               input_type: email
               instructions: 'Leave blank to use the collection default.'
             handle: reply_to
-title: Activities
+title: 'Behind the Bytes'

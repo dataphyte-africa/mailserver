@@ -402,8 +402,8 @@ class ScaffoldCollections extends Command
                 ['handle' => 'insight_updates', 'title' => 'Insight Updates', 'template' => 'emails.insight.insight-update'],
             ],
             'foundation_newsletters' => [
-                ['handle' => 'weekly',          'title' => 'Weekly Update',   'template' => 'emails.foundation.weekly'],
-                ['handle' => 'activities',      'title' => 'Activities',      'template' => 'emails.foundation.activities'],
+                ['handle' => 'weekly',          'title' => 'Foundation Update', 'template' => 'emails.foundation.weekly'],
+                ['handle' => 'activities',      'title' => 'Behind the Bytes', 'template' => 'emails.foundation.activities'],
                 ['handle' => 'project_update',  'title' => 'Project Update',  'template' => 'emails.foundation.project-update'],
             ],
             'academy_newsletters' => [

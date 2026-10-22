@@ -6,13 +6,14 @@ use App\Models\Product;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Newsletter\CollectionRegistry;
+use App\Services\Newsletter\GroupEngagementService;
 use App\Support\Platform\Ownership\SubscriberGroupOwnershipWriter;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 class SubscriberGroupSeeder extends Seeder
 {
-    public function run(SubscriberGroupOwnershipWriter $groups): void
+    public function run(SubscriberGroupOwnershipWriter $groups, GroupEngagementService $engagement): void
     {
         $newsletterCollections = array_keys(app(CollectionRegistry::class)->options());
         $seeded = 0;
@@ -25,22 +26,34 @@ class SubscriberGroupSeeder extends Seeder
             ->orderBy('primary_collection_handle')
             ->orderBy('name')
             ->get()
-            ->each(function (Product $product) use ($groups, &$seeded): void {
+            ->each(function (Product $product) use ($groups, $engagement, &$seeded): void {
                 $groupName = "{$product->name} Subscribers";
                 $slug = Str::slug($groupName);
 
-                $group = SubscriberGroup::query()->firstOrNew(['slug' => $slug]);
+                $group = SubscriberGroup::query()->where('product_id', $product->id)->first()
+                    ?? SubscriberGroup::query()->firstOrNew(['slug' => $slug]);
 
                 $groups->updateForProduct($product, $group, [
                     'name' => $groupName,
-                    'slug' => $slug,
+                    'slug' => $group->exists ? $group->slug : $slug,
                     'collection_handle' => $product->primary_collection_handle,
                     'description' => "Audience group for {$product->organisation?->name} / {$product->name}.",
                     'archived_at' => null,
                     'archived_by' => null,
                 ]);
 
-                foreach ($this->subGroupsForProduct($product) as $subGroup) {
+                $foundationProduct = $product->primary_collection_handle === 'foundation_newsletters'
+                    && in_array($product->slug, [
+                        'foundation-newsletters-weekly',
+                        'foundation-newsletters-activities',
+                    ], true);
+                $subGroups = $foundationProduct ? [[
+                    'name' => 'Newsletter',
+                    'slug' => 'newsletter',
+                    'description' => 'Product newsletter preference.',
+                ]] : $this->subGroupsForProduct($product);
+
+                foreach ($subGroups as $subGroup) {
                     SubscriberSubGroup::updateOrCreate(
                         [
                             'subscriber_group_id' => $group->id,
@@ -53,6 +66,10 @@ class SubscriberGroupSeeder extends Seeder
                             'archived_by' => null,
                         ],
                     );
+                }
+
+                if ($foundationProduct) {
+                    $engagement->ensureSegments($group);
                 }
 
                 $seeded++;

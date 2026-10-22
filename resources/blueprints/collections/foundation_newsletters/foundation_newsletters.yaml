@@ -74,9 +74,8 @@ tabs:
               width: 100
               display: 'Email Template'
               options:
-                emails/foundation/weekly: 'Weekly Update — General weekly digest'
-                emails/foundation/activities: 'Activities — Events & programmes'
-                emails/foundation/project-update: 'Project Update — Milestone & impact'
+                emails/foundation/weekly: 'Foundation Update — General digest'
+                emails/foundation/activities: 'Behind the Bytes — Events & programmes'
               validate: required
               instructions: 'Choose the layout for this newsletter.'
             handle: email_template

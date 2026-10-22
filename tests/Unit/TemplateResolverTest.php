@@ -56,6 +56,22 @@ class TemplateResolverTest extends TestCase
         $this->assertEquals('emails.layout', $result);
     }
 
+    public function test_foundation_activities_keeps_its_own_template_for_existing_entries(): void
+    {
+        $entry = $this->entryStub('emails.foundation.activities', 'foundation_newsletters', 'activities');
+
+        $this->assertSame('emails.foundation.activities', $this->resolver->resolve($entry));
+    }
+
+    public function test_legacy_activities_weekly_template_resolves_to_activities_only(): void
+    {
+        $activities = $this->entryStub('emails.foundation.weekly', 'foundation_newsletters', 'activities');
+        $weekly = $this->entryStub('emails.foundation.weekly', 'foundation_newsletters', 'weekly');
+
+        $this->assertSame('emails.foundation.activities', $this->resolver->resolve($activities));
+        $this->assertSame('emails.foundation.weekly', $this->resolver->resolve($weekly));
+    }
+
     public function test_stored_template_ignored_when_view_does_not_exist(): void
     {
         $entry = $this->entryStub(

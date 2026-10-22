@@ -28,6 +28,9 @@ class GroupController extends Controller
         ScopedSubscriberGroupProductSelector $products,
     ) {
         $groups = $products->groupsFor($request->user());
+        if (SubscriberGroup::query()->where('slug', 'like', 'foundation-private-%')->exists()) {
+            $groups = $groups->reject(fn (SubscriberGroup $group) => $group->slug === 'foundation');
+        }
         $activeCounts = DB::table('subscriber_sub_group as membership')
             ->join('subscriber_sub_groups as preference', 'preference.id', '=', 'membership.subscriber_sub_group_id')
             ->join('subscribers', 'subscribers.id', '=', 'membership.subscriber_id')
