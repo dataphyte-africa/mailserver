@@ -227,11 +227,12 @@ class FocalPointApplicationTest extends TestCase
             && $request->hasHeader('Authorization', 'Bearer access-token'));
     }
 
-    public function test_non_resident_and_missing_consent_are_rejected(): void
+    public function test_residence_answer_does_not_block_submission_but_missing_consent_is_rejected(): void
     {
         $this->postJson(route('focal-points.applications.store'), $this->payload([
             'resident_in_state' => 'no', 'application_consent' => null,
-        ]))->assertUnprocessable()->assertJsonValidationErrors(['resident_in_state', 'application_consent']);
+        ]))->assertUnprocessable()->assertJsonValidationErrors('application_consent')
+            ->assertJsonMissingValidationErrors('resident_in_state');
     }
 
     public function test_terms_must_be_acknowledged_and_current_before_submission(): void

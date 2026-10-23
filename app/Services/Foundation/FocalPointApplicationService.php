@@ -84,7 +84,7 @@ class FocalPointApplicationService
             'lga_id' => ['required', 'integer', 'min:1'],
             'ward_id' => ['required', 'integer', 'min:1'],
             'residential_address' => ['required', 'string', 'max:1000'],
-            'resident_in_state' => ['required', Rule::in(['yes'])],
+            'resident_in_state' => ['required', Rule::in(['yes', 'no'])],
             'residence_length' => ['required', Rule::in(['under_1', '1_to_3', '4_to_5', 'over_5'])],
             'party_member' => ['required', Rule::in(['yes', 'no'])],
             'candidate_2027' => ['required', Rule::in(['yes', 'no'])],
