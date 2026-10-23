@@ -3,3 +3,7 @@ roles:
   - scoped_operator
 id: b18dce2c-6331-44ef-b45d-01c96474b384
 password_hash: $2y$12$i4jeqlp8oLIARYsMiZK62OD0X6E3vtf.aFLgpCyDsCNDgJd6s0mYO
+preferences:
+  collections:
+    foundation_newsletters:
+      view: list
