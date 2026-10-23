@@ -46,7 +46,7 @@ Route::get('/', function () {
     return view('landing.index', compact('siteLogo'));
 })->name('landing');
 
-Route::prefix('applications/2027-state-focal-points')->name('focal-points.applications.')->group(function () {
+Route::prefix('applications/call-for-state-coordinators')->name('focal-points.applications.')->group(function () {
     Route::get('/', [FocalPointApplicationController::class, 'show'])->name('show');
     Route::post('/', [FocalPointApplicationController::class, 'store'])
         ->middleware('throttle:5,1')->name('store');
@@ -58,6 +58,10 @@ Route::prefix('applications/2027-state-focal-points')->name('focal-points.applic
         ->middleware('throttle:5,1')->name('drafts.resume.request');
     Route::get('/drafts/{uuid}/resume/{token}', [FocalPointApplicationController::class, 'resume'])
         ->middleware('throttle:10,1')->name('drafts.resume');
+    Route::post('/drafts/{uuid}/resume/{token}', [FocalPointApplicationController::class, 'consumeResume'])
+        ->middleware('throttle:10,1')->name('drafts.resume.consume');
+    Route::get('/drafts/status', [FocalPointApplicationController::class, 'draftStatus'])
+        ->middleware('throttle:60,1')->name('drafts.status');
     Route::get('/locations/states', [FocalPointApplicationController::class, 'states'])
         ->middleware('throttle:60,1')->name('locations.states');
     Route::get('/locations/states/{state}/lgas', [FocalPointApplicationController::class, 'lgas'])
@@ -65,6 +69,8 @@ Route::prefix('applications/2027-state-focal-points')->name('focal-points.applic
     Route::get('/locations/states/{state}/lgas/{lga}/wards', [FocalPointApplicationController::class, 'wards'])
         ->whereNumber('state')->whereNumber('lga')->middleware('throttle:60,1')->name('locations.wards');
 });
+
+Route::get('applications/2027-state-focal-points', fn () => redirect()->route('focal-points.applications.show', [], 301));
 
 /*
 |--------------------------------------------------------------------------

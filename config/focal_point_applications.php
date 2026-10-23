@@ -3,7 +3,8 @@
 return [
     'closes_at' => env('FOCAL_POINT_APPLICATIONS_CLOSES_AT', '2026-10-28 23:59:00'),
     'timezone' => 'Africa/Lagos',
-    'max_upload_kb' => (int) env('FOCAL_POINT_APPLICATION_MAX_UPLOAD_KB', 10240),
+    'cv_max_upload_kb' => (int) env('FOCAL_POINT_APPLICATION_CV_MAX_UPLOAD_KB', 1024),
+    'certificate_max_upload_kb' => (int) env('FOCAL_POINT_APPLICATION_CERTIFICATE_MAX_UPLOAD_KB', 2048),
     'google_drive' => [
         'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),

@@ -225,6 +225,32 @@ return [
             'timeout' => 90,
             'nice' => 0,
         ],
+        // Applicant receipts and resume links should not wait behind campaign or tracking work.
+        'supervisor-focal-point-mail' => [
+            'connection' => 'redis',
+            'queue' => ['focal-point-mail'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 90,
+            'nice' => 0,
+        ],
+        // Drive transfers are intentionally isolated from request and mail capacity.
+        'supervisor-focal-point-uploads' => [
+            'connection' => 'redis',
+            'queue' => ['focal-point-uploads'],
+            'balance' => 'simple',
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 192,
+            'tries' => 3,
+            'timeout' => 120,
+            'nice' => 0,
+        ],
         // Low-priority tracking and miscellaneous queue work
         'supervisor-tracking' => [
             'connection' => 'redis',
@@ -253,6 +279,12 @@ return [
                 'balanceMaxShift' => 2,
                 'balanceCooldown' => 3,
             ],
+            'supervisor-focal-point-mail' => [
+                'maxProcesses' => 1,
+            ],
+            'supervisor-focal-point-uploads' => [
+                'maxProcesses' => 2,
+            ],
             'supervisor-tracking' => [
                 'maxProcesses' => 1,
             ],
@@ -264,6 +296,12 @@ return [
             ],
             'supervisor-emails' => [
                 'minProcesses' => 1,
+                'maxProcesses' => 2,
+            ],
+            'supervisor-focal-point-mail' => [
+                'maxProcesses' => 1,
+            ],
+            'supervisor-focal-point-uploads' => [
                 'maxProcesses' => 2,
             ],
             'supervisor-tracking' => [

@@ -10,6 +10,7 @@ use App\Models\FocalPointApplicationDraft;
 use App\Services\Foundation\FocalPointApplicationContent;
 use App\Services\Foundation\FocalPointApplicationDraftService;
 use App\Services\Foundation\FocalPointApplicationService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Contracts\View\View;
@@ -17,8 +18,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class FocalPointApplicationController extends Controller
 {
@@ -49,7 +50,8 @@ class FocalPointApplicationController extends Controller
             'torVersion' => $this->content->torVersion(),
             'torHtml' => $this->content->torHtml(),
             'closesAt' => $this->applications->closesAt(),
-            'maxUploadMb' => (int) ceil(config('focal_point_applications.max_upload_kb', 10240) / 1024),
+            'cvMaxUploadMb' => (int) ceil(config('focal_point_applications.cv_max_upload_kb', 1024) / 1024),
+            'certificateMaxUploadMb' => (int) ceil(config('focal_point_applications.certificate_max_upload_kb', 2048) / 1024),
             'draft' => $this->drafts->fromSession(session('focal_point_draft_uuid')),
         ]);
     }
@@ -65,29 +67,33 @@ class FocalPointApplicationController extends Controller
         }
 
         $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
-        $usesDraft = $draft && Str::lower((string) $request->input('email')) === $draft->email && $this->drafts->hasDocuments($draft);
-        $validated = $request->validate($this->applications->rules(! $usesDraft));
+        $validated = $request->validate($this->applications->rules(false));
+        if (! $draft || Str::lower((string) $request->input('email')) !== $draft->email) {
+            return back()->withInput($request->except(['cv', 'certificate']))
+                ->withErrors(['documents' => 'Save your application progress and wait for both document uploads before submitting.']);
+        }
 
         try {
-            $application = $this->applications->submit(
-                $validated,
-                $request->file('cv'),
-                $request->file('certificate'),
-                $usesDraft ? $draft : null,
-            );
-        } catch (RuntimeException) {
+            $application = $this->applications->submit($validated, $draft);
+        } catch (QueryException $exception) {
+            $message = Str::lower($exception->getMessage());
+            if (! str_contains($message, 'focal_point_applications_email_unique')
+                && ! str_contains($message, 'focal_point_applications.email')) {
+                throw $exception;
+            }
+
             return back()->withInput($request->except(['cv', 'certificate']))
-                ->withErrors(['documents' => 'We could not save your documents. Please try again.']);
+                ->withErrors(['email' => 'An application has already been submitted with this email address. Check your inbox for the confirmation email.']);
         }
 
-        if ($usesDraft) {
-            $this->drafts->deleteAfterSubmission($draft);
-            $request->session()->forget('focal_point_draft_uuid');
-        }
+        $this->drafts->deleteAfterSubmission($draft);
+        $request->session()->forget('focal_point_draft_uuid');
+        Log::info('Focal point application submitted.', ['application_uuid' => $application->uuid]);
 
         try {
             Mail::to($application->email, $application->full_name)->queue(
-                new FocalPointApplicationReceivedMail($application->full_name, $application->uuid)
+                (new FocalPointApplicationReceivedMail($application->full_name, $application->uuid))
+                    ->onQueue('focal-point-mail')
             );
         } catch (\Throwable $exception) {
             $application->forceFill([
@@ -121,7 +127,7 @@ class FocalPointApplicationController extends Controller
             throw ValidationException::withMessages(['tools_other' => 'Describe the other tools you can use.']);
         }
         $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
-        if ($step === 2 && (! ($request->hasFile('cv') || $draft?->cv_drive_id) || ! ($request->hasFile('certificate') || $draft?->certificate_drive_id))) {
+        if ($step === 2 && (! ($request->hasFile('cv') || $draft?->cv_drive_id || $draft?->cv_upload_path) || ! ($request->hasFile('certificate') || $draft?->certificate_drive_id || $draft?->certificate_upload_path))) {
             throw ValidationException::withMessages(['documents' => 'Upload both documents before continuing.']);
         }
         $draft = $this->drafts->save($draft, $step, $validated, $request->file('cv'), $request->file('certificate'));
@@ -139,9 +145,10 @@ class FocalPointApplicationController extends Controller
 
         if ($draft) {
             $token = $this->drafts->createResumeToken($draft);
-            Mail::to($draft->email)->queue(new FocalPointApplicationResumeMail(
+            Mail::to($draft->email)->queue((new FocalPointApplicationResumeMail(
                 route('focal-points.applications.drafts.resume', ['uuid' => $draft->uuid, 'token' => $token]),
-            ));
+            ))->onQueue('focal-point-mail'));
+            Log::info('Focal point resume email queued.', ['draft_uuid' => $draft->uuid]);
         }
 
         return response()->json(['message' => 'If an unfinished application matches that email, a resume link has been sent.']);
@@ -162,7 +169,17 @@ class FocalPointApplicationController extends Controller
         ]);
     }
 
-    public function resume(Request $request, string $uuid, string $token): RedirectResponse
+    public function resume(string $uuid, string $token): View|RedirectResponse
+    {
+        $draft = $this->drafts->findResumable($uuid, $token);
+        if (! $draft) {
+            return redirect()->route('focal-points.applications.show')->withErrors(['resume' => 'This resume link is invalid or has expired. Request a new one.']);
+        }
+
+        return view('foundation.focal-points.resume', compact('uuid', 'token'));
+    }
+
+    public function consumeResume(Request $request, string $uuid, string $token): RedirectResponse
     {
         $draft = $this->drafts->resume($uuid, $token);
         if (! $draft) {
@@ -182,7 +199,20 @@ class FocalPointApplicationController extends Controller
             'last_completed_step' => $draft->last_completed_step,
             'cv_filename' => $draft->cv_filename,
             'certificate_filename' => $draft->certificate_filename,
+            'cv_upload_status' => $draft->cv_upload_status,
+            'cv_upload_error' => $draft->cv_upload_error,
+            'certificate_upload_status' => $draft->certificate_upload_status,
+            'certificate_upload_error' => $draft->certificate_upload_error,
+            'expires_at' => $draft->expires_at?->toIso8601String(),
         ];
+    }
+
+    public function draftStatus(Request $request): JsonResponse
+    {
+        $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
+        abort_unless($draft, 404);
+
+        return response()->json($this->draftPayload($draft));
     }
 
     private function hasSubmittedApplication(string $email): bool

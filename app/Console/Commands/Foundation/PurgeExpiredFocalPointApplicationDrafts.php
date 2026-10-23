@@ -5,6 +5,7 @@ namespace App\Console\Commands\Foundation;
 use App\Models\FocalPointApplicationDraft;
 use App\Services\Foundation\GoogleDriveApplicationStorage;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 
 class PurgeExpiredFocalPointApplicationDrafts extends Command
 {
@@ -38,6 +39,11 @@ class PurgeExpiredFocalPointApplicationDrafts extends Command
                 foreach ([$draft->cv_drive_id, $draft->certificate_drive_id] as $fileId) {
                     if ($fileId) {
                         $drive->delete($fileId);
+                    }
+                }
+                foreach ([$draft->cv_upload_path, $draft->certificate_upload_path] as $path) {
+                    if ($path) {
+                        Storage::disk('local')->delete($path);
                     }
                 }
                 $draft->delete();

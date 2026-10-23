@@ -5,6 +5,7 @@ use App\Console\Commands\Newsletter\FinalizeCampaigns;
 use App\Console\Commands\Newsletter\SyncCampaignStats;
 use App\Console\Commands\Newsletter\DispatchDueEngagementRecalculations;
 use App\Console\Commands\Foundation\PurgeExpiredFocalPointApplicationDrafts;
+use App\Console\Commands\Foundation\ReportFocalPointApplicationHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -76,3 +77,10 @@ Schedule::command(PurgeExpiredFocalPointApplicationDrafts::class)
     ->runInBackground()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/focal-point-draft-purge.log'));
+
+Schedule::command(ReportFocalPointApplicationHealth::class)
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/focal-point-application-health.log'));

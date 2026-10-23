@@ -2,15 +2,17 @@
 
 namespace App\Services\Foundation;
 
+use App\Jobs\Foundation\UploadFocalPointApplicationDocument;
 use App\Models\FocalPointApplicationDraft;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class FocalPointApplicationDraftService
 {
-    private const DRAFT_LIFETIME_DAYS = 14;
+    private const DRAFT_LIFETIME_HOURS = 72;
 
     public function __construct(private readonly GoogleDriveApplicationStorage $drive) {}
 
@@ -30,7 +32,7 @@ class FocalPointApplicationDraftService
                 'uuid' => (string) Str::uuid(),
                 'email' => Str::lower((string) $answers['email']),
                 'answers' => [],
-                'expires_at' => now()->addDays(self::DRAFT_LIFETIME_DAYS),
+                'expires_at' => now()->addHours(self::DRAFT_LIFETIME_HOURS),
             ]);
         }
 
@@ -38,47 +40,15 @@ class FocalPointApplicationDraftService
             throw ValidationException::withMessages(['email' => 'This saved application belongs to a different email address. Request a resume link or start a new application.']);
         }
 
-        $previousIds = [
-            'cv' => $draft?->cv_drive_id,
-            'certificate' => $draft?->certificate_drive_id,
-        ];
-        $uploaded = [];
-        try {
-            if ($cv) {
-                $uploaded['cv'] = $this->drive->upload($cv, 'cv');
-            }
-            if ($certificate) {
-                $uploaded['certificate'] = $this->drive->upload($certificate, 'certificate');
-            }
+        $draft->fill([
+            'answers' => [...($draft->answers ?? []), ...Arr::except($answers, ['website', 'cv', 'certificate'])],
+            'last_completed_step' => max((int) ($draft->last_completed_step ?? 0), $step),
+        ]);
+        $draft->save();
 
-            $draft->fill([
-                'answers' => [...($draft->answers ?? []), ...Arr::except($answers, ['website'])],
-                'last_completed_step' => max((int) ($draft->last_completed_step ?? 0), $step),
-                'expires_at' => now()->addDays(self::DRAFT_LIFETIME_DAYS),
-            ]);
-            foreach ($uploaded as $kind => $file) {
-                $draft->setAttribute("{$kind}_drive_id", $file['id']);
-                $draft->setAttribute("{$kind}_drive_url", $file['url']);
-                $draft->setAttribute("{$kind}_filename", $file['filename']);
-            }
-            $draft->save();
-        } catch (\Throwable $exception) {
-            foreach ($uploaded as $file) {
-                try {
-                    $this->drive->delete($file['id']);
-                } catch (\Throwable) {
-                }
-            }
-            throw $exception;
-        }
-
-        foreach ($uploaded as $kind => $file) {
-            $previousId = $previousIds[$kind];
-            if ($previousId && $previousId !== $file['id']) {
-                try {
-                    $this->drive->delete($previousId);
-                } catch (\Throwable) {
-                }
+        foreach (['cv' => $cv, 'certificate' => $certificate] as $kind => $file) {
+            if ($file) {
+                $this->stageDocument($draft, $kind, $file);
             }
         }
 
@@ -108,7 +78,7 @@ class FocalPointApplicationDraftService
         return $token;
     }
 
-    public function resume(string $uuid, string $token): ?FocalPointApplicationDraft
+    public function findResumable(string $uuid, string $token): ?FocalPointApplicationDraft
     {
         $draft = FocalPointApplicationDraft::query()
             ->where('uuid', $uuid)
@@ -119,22 +89,73 @@ class FocalPointApplicationDraftService
             return null;
         }
 
-        $draft->forceFill([
-            'resume_token_hash' => null,
-            'resume_token_expires_at' => null,
-            'email_verified_at' => now(),
-        ])->save();
-
         return $draft;
+    }
+
+    public function resume(string $uuid, string $token): ?FocalPointApplicationDraft
+    {
+        $draft = $this->findResumable($uuid, $token);
+        if (! $draft) {
+            return null;
+        }
+
+        $consumed = FocalPointApplicationDraft::query()
+            ->whereKey($draft->id)
+            ->where('resume_token_hash', hash('sha256', $token))
+            ->where('resume_token_expires_at', '>', now())
+            ->update([
+                'resume_token_hash' => null,
+                'resume_token_expires_at' => null,
+                'email_verified_at' => now(),
+                'updated_at' => now(),
+            ]);
+        if ($consumed !== 1) {
+            return null;
+        }
+
+        return $draft->fresh();
     }
 
     public function hasDocuments(FocalPointApplicationDraft $draft): bool
     {
-        return filled($draft->cv_drive_id) && filled($draft->certificate_drive_id);
+        return filled($draft->cv_drive_id) && filled($draft->certificate_drive_id)
+            && $draft->cv_upload_status === 'ready'
+            && $draft->certificate_upload_status === 'ready';
     }
 
     public function deleteAfterSubmission(FocalPointApplicationDraft $draft): void
     {
         $draft->delete();
+    }
+
+    private function stageDocument(FocalPointApplicationDraft $draft, string $kind, UploadedFile $file): void
+    {
+        $disk = Storage::disk('local');
+        $extension = $file->extension() ?: 'upload';
+        $path = $file->storeAs(
+            "focal-point-drafts/{$draft->uuid}",
+            "{$kind}-".Str::uuid().".{$extension}",
+            'local',
+        );
+        if (! $path) {
+            throw new \RuntimeException('We could not stage this document. Please try again.');
+        }
+
+        $pathColumn = "{$kind}_upload_path";
+        $oldPath = $draft->{$pathColumn};
+        $draft->forceFill([
+            $pathColumn => $path,
+            "{$kind}_upload_filename" => $file->getClientOriginalName(),
+            "{$kind}_upload_status" => 'queued',
+            "{$kind}_upload_error" => null,
+            "{$kind}_upload_queued_at" => now(),
+            "{$kind}_uploaded_at" => null,
+        ])->save();
+        if ($oldPath && $oldPath !== $path) {
+            $disk->delete($oldPath);
+        }
+
+        UploadFocalPointApplicationDocument::dispatch($draft->uuid, $kind, $path)
+            ->onQueue('focal-point-uploads');
     }
 }

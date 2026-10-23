@@ -76,6 +76,9 @@ class GoogleDriveApplicationStorage
             ]);
 
             if (! $response->successful() || ! is_string($response->json('access_token'))) {
+                \Log::warning('Focal point Google Drive OAuth refresh failed.', [
+                    'status' => $response->status(),
+                ]);
                 throw new RuntimeException('Google Drive authentication is unavailable.');
             }
 

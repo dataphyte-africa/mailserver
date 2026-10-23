@@ -15,6 +15,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Mockery;
@@ -71,29 +73,37 @@ class FocalPointApplicationTest extends TestCase
 
     public function test_submission_requires_separate_documents_and_rejects_mismatched_locations(): void
     {
-        $this->postJson(route('focal-points.applications.store'), $this->payload([
-            'cv' => null,
-            'certificate' => null,
-        ]))->assertUnprocessable()->assertJsonValidationErrors(['cv', 'certificate']);
+        $draft = $this->confirmedDraft();
 
-        $this->postJson(route('focal-points.applications.store'), $this->payload([
+        $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
+            ->postJson(route('focal-points.applications.store'), $this->payload([
             'ward_id' => 999,
         ]))->assertUnprocessable()->assertJsonValidationErrors('ward_id');
 
         $this->assertDatabaseCount('focal_point_applications', 0);
     }
 
+    public function test_document_size_limits_are_enforced(): void
+    {
+        $draft = FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'expires_at' => now()->addHours(72),
+        ]);
+
+        $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
+            ->postJson(route('focal-points.applications.drafts.step'), [
+            'step' => 2,
+            ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'tools', 'application_consent']),
+            'cv' => UploadedFile::fake()->create('large-cv.pdf', 1025, 'application/pdf'),
+            'certificate' => UploadedFile::fake()->create('large-certificate.pdf', 2049, 'application/pdf'),
+        ])->assertUnprocessable()->assertJsonValidationErrors(['cv', 'certificate']);
+    }
+
     public function test_submission_stores_drive_links_and_super_admin_can_export_them(): void
     {
-        $drive = Mockery::mock(GoogleDriveApplicationStorage::class);
-        $drive->shouldReceive('configured')->andReturn(true);
-        $drive->shouldReceive('upload')->once()->with(Mockery::type(UploadedFile::class), 'cv')
-            ->andReturn(['id' => 'cv-id', 'url' => 'https://drive.google.com/file/d/cv-id/view', 'filename' => 'cv.pdf']);
-        $drive->shouldReceive('upload')->once()->with(Mockery::type(UploadedFile::class), 'certificate')
-            ->andReturn(['id' => 'cert-id', 'url' => 'https://drive.google.com/file/d/cert-id/view', 'filename' => 'certificate.pdf']);
-        app()->instance(GoogleDriveApplicationStorage::class, $drive);
+        $draft = $this->confirmedDraft();
 
-        $this->post(route('focal-points.applications.store'), $this->payload())
+        $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
+            ->post(route('focal-points.applications.store'), $this->payload(['cv' => null, 'certificate' => null]))
             ->assertRedirect(route('focal-points.applications.show'));
 
         $application = FocalPointApplication::query()->firstOrFail();
@@ -110,6 +120,7 @@ class FocalPointApplicationTest extends TestCase
             return $mail->hasTo($application->email)
                 && $mail->fullName === $application->full_name
                 && $mail->reference === $application->uuid
+                && $mail->queue === 'focal-point-mail'
                 && $mail->headers()->text['X-Focal-Point-Application-Id'] === $application->uuid
                 && str_contains($mail->render(), $application->uuid)
                 && str_contains($mail->render(), 'assets/foundation/Dataphyte%20Foundation%20Logo.png');
@@ -191,21 +202,25 @@ class FocalPointApplicationTest extends TestCase
         $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
     }
 
-    public function test_drive_failure_does_not_store_a_submission(): void
+    public function test_document_uploads_are_staged_and_queued_without_waiting_for_google_drive(): void
     {
-        $drive = Mockery::mock(GoogleDriveApplicationStorage::class);
-        $drive->shouldReceive('configured')->andReturn(true);
-        $drive->shouldReceive('upload')->once()->with(Mockery::type(UploadedFile::class), 'cv')
-            ->andReturn(['id' => 'cv-id', 'url' => 'https://drive.google.com/file/d/cv-id/view', 'filename' => 'cv.pdf']);
-        $drive->shouldReceive('upload')->once()->with(Mockery::type(UploadedFile::class), 'certificate')
-            ->andThrow(new \RuntimeException('Provider unavailable'));
-        $drive->shouldReceive('delete')->once()->with('cv-id');
-        app()->instance(GoogleDriveApplicationStorage::class, $drive);
+        Queue::fake();
+        Storage::fake('local');
+        $draft = FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'expires_at' => now()->addHours(72),
+        ]);
 
-        $this->post(route('focal-points.applications.store'), $this->payload())
-            ->assertRedirect()->assertSessionHasErrors('documents');
+        $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
+            ->postJson(route('focal-points.applications.drafts.step'), [
+                'step' => 2,
+                ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'tools', 'application_consent', 'cv', 'certificate']),
+            ])
+            ->assertOk()
+            ->assertJsonPath('cv_upload_status', 'queued')
+            ->assertJsonPath('certificate_upload_status', 'queued');
+
+        Queue::assertPushed(\App\Jobs\Foundation\UploadFocalPointApplicationDocument::class, 2);
         $this->assertDatabaseCount('focal_point_applications', 0);
-        Mail::assertNothingOutgoing();
     }
 
     public function test_google_drive_upload_uses_the_configured_folder_and_oauth_token(): void
@@ -354,7 +369,7 @@ class FocalPointApplicationTest extends TestCase
         $draft = FocalPointApplicationDraft::query()->sole();
         $this->assertSame('ada@example.test', $draft->email);
         $this->assertSame(0, $draft->last_completed_step);
-        $this->assertTrue($draft->expires_at->isFuture());
+        $this->assertTrue($draft->expires_at->isSameMinute(now()->addHours(72)));
     }
 
     public function test_other_tools_is_required_before_the_coordination_step_can_be_saved(): void
@@ -371,7 +386,7 @@ class FocalPointApplicationTest extends TestCase
     {
         $draft = FocalPointApplicationDraft::query()->create([
             'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => ['full_name' => 'Ada Observer'],
-            'expires_at' => now()->addDays(14),
+            'expires_at' => now()->addHours(72),
         ]);
 
         $this->postJson(route('focal-points.applications.drafts.resume.request'), ['email' => 'missing@example.test'])
@@ -382,12 +397,15 @@ class FocalPointApplicationTest extends TestCase
             ->assertOk()->assertJsonPath('message', 'If an unfinished application matches that email, a resume link has been sent.');
         Mail::assertQueued(FocalPointApplicationResumeMail::class, fn (FocalPointApplicationResumeMail $mail): bool => str_contains(
             $mail->render(), 'assets/foundation/Dataphyte%20Foundation%20Logo.png'
-        ));
+        ) && $mail->queue === 'focal-point-mail');
 
         $token = app(\App\Services\Foundation\FocalPointApplicationDraftService::class)->createResumeToken($draft);
         $this->get(route('focal-points.applications.drafts.resume', ['uuid' => $draft->uuid, 'token' => $token]))
+            ->assertOk()->assertSee('Continue application');
+        $this->assertNotNull($draft->fresh()->resume_token_hash);
+        $this->post(route('focal-points.applications.drafts.resume.consume', ['uuid' => $draft->uuid, 'token' => $token]))
             ->assertRedirect(route('focal-points.applications.show'))->assertSessionHas('focal_point_draft_uuid', $draft->uuid);
-        $this->get(route('focal-points.applications.drafts.resume', ['uuid' => $draft->uuid, 'token' => $token]))
+        $this->post(route('focal-points.applications.drafts.resume.consume', ['uuid' => $draft->uuid, 'token' => $token]))
             ->assertRedirect(route('focal-points.applications.show'))->assertSessionHasErrors('resume');
     }
 
@@ -395,7 +413,7 @@ class FocalPointApplicationTest extends TestCase
     {
         FocalPointApplicationDraft::query()->create([
             'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => ['full_name' => 'Ada Observer'],
-            'expires_at' => now()->addDays(14),
+            'expires_at' => now()->addHours(72),
         ]);
 
         $this->postJson(route('focal-points.applications.drafts.lookup'), ['email' => 'ada@example.test'])
@@ -429,7 +447,7 @@ class FocalPointApplicationTest extends TestCase
             'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'last_completed_step' => 2,
             'cv_drive_id' => 'draft-cv-id', 'cv_drive_url' => 'https://drive.google.com/file/d/draft-cv-id/view', 'cv_filename' => 'saved-cv.pdf',
             'certificate_drive_id' => 'draft-cert-id', 'certificate_drive_url' => 'https://drive.google.com/file/d/draft-cert-id/view', 'certificate_filename' => 'saved-certificate.pdf',
-            'expires_at' => now()->addDays(14),
+            'expires_at' => now()->addHours(72),
         ]);
         $drive = Mockery::mock(GoogleDriveApplicationStorage::class);
         $drive->shouldReceive('configured')->andReturn(true);
@@ -467,5 +485,24 @@ class FocalPointApplicationTest extends TestCase
             'cv' => UploadedFile::fake()->create('cv.pdf', 20, 'application/pdf'),
             'certificate' => UploadedFile::fake()->create('certificate.pdf', 20, 'application/pdf'),
         ], $overrides);
+    }
+
+    private function confirmedDraft(): FocalPointApplicationDraft
+    {
+        return FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'email' => 'ada@example.test',
+            'answers' => [],
+            'last_completed_step' => 2,
+            'cv_drive_id' => 'cv-id',
+            'cv_drive_url' => 'https://drive.google.com/file/d/cv-id/view',
+            'cv_filename' => 'cv.pdf',
+            'cv_upload_status' => 'ready',
+            'certificate_drive_id' => 'cert-id',
+            'certificate_drive_url' => 'https://drive.google.com/file/d/cert-id/view',
+            'certificate_filename' => 'certificate.pdf',
+            'certificate_upload_status' => 'ready',
+            'expires_at' => now()->addHours(72),
+        ]);
     }
 }

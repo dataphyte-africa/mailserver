@@ -8,9 +8,9 @@
         :root{--ink:#142039;--muted:#52617b;--line:#ced8e8;--accent:#2357b7;--paper:#fff;--wash:#f2f5fa;--danger:#a32635}
         *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 90% 5%,#dce9f9 0,transparent 36%),var(--wash);color:var(--ink);font:15px/1.55 "Avenir Next","Segoe UI",sans-serif}
         .shell{max-width:720px;margin:0 auto;padding:0 0 72px}.head{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:76px;padding:15px 24px;background:#fff;border-bottom:1px solid var(--line)}.logo{display:block;width:195px;max-width:100%;height:auto;object-fit:contain}.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:var(--accent)}.head-nav{display:flex;align-items:center;justify-content:flex-end;gap:3px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:none}.head-nav[hidden],.entry-panel[hidden],.panel[hidden]{display:none}.head-nav::-webkit-scrollbar{display:none}.head-nav button{flex:none;scroll-snap-align:center;white-space:nowrap;border:0;border-radius:7px;background:transparent;color:var(--muted);padding:7px 8px;font-size:12px;font-weight:600;line-height:1.2}.head-nav button:hover{background:#f4f7fc;color:var(--ink);filter:none}.head-nav button.current,.head-nav button.current:hover{background:#eaf1fb;color:var(--accent)}.head-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-        .hero{background:#4d70ad;color:#fff;border-radius:0;padding:30px 32px}.hero h1{font-size:clamp(27px,4vw,38px);line-height:1.12;letter-spacing:-.035em;margin:12px 0}.hero p{max-width:550px;color:#f4f7ff}.hero .deadline{display:block;margin-top:18px;color:#fff;font-size:14px;font-weight:700}
-        .intro{padding:10px 8px 0;margin-top:18px}.intro p{line-height:1.65}.intro p:first-child{margin-top:0}.intro p:last-child{margin-bottom:0}.note{font-weight:600;color:#2d4d81}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-top:18px;box-shadow:0 6px 24px #14294a0b}.entry-panel{margin-top:20px;padding:28px;background:#edf5ff;border:1px solid #c5d8f3;border-radius:16px;box-shadow:0 6px 24px #14294a0b}.entry-panel h2{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin:0 0 8px}.entry-panel p{margin:0 0 18px;color:var(--muted)}.entry-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.entry-controls label{margin:0;flex:1;min-width:240px}.entry-controls input{font-size:17px;min-height:50px}.entry-controls button{min-height:50px}.entry-note{margin:14px 0 0!important;font-size:13px}.entry-message{min-height:20px;margin:12px 0 0!important;font-size:13px}.save-status{min-height:22px;margin:14px 0 -9px;color:var(--muted);font-size:13px}.save-status[data-state=error]{color:var(--danger)}.saved-file{display:block;color:#1d6040;font-size:12px;margin-top:5px}
-        .shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:18px;margin-right:18px}
+        .hero{background:#4d70ad;color:#fff;border-radius:0;padding:30px 32px}.hero h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.035em;margin:0}.hero p{max-width:550px;color:#f4f7ff}.hero .deadline{display:block;margin-top:18px;color:#fff;font-size:14px;font-weight:700}
+        .intro{padding:10px 8px 0;margin-top:18px}.key-points{margin:0;padding-left:22px;display:grid;gap:14px}.key-points li{padding-left:4px;line-height:1.65}.key-points li::marker{color:var(--accent)}.note{font-weight:600;color:#2d4d81}.hero[hidden],.intro[hidden]{display:none}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-top:18px;box-shadow:0 6px 24px #14294a0b}.entry-panel{margin-top:20px;padding:28px;background:#edf5ff;border:1px solid #c5d8f3;border-radius:16px;box-shadow:0 6px 24px #14294a0b}.entry-panel h2{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin:0 0 8px}.entry-panel p{margin:0 0 18px;color:var(--muted)}.entry-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.entry-controls label{margin:0;flex:1;min-width:240px}.entry-controls input{font-size:17px;min-height:50px}.entry-controls button{min-height:50px}.entry-note{margin:14px 0 0!important;font-size:13px}.entry-message{min-height:20px;margin:12px 0 0!important;font-size:13px}.save-status{min-height:22px;margin:14px 0 -9px;color:var(--muted);font-size:13px}.save-status[data-state=error]{color:var(--danger)}.saved-file{display:block;color:#1d6040;font-size:12px;margin-top:5px}
+        .shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:18px;margin-right:18px}.draft-expiry{margin:14px 0 0;color:var(--muted);font-size:13px}.upload-status{display:block;color:var(--muted);font-size:12px;margin-top:5px}.upload-status[data-state=failed]{color:var(--danger)}.upload-status[data-state=ready]{color:#1d6040}
         fieldset.step{border:0;padding:0;margin:0;min-width:0;scroll-margin-top:100px}fieldset.step[hidden]{display:none}legend{font-size:21px;font-weight:700;letter-spacing:-.02em;padding:0;margin-bottom:5px}.section-intro{color:var(--muted);font-size:14px;margin:0 0 20px}.grid{display:grid;grid-template-columns:1fr;gap:17px}.field{min-width:0}.field.wide{grid-column:1/-1}label,.label{font-size:14px;font-weight:600;display:block;margin-bottom:7px}.help{display:block;color:var(--muted);font-size:12px;margin-top:5px}.required{color:var(--danger)}input:not([type=radio]):not([type=checkbox]),select,textarea{width:100%;font:inherit;color:var(--ink);padding:10px 12px;border:1px solid #b7c6dc;border-radius:9px;background:#fff;min-height:44px}textarea{min-height:110px;resize:vertical}input:focus,select:focus,textarea:focus{outline:2px solid #4887ea;outline-offset:1px}.options{display:flex;gap:12px 20px;flex-wrap:wrap}.options label{font-weight:500;margin:0;display:flex;align-items:center;gap:8px}.options input{width:17px;height:17px}.question{border-top:1px solid var(--line);padding-top:20px;margin-top:5px}.error{color:var(--danger);font-size:13px;margin:5px 0 0}.alert{padding:15px 18px;border-radius:11px;margin-top:20px}.alert.error-box{background:#fff1f1;border:1px solid #ebc8cb;color:#751b29}.alert.success{background:#e9f7ef;border:1px solid #a3d5b6;color:#1d6040}.actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px}button{font:inherit;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;padding:11px 20px;font-weight:600}button.secondary{background:#fff;color:var(--ink)}button:hover{filter:brightness(1.12)}button:disabled{opacity:.55;cursor:not-allowed}.foot{color:var(--muted);font-size:13px;margin:32px 0;text-align:center}
         .location-picker{position:relative}.location-picker.enhanced select{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0;pointer-events:none}.location-picker input[type=search]{padding-right:35px}.location-results{position:absolute;z-index:5;top:calc(100% + 4px);left:0;right:0;height:220px;max-height:45vh;overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #aebed6;border-radius:9px;box-shadow:0 12px 24px #14294a24}.location-results[hidden]{display:none}.location-option{display:block;width:100%;border:0;border-radius:0;background:#fff;color:var(--ink);padding:10px 12px;text-align:left;font-weight:500}.location-option:hover,.location-option.active{background:#e9f1ff;filter:none}.location-empty{padding:11px 12px;color:var(--muted)}.terms-scroll{height:320px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:#f8faff;padding:18px;line-height:1.55}.terms-scroll h2{font-size:17px;margin:20px 0 8px}.terms-scroll h2:first-child{margin-top:0}.terms-scroll p,.terms-scroll li{font-size:14px}.terms-scroll ul{padding-left:22px}.terms-accept{margin-top:20px;display:flex;align-items:flex-start;gap:10px;font-weight:500}.terms-accept input{margin-top:5px}.terms-accept.locked{color:var(--muted)}button:disabled{background:#8d97a9;border-color:#8d97a9;color:#fff;opacity:1;filter:none}
         @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px}}@media(max-width:639px){.shell{padding-bottom:48px}.head{min-height:0;align-items:flex-start;flex-direction:column;gap:10px;padding:13px 18px}.logo{width:175px}.head-nav{width:100%;justify-content:flex-start;gap:2px}.head-nav button{font-size:12px;padding:7px 9px}.head .eyebrow{text-align:left}.hero{padding:23px 20px}.intro{padding:8px 5px 0}.entry-panel,.panel{padding:20px 17px}.entry-controls button{width:100%}.shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:12px;margin-right:12px}fieldset.step{scroll-margin-top:115px}.actions button{padding:10px 14px}}
@@ -33,16 +33,17 @@
             <span class="eyebrow">2027 Election Observation</span>
         @endif
     </div>
-    <header class="hero">
-        <span class="eyebrow" style="color:#bcd5ff">Call for State Coordinators</span>
-        <h1>State Coordinators</h1>
+    <header class="hero" id="application-hero">
+        <h1>Call for State Coordinators</h1>
         <p>{{ $content->heroIntro() }}</p>
         <span class="deadline">The deadline for application is {{ $closesAt->format('g:i A \\o\\n l, F j, Y') }}.</span>
     </header>
-    <div class="intro">
-        <p>{{ $content->intro() }}</p>
-        <p>{{ $content->selectionNote() }}</p>
-        <p class="note">{{ $content->preparationNote() }}</p>
+    <div class="intro" id="application-intro">
+        <ul class="key-points">
+            <li>{{ $content->intro() }}</li>
+            <li>{{ $content->selectionNote() }}</li>
+            <li class="note">{{ $content->preparationNote() }}</li>
+        </ul>
     </div>
 
     @if(session('application_received'))
@@ -79,7 +80,7 @@
             <h2 id="submitted-application-title">Application already submitted</h2>
             <p>An application has already been submitted with this email address. Check your inbox for the confirmation email.</p>
         </section>
-        <form class="panel" action="{{ route('focal-points.applications.store') }}" method="post" enctype="multipart/form-data" id="application-form" data-draft-step-url="{{ route('focal-points.applications.drafts.step') }}" data-draft-lookup-url="{{ route('focal-points.applications.drafts.lookup') }}" data-resume-request-url="{{ route('focal-points.applications.drafts.resume.request') }}" @unless($showApplicationForm) hidden @endunless novalidate>
+        <form class="panel" action="{{ route('focal-points.applications.store') }}" method="post" enctype="multipart/form-data" id="application-form" data-draft-step-url="{{ route('focal-points.applications.drafts.step') }}" data-draft-status-url="{{ route('focal-points.applications.drafts.status') }}" data-draft-lookup-url="{{ route('focal-points.applications.drafts.lookup') }}" data-resume-request-url="{{ route('focal-points.applications.drafts.resume.request') }}" @unless($showApplicationForm) hidden @endunless novalidate>
             @csrf
             <input type="hidden" name="tor_version" value="{{ $torVersion }}">
             <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px" value="">
@@ -120,7 +121,7 @@
                 <div class="grid">
                     <div class="field wide"><label for="observed_before">Participated in election observation before? <span class="required">*</span></label><select id="observed_before" name="observed_before" aria-controls="observation-experience-field" required><option value="">Select an option</option><option value="yes" @selected(old('observed_before') === 'yes')>Yes</option><option value="no" @selected(old('observed_before') === 'no')>No</option></select></div>
                     <div class="field wide" id="observation-experience-field" hidden><label for="observation_experience">List the elections, organisations, years and your role <span class="required">*</span></label><textarea id="observation_experience" name="observation_experience" disabled>{{ old('observation_experience') }}</textarea></div>
-                    <div class="field wide"><label for="coordinated_before">Recruited, trained or coordinated a group before? <span class="required">*</span></label><select id="coordinated_before" name="coordinated_before" aria-controls="coordination-experience-field" required><option value="">Select an option</option><option value="yes" @selected(old('coordinated_before') === 'yes')>Yes</option><option value="no" @selected(old('coordinated_before') === 'no')>No</option></select></div>
+                    <div class="field wide"><label for="coordinated_before">Trained or coordinated a group before? <span class="required">*</span></label><select id="coordinated_before" name="coordinated_before" aria-controls="coordination-experience-field" required><option value="">Select an option</option><option value="yes" @selected(old('coordinated_before') === 'yes')>Yes</option><option value="no" @selected(old('coordinated_before') === 'no')>No</option></select></div>
                     <div class="field wide" id="coordination-experience-field" hidden><label for="coordination_experience">Describe team size and responsibilities <span class="required">*</span></label><textarea id="coordination_experience" name="coordination_experience" disabled>{{ old('coordination_experience') }}</textarea></div>
                     <div class="field"><label for="available_for_training">Available for mandatory training? <span class="required">*</span></label><select id="available_for_training" name="available_for_training" required><option value="">Select an option</option><option value="yes" @selected(old('available_for_training') === 'yes')>Yes</option><option value="no" @selected(old('available_for_training') === 'no')>No</option></select></div>
                 </div>
@@ -140,8 +141,8 @@
                         @endforeach
                     </div></div>
                     <div class="field wide" id="tools-other-field" @if(! in_array('other', old('tools', []))) hidden @endif><label for="tools_other">Other tools <span class="required">*</span></label><input id="tools_other" name="tools_other" value="{{ old('tools_other') }}" @if(in_array('other', old('tools', []))) required @else disabled @endif></div>
-                    <div class="field"><label for="cv">CV, maximum two pages <span class="required">*</span></label><input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" @required(! $draft?->cv_filename)><span class="help">PDF, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="cv-saved" @if(! $draft?->cv_filename) hidden @endif>{{ $draft?->cv_filename ? 'Saved: '.$draft->cv_filename.' Select a new file to replace it.' : '' }}</span></div>
-                    <div class="field"><label for="certificate">Highest-qualification certificate <span class="required">*</span></label><input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" @required(! $draft?->certificate_filename)><span class="help">PDF, image, DOC or DOCX; maximum {{ $maxUploadMb }} MB.</span><span class="saved-file" id="certificate-saved" @if(! $draft?->certificate_filename) hidden @endif>{{ $draft?->certificate_filename ? 'Saved: '.$draft->certificate_filename.' Select a new file to replace it.' : '' }}</span></div>
+                    <div class="field"><label for="cv">CV, maximum two pages <span class="required">*</span></label><input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" @required(! $draft?->cv_filename)><span class="help">PDF, DOC or DOCX; maximum {{ $cvMaxUploadMb }} MB.</span><span class="saved-file" id="cv-saved" @if(! $draft?->cv_filename) hidden @endif>{{ $draft?->cv_filename ? 'Saved: '.$draft->cv_filename.' Select a new file to replace it.' : '' }}</span><span class="upload-status" id="cv-upload-status" hidden></span></div>
+                    <div class="field"><label for="certificate">Highest-qualification certificate <span class="required">*</span></label><input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" @required(! $draft?->certificate_filename)><span class="help">PDF, image, DOC or DOCX; maximum {{ $certificateMaxUploadMb }} MB.</span><span class="saved-file" id="certificate-saved" @if(! $draft?->certificate_filename) hidden @endif>{{ $draft?->certificate_filename ? 'Saved: '.$draft->certificate_filename.' Select a new file to replace it.' : '' }}</span><span class="upload-status" id="certificate-upload-status" hidden></span></div>
                     <div class="field wide"><label style="display:flex;align-items:flex-start;gap:10px;font-weight:500"><input type="checkbox" name="application_consent" value="1" @checked(old('application_consent')) required style="margin-top:5px"> I consent to Dataphyte Foundation processing my answers and uploaded documents to assess this application and contact me about its outcome. <span class="required">*</span></label></div>
                 </div>
             </fieldset>
@@ -154,6 +155,7 @@
                 <p class="help" id="terms-help">Scroll to the end of the terms to enable acknowledgement.</p>
                 <label class="terms-accept locked" id="terms-accept-label"><input type="checkbox" id="tor_accepted" name="tor_accepted" value="1" required disabled @checked(old('tor_accepted'))> I have read and agree to the Terms of Reference. <span class="required">*</span></label>
             </fieldset>
+            <p class="draft-expiry" id="draft-expiry" hidden></p>
             <p class="save-status" id="save-status" aria-live="polite"></p>
             <div class="actions"><button type="button" class="secondary" id="back-button" hidden>Back</button><button type="button" id="next-button">Continue</button><button type="submit" id="submit-button" disabled hidden>Submit application</button></div>
         </form>
@@ -161,11 +163,13 @@
 </main>
 @if($isOpen && !session('application_received'))
 @php
-    $initialDraft = $draft ? ['answers' => $draft->answers, 'lastCompletedStep' => $draft->last_completed_step, 'cvFilename' => $draft->cv_filename, 'certificateFilename' => $draft->certificate_filename] : null;
+    $initialDraft = $draft ? ['answers' => $draft->answers, 'lastCompletedStep' => $draft->last_completed_step, 'cvFilename' => $draft->cv_filename, 'certificateFilename' => $draft->certificate_filename, 'cvUploadStatus' => $draft->cv_upload_status, 'cvUploadError' => $draft->cv_upload_error, 'certificateUploadStatus' => $draft->certificate_upload_status, 'certificateUploadError' => $draft->certificate_upload_error, 'expiresAt' => $draft->expires_at?->toIso8601String()] : null;
 @endphp
 <script>
 (() => {
     const form = document.querySelector('#application-form');
+    const hero = document.querySelector('#application-hero');
+    const intro = document.querySelector('#application-intro');
     const steps = [...form.querySelectorAll('[data-step]')];
     const nav = document.querySelector('.head-nav');
     const labels = [...document.querySelectorAll('[data-step-label]')];
@@ -176,6 +180,7 @@
     const termsCheck = document.querySelector('#tor_accepted');
     const termsHelp = document.querySelector('#terms-help');
     const saveStatus = document.querySelector('#save-status');
+    const draftExpiry = document.querySelector('#draft-expiry');
     const toolsOtherField = document.querySelector('#tools-other-field');
     const toolsOther = document.querySelector('#tools_other');
     const entry = document.querySelector('#application-entry');
@@ -232,12 +237,44 @@
         if (state) saveStatus.dataset.state = state;
         else delete saveStatus.dataset.state;
     };
-    const savedFile = (kind, filename) => {
+    let uploadPoll = null;
+    const savedFile = (kind, filename, status = 'ready', error = '') => {
         const input = form.querySelector(`#${kind}`);
         const label = form.querySelector(`#${kind}-saved`);
-        input.required = !filename;
-        label.hidden = !filename;
+        const uploadStatus = form.querySelector(`#${kind}-upload-status`);
+        const waiting = ['queued', 'uploading'].includes(status);
+        input.required = !filename && !waiting;
+        label.hidden = !filename || waiting;
         label.textContent = filename ? `Saved: ${filename}. Select a new file to replace it.` : '';
+        uploadStatus.hidden = status === 'ready';
+        uploadStatus.dataset.state = status;
+        uploadStatus.textContent = status === 'queued' ? 'Document upload is waiting to start.'
+            : status === 'uploading' ? 'Document is uploading securely. Please wait.'
+                : status === 'failed' ? (error || 'Document upload failed. Select the file again to retry.') : '';
+    };
+    const formatExpiry = value => new Intl.DateTimeFormat('en-NG', {dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Lagos'}).format(new Date(value));
+    const updateDraftMeta = payload => {
+        serverDraft = {answers: payload.answers, lastCompletedStep: payload.last_completed_step, cvFilename: payload.cv_filename, certificateFilename: payload.certificate_filename, cvUploadStatus: payload.cv_upload_status, cvUploadError: payload.cv_upload_error, certificateUploadStatus: payload.certificate_upload_status, certificateUploadError: payload.certificate_upload_error, expiresAt: payload.expires_at};
+        savedFile('cv', serverDraft.cvFilename, serverDraft.cvUploadStatus, serverDraft.cvUploadError);
+        savedFile('certificate', serverDraft.certificateFilename, serverDraft.certificateUploadStatus, serverDraft.certificateUploadError);
+        draftExpiry.hidden = !serverDraft.expiresAt;
+        draftExpiry.textContent = serverDraft.expiresAt ? `Your saved application expires on ${formatExpiry(serverDraft.expiresAt)} WAT.` : '';
+    };
+    const uploadsReady = () => serverDraft?.cvUploadStatus === 'ready' && serverDraft?.certificateUploadStatus === 'ready';
+    const pollUploadStatus = () => {
+        if (uploadPoll || uploadsReady() || !serverDraft) return;
+        uploadPoll = window.setInterval(async () => {
+            try {
+                const response = await fetch(form.dataset.draftStatusUrl, {credentials: 'same-origin', headers: {Accept: 'application/json'}});
+                if (!response.ok) return;
+                const payload = await response.json();
+                updateDraftMeta(payload);
+                if (uploadsReady() || ['failed'].includes(serverDraft.cvUploadStatus) || ['failed'].includes(serverDraft.certificateUploadStatus)) {
+                    window.clearInterval(uploadPoll); uploadPoll = null;
+                    if (uploadsReady()) setSaveStatus('Documents uploaded. You can continue.');
+                }
+            } catch (_) {}
+        }, 2000);
     };
     const applyAnswers = answers => {
         if (!answers) return;
@@ -424,10 +461,16 @@
             });
             const payload = await response.json();
             if (!response.ok) throw new Error(Object.values(payload.errors || {}).flat()[0] || 'We could not save your progress.');
-            serverDraft = {answers: payload.answers, lastCompletedStep: payload.last_completed_step, cvFilename: payload.cv_filename, certificateFilename: payload.certificate_filename};
-            savedFile('cv', payload.cv_filename);
-            savedFile('certificate', payload.certificate_filename);
+            updateDraftMeta(payload);
+            ['cv', 'certificate'].forEach(kind => {
+                if (form.querySelector(`#${kind}`).files.length) form.querySelector(`#${kind}`).value = '';
+            });
             clearLocal();
+            if (current === 2 && !uploadsReady()) {
+                pollUploadStatus();
+                setSaveStatus('Your answers are saved. Wait for both document uploads to finish.', 'error');
+                return false;
+            }
             setSaveStatus('Saved.');
             return true;
         } catch (error) {
@@ -461,6 +504,8 @@
         serverDraft = null;
         current = 0;
         form.hidden = false;
+        hero.hidden = true;
+        intro.hidden = true;
         nav.hidden = false;
         entry.hidden = true;
         pending.hidden = true;
@@ -520,18 +565,32 @@
         setSaveStatus('Changes on this device have not yet been saved to the server.', 'error');
     } else if (serverDraft) {
         current = Math.min(serverDraft.lastCompletedStep + 1, steps.length - 1);
-        savedFile('cv', serverDraft.cvFilename);
-        savedFile('certificate', serverDraft.certificateFilename);
+        updateDraftMeta({
+            answers: serverDraft.answers,
+            last_completed_step: serverDraft.lastCompletedStep,
+            cv_filename: serverDraft.cvFilename,
+            certificate_filename: serverDraft.certificateFilename,
+            cv_upload_status: serverDraft.cvUploadStatus,
+            cv_upload_error: serverDraft.cvUploadError,
+            certificate_upload_status: serverDraft.certificateUploadStatus,
+            certificate_upload_error: serverDraft.certificateUploadError,
+            expires_at: serverDraft.expiresAt,
+        });
         setSaveStatus('Saved application restored.');
+        pollUploadStatus();
     }
     syncToolsOther();
     restore().then(() => {
         if (serverDraft) {
+            hero.hidden = true;
+            intro.hidden = true;
             show(current);
             return;
         }
         if (localDraft?.answers?.email) {
             form.hidden = false;
+            hero.hidden = true;
+            intro.hidden = true;
             nav.hidden = false;
             entry.hidden = true;
             show(current);
