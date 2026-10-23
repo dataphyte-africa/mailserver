@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'closes_at' => env('FOCAL_POINT_APPLICATIONS_CLOSES_AT', '2026-10-29 23:59:00'),
+    'closes_at' => env('FOCAL_POINT_APPLICATIONS_CLOSES_AT', '2026-10-28 23:59:00'),
     'timezone' => 'Africa/Lagos',
     'max_upload_kb' => (int) env('FOCAL_POINT_APPLICATION_MAX_UPLOAD_KB', 10240),
     'google_drive' => [

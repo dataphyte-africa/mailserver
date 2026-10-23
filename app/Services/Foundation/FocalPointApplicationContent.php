@@ -17,12 +17,12 @@ class FocalPointApplicationContent
 
     public function heroIntro(): string
     {
-        return (string) ($this->data()['hero_intro'] ?? "Help coordinate election observers across Nigeria for Dataphyte Foundation's 2027 election observation exercise.");
+        return (string) ($this->data()['hero_intro'] ?? 'Dataphyte Foundation seeks qualified applicants to observe the 2027 general elections and manage field observers in their state.');
     }
 
     public function intro(): string
     {
-        return (string) ($this->data()['intro'] ?? "State Focal Points will recruit, coordinate, supervise and train observers in their state, and report to the Foundation's focal person. Applicants must reside in the state they apply to coordinate.");
+        return (string) ($this->data()['intro'] ?? "State Coordinators will coordinate and supervise election observers in their state and will directly report to Dataphyte Foundation's focal person. Applicants must be residents of the state they are applying to coordinate.");
     }
 
     public function selectionNote(): string
@@ -32,7 +32,7 @@ class FocalPointApplicationContent
 
     public function preparationNote(): string
     {
-        return (string) ($this->data()['preparation_note'] ?? 'Prepare your CV (maximum two pages) and highest-qualification certificate before you begin.');
+        return (string) ($this->data()['preparation_note'] ?? 'Prepare your CV (maximum two pages) and certificate before you begin your application.');
     }
 
     public function closesAt(): CarbonImmutable

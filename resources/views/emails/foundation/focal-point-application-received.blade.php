@@ -14,7 +14,7 @@
             <td style="padding:32px;font-size:16px;line-height:1.6;">
                 <h1 style="margin:0 0 20px;font-size:25px;line-height:1.25;">We received your application</h1>
                 <p style="margin:0 0 16px;">Dear {{ $fullName }},</p>
-                <p style="margin:0 0 16px;">Thank you for applying to be a State Focal Point for Dataphyte Foundation's 2027 election observation exercise.</p>
+                <p style="margin:0 0 16px;">Thank you for applying to be a State Coordinator for Dataphyte Foundation's 2027 election observation exercise.</p>
                 <p style="margin:0 0 16px;">Your application reference is <strong>{{ $reference }}</strong>. Please keep it for your records.</p>
                 <p style="margin:0 0 16px;">Submitting an application does not guarantee selection. We will contact applicants about their status after the application deadline.</p>
                 <p style="margin:24px 0 0;">Dataphyte Foundation</p>

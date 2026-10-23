@@ -1,5 +1,5 @@
-<h2>Role of State Focal Points</h2>
-<p>State Focal Points observe elections and recruit, coordinate, supervise and train election observers in their respective states. They act as the intermediary between observers and Dataphyte Foundation's designated focal person.</p>
+<h2>Role of State Coordinators</h2>
+<p>State Coordinators observe elections and recruit, coordinate, supervise and train election observers in their respective states. They act as the intermediary between observers and Dataphyte Foundation's designated focal person.</p>
 <ul>
     <li>Observe the election at a designated polling unit and follow Dataphyte Foundation's observation methodology, reporting procedures and code of conduct.</li>
     <li>Recruit and select qualified observers using the Foundation's standard criteria, and conduct step-down training using provided materials.</li>
@@ -8,7 +8,7 @@
 </ul>
 <h2>Deliverables</h2>
 <ul>
-    <li>Attend mandatory State Focal Point training; recruit the number of observers authorised by Dataphyte Foundation; and train selected observers.</li>
+    <li>Attend mandatory State Coordinator training; recruit the number of observers authorised by Dataphyte Foundation; and train selected observers.</li>
     <li>Provide recruitment and selection plans, evidence of recruitment, training plans, and a training report with photographs, attendance and presentations.</li>
     <li>Submit incident updates and a financial report on funds spent coordinating observers.</li>
     <li>Submit election updates through the Nigeria Election Data Observatory (NEDO) app and ensure that recruited observers do the same.</li>
@@ -37,4 +37,4 @@
 <h2>Communication and data</h2>
 <p>Remain reachable throughout the observation exercise. Answer calls from the coordination team and immediately report any security threat or request to leave the polling unit. All data collected during this exercise remains the property of Dataphyte Foundation.</p>
 <h2>Payment conditions</h2>
-<p>Payment is conditional on satisfactory participation and completion of mandatory deliverables. A State Focal Point's payment may be affected if required deliverables are not submitted. The payment amount and breakdown will be inserted only after confirmation.</p>
+<p>Payment is conditional on satisfactory participation and completion of mandatory deliverables. A State Coordinator's payment may be affected if required deliverables are not submitted. The payment amount and breakdown will be inserted only after confirmation.</p>

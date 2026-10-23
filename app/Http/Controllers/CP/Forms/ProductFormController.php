@@ -49,7 +49,7 @@ class ProductFormController
 
         $bespokeForms = $subscriptionWorkspace ? collect() : collect([
             [
-                'name' => '2027 State Focal Points',
+                'name' => '2027 State Coordinators',
                 'description' => 'Foundation recruitment application with state, LGA and ward lookup, private CV and certificate uploads.',
                 'url' => route('focal-points.applications.show'),
                 'submissions_url' => cp_route('focal-point-applications.index'),

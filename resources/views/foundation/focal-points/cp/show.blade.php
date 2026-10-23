@@ -1,5 +1,5 @@
 @extends('statamic::layout')
-@section('title', $application->full_name.' · State Focal Point Application')
+@section('title', $application->full_name.' · State Coordinator Application')
 
 @section('content')
     @include('forms.cp._styles')

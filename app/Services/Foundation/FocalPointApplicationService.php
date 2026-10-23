@@ -94,11 +94,9 @@ class FocalPointApplicationService
             'coordination_experience' => ['required_if:coordinated_before,yes', 'nullable', 'string', 'max:3000'],
             'available_for_training' => ['required', Rule::in(['yes', 'no'])],
             'recruitment_plan' => ['required', 'string', 'max:3000'],
-            'reporting_plan' => ['required', 'string', 'max:3000'],
-            'coordination_challenges' => ['required', 'string', 'max:3000'],
             'polling_unit_scenario' => ['required', 'string', 'max:2000'],
             'tools' => ['required', 'array', 'min:1'],
-            'tools.*' => [Rule::in(['excel', 'word', 'google_forms', 'messaging', 'online_collection', 'other'])],
+            'tools.*' => [Rule::in(['excel', 'word', 'google_forms', 'messaging', 'online_collection', 'none', 'other'])],
             'tools_other' => ['nullable', 'string', 'max:200'],
             'cv' => [$requireDocuments ? 'required' : 'nullable', 'file', 'mimes:pdf,doc,docx', "max:{$max}"],
             'certificate' => [$requireDocuments ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', "max:{$max}"],
@@ -130,8 +128,7 @@ class FocalPointApplicationService
             throw ValidationException::withMessages(['tools_other' => 'Describe the other tools you can use.']);
         }
 
-        foreach (['recruitment_plan' => 100, 'reporting_plan' => 100,
-            'coordination_challenges' => 100, 'polling_unit_scenario' => 50] as $field => $limit) {
+        foreach (['recruitment_plan' => 100, 'polling_unit_scenario' => 50] as $field => $limit) {
             $words = preg_split('/\s+/u', trim($validated[$field]), -1, PREG_SPLIT_NO_EMPTY);
             if (count($words ?: []) > $limit) {
                 throw ValidationException::withMessages([$field => "Use {$limit} words or fewer."]);

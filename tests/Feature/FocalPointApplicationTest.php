@@ -55,7 +55,7 @@ class FocalPointApplicationTest extends TestCase
     public function test_public_page_uses_corrected_deadline_and_filters_foreign_states(): void
     {
         $this->get(route('focal-points.applications.show'))
-            ->assertOk()->assertSee('Thursday, 29 October 2026')
+            ->assertOk()->assertSee('Wednesday, October 28, 2026')
             ->assertSee('assets/foundation/Dataphyte%20Foundation%20Logo.png')
             ->assertSee('Personal information')
             ->assertSee('Experience')
@@ -103,7 +103,7 @@ class FocalPointApplicationTest extends TestCase
         $this->assertSame('cv-id', $application->cv_drive_id);
         $this->assertSame('cert-id', $application->certificate_drive_id);
         $this->assertSame(app(FocalPointApplicationContent::class)->torVersion(), $application->tor_version);
-        $this->assertStringContainsString('Role of State Focal Points', $application->tor_html);
+        $this->assertStringContainsString('Role of State Coordinators', $application->tor_html);
         $this->assertNotNull($application->tor_accepted_at);
         $this->assertSame('pending', $application->confirmation_email_status);
         Mail::assertQueued(FocalPointApplicationReceivedMail::class, function (FocalPointApplicationReceivedMail $mail) use ($application): bool {
@@ -360,7 +360,7 @@ class FocalPointApplicationTest extends TestCase
     {
         $this->postJson(route('focal-points.applications.drafts.step'), [
             'step' => 2,
-            ...Arr::only($this->payload(), ['recruitment_plan', 'reporting_plan', 'coordination_challenges', 'polling_unit_scenario', 'application_consent', 'cv', 'certificate']),
+            ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'application_consent', 'cv', 'certificate']),
             'tools' => ['other'],
             'tools_other' => '',
         ])->assertUnprocessable()->assertJsonValidationErrors('tools_other');
@@ -458,8 +458,6 @@ class FocalPointApplicationTest extends TestCase
             'observed_before' => 'no', 'coordinated_before' => 'no',
             'available_for_training' => 'yes',
             'recruitment_plan' => 'I would recruit and train impartial observers across the state.',
-            'reporting_plan' => 'I would verify reports and submit them on time.',
-            'coordination_challenges' => 'Connectivity is a risk, so I would prepare an offline fallback.',
             'polling_unit_scenario' => 'I would record the time, absence of officials, voters and security personnel, then report verified facts.',
             'tools' => ['excel', 'google_forms'],
             'application_consent' => '1',

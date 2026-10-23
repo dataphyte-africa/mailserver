@@ -1,10 +1,10 @@
 @extends('statamic::layout')
-@section('title', '2027 State Focal Point Applications')
+@section('title', '2027 State Coordinator Applications')
 
 @section('content')
     @include('forms.cp._styles')
     <div class="form-platform-header">
-        <div><h1 class="form-platform-title">State Focal Point Applications</h1><p class="form-platform-description">2027 election observation · {{ $applications->total() }} submissions</p></div>
+        <div><h1 class="form-platform-title">State Coordinator Applications</h1><p class="form-platform-description">2027 election observation · {{ $applications->total() }} submissions</p></div>
         <a class="form-platform-button-primary" href="{{ cp_route('focal-point-applications.export') }}">Export CSV</a>
     </div>
     <div class="form-platform-card" style="overflow-x:auto">

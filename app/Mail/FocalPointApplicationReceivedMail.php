@@ -23,7 +23,7 @@ class FocalPointApplicationReceivedMail extends Mailable
     {
         return new Envelope(
             from: new Address(config('mail.from.address'), 'Dataphyte Foundation'),
-            subject: 'State Focal Point application received',
+            subject: 'State Coordinator application received',
         );
     }
 

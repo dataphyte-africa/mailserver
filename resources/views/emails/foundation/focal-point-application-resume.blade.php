@@ -13,7 +13,7 @@
         <tr>
             <td style="padding:32px;font-size:16px;line-height:1.6;">
                 <h1 style="margin:0 0 20px;font-size:25px;line-height:1.25;">Continue your application</h1>
-                <p style="margin:0 0 20px;">You requested a secure link to resume your State Focal Point application.</p>
+                <p style="margin:0 0 20px;">You requested a secure link to resume your State Coordinator application.</p>
                 <table role="presentation" style="border-collapse:collapse;margin:0 0 20px;">
                     <tr><td style="border-radius:8px;background:#17345e;"><a href="{{ $resumeUrl }}" style="display:inline-block;padding:12px 18px;color:#fff;font-weight:700;text-decoration:none;">Resume application</a></td></tr>
                 </table>

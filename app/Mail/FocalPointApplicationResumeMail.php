@@ -19,7 +19,7 @@ class FocalPointApplicationResumeMail extends Mailable
     {
         return new Envelope(
             from: new Address(config('mail.from.address'), 'Dataphyte Foundation'),
-            subject: 'Resume your State Focal Point application',
+            subject: 'Resume your State Coordinator application',
         );
     }
 

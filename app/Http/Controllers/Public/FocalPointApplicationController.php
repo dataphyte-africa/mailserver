@@ -34,7 +34,7 @@ class FocalPointApplicationController extends Controller
 
         if (! $this->applications->isOpen() && ! session('application_received')) {
             return view('forms.public.closed', [
-                'title' => 'State Focal Point applications',
+                'title' => 'State Coordinator applications',
                 'brandName' => 'Dataphyte Foundation',
                 'logoUrl' => $logoUrl,
                 'closesAt' => $this->applications->closesAt(),
@@ -110,7 +110,7 @@ class FocalPointApplicationController extends Controller
         $fields = match ($step) {
             0 => ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027', 'website'],
             1 => ['observed_before', 'observation_experience', 'coordinated_before', 'coordination_experience', 'available_for_training'],
-            2 => ['recruitment_plan', 'reporting_plan', 'coordination_challenges', 'polling_unit_scenario', 'tools', 'tools_other', 'application_consent', 'cv', 'certificate'],
+            2 => ['recruitment_plan', 'polling_unit_scenario', 'tools', 'tools_other', 'application_consent', 'cv', 'certificate'],
             default => throw ValidationException::withMessages(['step' => 'Choose a valid application section.']),
         };
         $validated = $request->validate(Arr::only($this->applications->rules(false), $fields));

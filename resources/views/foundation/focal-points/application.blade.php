@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>2027 State Focal Point Application | Dataphyte Foundation</title>
+    <title>2027 State Coordinator Application | Dataphyte Foundation</title>
     <style>
         :root{--ink:#142039;--muted:#52617b;--line:#ced8e8;--accent:#2357b7;--paper:#fff;--wash:#f2f5fa;--danger:#a32635}
         *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 90% 5%,#dce9f9 0,transparent 36%),var(--wash);color:var(--ink);font:15px/1.55 "Avenir Next","Segoe UI",sans-serif}
@@ -34,10 +34,10 @@
         @endif
     </div>
     <header class="hero">
-        <span class="eyebrow" style="color:#bcd5ff">Call for applications</span>
-        <h1>State Focal Points</h1>
+        <span class="eyebrow" style="color:#bcd5ff">Call for State Coordinators</span>
+        <h1>State Coordinators</h1>
         <p>{{ $content->heroIntro() }}</p>
-        <span class="deadline">Applications close {{ $closesAt->format('l, j F Y, g:i A') }} WAT</span>
+        <span class="deadline">The deadline for application is {{ $closesAt->format('g:i A \\o\\n l, F j, Y') }}.</span>
     </header>
     <div class="intro">
         <p>{{ $content->intro() }}</p>
@@ -88,7 +88,7 @@
                 <div class="grid">
                     <div class="field wide"><label for="full_name">Full name <span class="required">*</span></label><input id="full_name" name="full_name" value="{{ old('full_name') }}" required autocomplete="name"></div>
                     <div class="field"><label for="primary_phone">Primary phone number <span class="required">*</span></label><input id="primary_phone" name="primary_phone" type="tel" value="{{ old('primary_phone') }}" required autocomplete="tel"></div>
-                    <div class="field"><label for="other_phone">Other phone number</label><input id="other_phone" name="other_phone" type="tel" value="{{ old('other_phone') }}"></div>
+                    <div class="field"><label for="other_phone">Other phone number (if different from the primary phone number)</label><input id="other_phone" name="other_phone" type="tel" value="{{ old('other_phone') }}"></div>
                     <div class="field"><label for="email">Email address <span class="required">*</span></label><input id="email" name="email" type="email" value="{{ old('email') }}" required autocomplete="email"></div>
                     <div class="field"><label for="age">Age <span class="required">*</span></label><input id="age" name="age" type="number" min="1" max="120" value="{{ old('age') }}" required></div>
                     @php
@@ -105,7 +105,7 @@
                     @foreach(['gender','has_disability','education'] as $key)
                         <div class="field"><label for="{{ $key }}">{{ $choices[$key][0] }} <span class="required">*</span></label><select id="{{ $key }}" name="{{ $key }}" required><option value="">Select an option</option>@foreach($choices[$key][1] as $value => $text)<option value="{{ $value }}" @selected(old($key) === $value)>{{ $text }}</option>@endforeach</select></div>
                     @endforeach
-                    <div class="field wide"><label for="linkedin_url">LinkedIn profile URL</label><input id="linkedin_url" name="linkedin_url" type="url" value="{{ old('linkedin_url') }}" placeholder="https://www.linkedin.com/in/..."></div>
+                    <div class="field wide"><label for="linkedin_url">Link to an active social media profile (LinkedIn preferably)</label><input id="linkedin_url" name="linkedin_url" type="url" value="{{ old('linkedin_url') }}" placeholder="https://www.linkedin.com/in/..."></div>
                     <div class="field"><label for="state_id">State applying to coordinate <span class="required">*</span></label><div class="location-picker"><select id="state_id" name="state_id" required data-old="{{ old('state_id') }}"><option value="">Loading states…</option></select></div></div>
                     <div class="field"><label for="lga_id">LGA of residence <span class="required">*</span></label><div class="location-picker"><select id="lga_id" name="lga_id" required data-old="{{ old('lga_id') }}" disabled><option value="">Select a state first</option></select></div></div>
                     <div class="field"><label for="ward_id">Electoral ward of residence <span class="required">*</span></label><div class="location-picker"><select id="ward_id" name="ward_id" required data-old="{{ old('ward_id') }}" disabled><option value="">Select an LGA first</option></select></div></div>
@@ -116,7 +116,7 @@
                 </div>
             </fieldset>
             <fieldset class="step" data-step="1" hidden>
-                <legend>Election observation experience</legend><p class="section-intro">Describe your past work and availability.</p>
+                <legend>Election observation experience</legend><p class="section-intro">Describe your previous election observation experience and availability for training.</p>
                 <div class="grid">
                     <div class="field"><label for="observed_before">Participated in election observation before? <span class="required">*</span></label><select id="observed_before" name="observed_before" aria-controls="observation-experience-field" required><option value="">Select an option</option><option value="yes" @selected(old('observed_before') === 'yes')>Yes</option><option value="no" @selected(old('observed_before') === 'no')>No</option></select></div>
                     <div class="field wide" id="observation-experience-field" hidden><label for="observation_experience">List the elections, organisations, years and your role <span class="required">*</span></label><textarea id="observation_experience" name="observation_experience" disabled>{{ old('observation_experience') }}</textarea></div>
@@ -129,15 +129,13 @@
                 <legend>Coordination and reporting</legend><p class="section-intro">Give practical, concise answers and upload your documents.</p>
                 <div class="grid">
                     @foreach([
-                        'recruitment_plan' => ['How would you recruit and coordinate observers in your state?', 100],
-                        'reporting_plan' => ['How would you ensure accurate and timely election-day reports?', 100],
-                        'coordination_challenges' => ['What coordination challenges do you anticipate, and how would you respond?', 100],
+                        'recruitment_plan' => ['How would you coordinate observers in your state if selected as a coordinator?', 100],
                         'polling_unit_scenario' => ['You arrive at a polling unit at 7 AM. Officials are absent; voters and two security personnel are present. What would you report as an observer?', 50],
                     ] as $key => [$label, $words])
                         <div class="field wide"><label for="{{ $key }}">{{ $label }} <span class="required">*</span></label><textarea id="{{ $key }}" name="{{ $key }}" required data-max-words="{{ $words }}">{{ old($key) }}</textarea><span class="help">{{ $words }} words maximum</span></div>
                     @endforeach
                     <div class="field wide"><span class="label">Tools you can use <span class="required">*</span></span><div class="options">
-                        @foreach(['excel' => 'Excel / Google Sheets', 'word' => 'Word / Google Docs', 'google_forms' => 'Google Forms', 'messaging' => 'WhatsApp / messaging', 'online_collection' => 'Online data collection', 'other' => 'Other'] as $value => $label)
+                        @foreach(['excel' => 'Excel / Google Sheets', 'word' => 'Word / Google Docs', 'google_forms' => 'Google Forms', 'messaging' => 'WhatsApp / messaging', 'online_collection' => 'Online data collection', 'none' => 'None of the above', 'other' => 'Other'] as $value => $label)
                             <label><input type="checkbox" name="tools[]" value="{{ $value }}" @checked(in_array($value, old('tools', [])))> {{ $label }}</label>
                         @endforeach
                     </div></div>
