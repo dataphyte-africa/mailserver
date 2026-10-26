@@ -76,7 +76,7 @@ class FocalPointApplicationService
             'other_phone' => ['nullable', 'string', 'max:30'],
             'email' => ['required', 'email:rfc', 'max:255'],
             'gender' => ['required', Rule::in(['male', 'female'])],
-            'age' => ['required', 'integer', 'between:1,120'],
+            'age' => ['required', 'integer', 'between:18,120'],
             'has_disability' => ['required', Rule::in(['yes', 'no'])],
             'education' => ['required', Rule::in(['bachelors', 'postgraduate_diploma', 'masters', 'phd', 'other'])],
             'linkedin_url' => ['nullable', 'url', 'max:500'],
@@ -95,9 +95,6 @@ class FocalPointApplicationService
             'available_for_training' => ['required', Rule::in(['yes', 'no'])],
             'recruitment_plan' => ['required', 'string', 'max:3000'],
             'polling_unit_scenario' => ['required', 'string', 'max:2000'],
-            'tools' => ['required', 'array', 'min:1'],
-            'tools.*' => [Rule::in(['excel', 'word', 'google_forms', 'messaging', 'online_collection', 'none', 'other'])],
-            'tools_other' => ['nullable', 'string', 'max:200'],
             'cv' => [$requireDocuments ? 'required' : 'nullable', 'file', 'mimes:pdf,doc,docx', "max:{$cvMax}"],
             'certificate' => [$requireDocuments ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', "max:{$certificateMax}"],
             'application_consent' => ['accepted'],
@@ -124,10 +121,6 @@ class FocalPointApplicationService
             throw ValidationException::withMessages(['ward_id' => 'Select a ward in the chosen LGA.']);
         }
 
-        if (in_array('other', $validated['tools'], true) && blank($validated['tools_other'] ?? null)) {
-            throw ValidationException::withMessages(['tools_other' => 'Describe the other tools you can use.']);
-        }
-
         foreach (['recruitment_plan' => 100, 'polling_unit_scenario' => 50] as $field => $limit) {
             $words = preg_split('/\s+/u', trim($validated[$field]), -1, PREG_SPLIT_NO_EMPTY);
             if (count($words ?: []) > $limit) {
@@ -145,8 +138,6 @@ class FocalPointApplicationService
             $answers['state'] = $state['name'];
             $answers['lga'] = $lga['name'];
             $answers['ward'] = $ward['name'];
-            $answers['tools'] = array_values(array_unique($answers['tools']));
-
             return FocalPointApplication::query()->create([
                 'uuid' => (string) Str::uuid(),
                 'email' => Str::lower($validated['email']),

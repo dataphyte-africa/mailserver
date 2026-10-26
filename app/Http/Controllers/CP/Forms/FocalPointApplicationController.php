@@ -39,7 +39,7 @@ class FocalPointApplicationController
             'residential_address', 'resident_in_state', 'residence_length', 'party_member',
             'candidate_2027', 'observed_before', 'observation_experience',
             'coordinated_before', 'coordination_experience', 'available_for_training',
-            'recruitment_plan', 'polling_unit_scenario', 'tools', 'tools_other', 'cv_url', 'certificate_url',
+            'recruitment_plan', 'polling_unit_scenario', 'cv_url', 'certificate_url',
         ];
 
         return response()->streamDownload(function () use ($headers): void {

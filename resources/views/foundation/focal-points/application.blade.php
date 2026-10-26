@@ -91,7 +91,7 @@
                     <div class="field"><label for="primary_phone">Primary phone number <span class="required">*</span></label><input id="primary_phone" name="primary_phone" type="tel" value="{{ old('primary_phone') }}" required autocomplete="tel"></div>
                     <div class="field"><label for="other_phone">Other phone number (if different from the primary phone number)</label><input id="other_phone" name="other_phone" type="tel" value="{{ old('other_phone') }}"></div>
                     <div class="field"><label for="email">Email address <span class="required">*</span></label><input id="email" name="email" type="email" value="{{ old('email') }}" required autocomplete="email"></div>
-                    <div class="field"><label for="age">Age <span class="required">*</span></label><input id="age" name="age" type="number" min="1" max="120" value="{{ old('age') }}" required></div>
+                    <div class="field"><label for="age">Age <span class="required">*</span></label><input id="age" name="age" type="number" min="18" max="120" value="{{ old('age') }}" required></div>
                     @php
                         $choices = [
                             'gender' => ['Gender', ['male' => 'Male', 'female' => 'Female']],
@@ -135,12 +135,6 @@
                     ] as $key => [$label, $words])
                         <div class="field wide"><label for="{{ $key }}">{{ $label }} <span class="required">*</span></label><textarea id="{{ $key }}" name="{{ $key }}" required data-max-words="{{ $words }}">{{ old($key) }}</textarea><span class="help">{{ $words }} words maximum</span></div>
                     @endforeach
-                    <div class="field wide"><span class="label">Tools you can use <span class="required">*</span></span><div class="options">
-                        @foreach(['excel' => 'Excel / Google Sheets', 'word' => 'Word / Google Docs', 'google_forms' => 'Google Forms', 'messaging' => 'WhatsApp / messaging', 'online_collection' => 'Online data collection', 'none' => 'None of the above', 'other' => 'Other'] as $value => $label)
-                            <label><input type="checkbox" name="tools[]" value="{{ $value }}" @checked(in_array($value, old('tools', [])))> {{ $label }}</label>
-                        @endforeach
-                    </div></div>
-                    <div class="field wide" id="tools-other-field" @if(! in_array('other', old('tools', []))) hidden @endif><label for="tools_other">Other tools <span class="required">*</span></label><input id="tools_other" name="tools_other" value="{{ old('tools_other') }}" @if(in_array('other', old('tools', []))) required @else disabled @endif></div>
                     <div class="field"><label for="cv">CV, maximum two pages <span class="required">*</span></label><input id="cv" name="cv" type="file" accept=".pdf,.doc,.docx" @required(! $draft?->cv_filename)><span class="help">PDF, DOC or DOCX; maximum {{ $cvMaxUploadMb }} MB.</span><span class="saved-file" id="cv-saved" @if(! $draft?->cv_filename) hidden @endif>{{ $draft?->cv_filename ? 'Saved: '.$draft->cv_filename.' Select a new file to replace it.' : '' }}</span><span class="upload-status" id="cv-upload-status" hidden></span></div>
                     <div class="field"><label for="certificate">Highest-qualification certificate <span class="required">*</span></label><input id="certificate" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" @required(! $draft?->certificate_filename)><span class="help">PDF, image, DOC or DOCX; maximum {{ $certificateMaxUploadMb }} MB.</span><span class="saved-file" id="certificate-saved" @if(! $draft?->certificate_filename) hidden @endif>{{ $draft?->certificate_filename ? 'Saved: '.$draft->certificate_filename.' Select a new file to replace it.' : '' }}</span><span class="upload-status" id="certificate-upload-status" hidden></span></div>
                     <div class="field wide"><label style="display:flex;align-items:flex-start;gap:10px;font-weight:500"><input type="checkbox" name="application_consent" value="1" @checked(old('application_consent')) required style="margin-top:5px"> I consent to Dataphyte Foundation processing my answers and uploaded documents to assess this application and contact me about its outcome. <span class="required">*</span></label></div>
@@ -181,8 +175,6 @@
     const termsHelp = document.querySelector('#terms-help');
     const saveStatus = document.querySelector('#save-status');
     const draftExpiry = document.querySelector('#draft-expiry');
-    const toolsOtherField = document.querySelector('#tools-other-field');
-    const toolsOther = document.querySelector('#tools_other');
     const entry = document.querySelector('#application-entry');
     const pending = document.querySelector('#pending-application');
     const submitted = document.querySelector('#submitted-application');
@@ -210,15 +202,6 @@
         answer.addEventListener('change', sync);
         sync();
     }
-    const syncToolsOther = () => {
-        const selected = form.querySelector('[name="tools[]"][value="other"]').checked;
-        toolsOtherField.hidden = !selected;
-        toolsOther.disabled = !selected;
-        toolsOther.required = selected;
-        if (!selected) toolsOther.value = '';
-    };
-    form.querySelectorAll('[name="tools[]"]').forEach(field => field.addEventListener('change', syncToolsOther));
-    syncToolsOther();
     const updateSubmitState = () => {
         submit.disabled = !@json($isReady) || termsCheck.disabled || !termsCheck.checked || !uploadsReady();
     };
@@ -280,10 +263,6 @@
     const applyAnswers = answers => {
         if (!answers) return;
         Object.entries(answers).forEach(([name, value]) => {
-            if (name === 'tools') {
-                form.querySelectorAll('[name="tools[]"]').forEach(field => { field.checked = Array.isArray(value) && value.includes(field.value); });
-                return;
-            }
             const field = form.querySelector(`[name="${CSS.escape(name)}"]`);
             if (!field || ['website', 'cv', 'certificate'].includes(name)) return;
             field.value = value ?? '';

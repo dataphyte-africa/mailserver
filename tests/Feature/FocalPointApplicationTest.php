@@ -63,6 +63,7 @@ class FocalPointApplicationTest extends TestCase
             ->assertSee('Experience')
             ->assertSee('Coordination')
             ->assertSee('Terms')
+            ->assertDontSee('Tools you can use')
             ->assertDontSee('Applications are reviewed by authorised staff only.');
 
         $this->getJson(route('focal-points.applications.locations.states'))
@@ -92,7 +93,7 @@ class FocalPointApplicationTest extends TestCase
         $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
             ->postJson(route('focal-points.applications.drafts.step'), [
             'step' => 2,
-            ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'tools', 'application_consent']),
+            ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'application_consent']),
             'cv' => UploadedFile::fake()->create('large-cv.pdf', 1025, 'application/pdf'),
             'certificate' => UploadedFile::fake()->create('large-certificate.pdf', 2049, 'application/pdf'),
         ])->assertUnprocessable()->assertJsonValidationErrors(['cv', 'certificate']);
@@ -209,7 +210,7 @@ class FocalPointApplicationTest extends TestCase
         $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
             ->postJson(route('focal-points.applications.drafts.step'), [
                 'step' => 2,
-                ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'tools', 'application_consent', 'cv', 'certificate']),
+                ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'application_consent', 'cv', 'certificate']),
             ])
             ->assertOk()
             ->assertJsonPath('cv_upload_status', 'queued')
@@ -368,14 +369,12 @@ class FocalPointApplicationTest extends TestCase
         $this->assertTrue($draft->expires_at->isSameMinute(now()->addHours(72)));
     }
 
-    public function test_other_tools_is_required_before_the_coordination_step_can_be_saved(): void
+    public function test_applicants_must_be_at_least_eighteen_to_save_personal_information(): void
     {
         $this->postJson(route('focal-points.applications.drafts.step'), [
-            'step' => 2,
-            ...Arr::only($this->payload(), ['recruitment_plan', 'polling_unit_scenario', 'application_consent', 'cv', 'certificate']),
-            'tools' => ['other'],
-            'tools_other' => '',
-        ])->assertUnprocessable()->assertJsonValidationErrors('tools_other');
+            'step' => 0,
+            ...Arr::only($this->payload(['age' => 17]), ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027']),
+        ])->assertUnprocessable()->assertJsonValidationErrors('age');
     }
 
     public function test_resume_link_is_single_use_and_does_not_reveal_draft_existence(): void
@@ -474,7 +473,6 @@ class FocalPointApplicationTest extends TestCase
             'available_for_training' => 'yes',
             'recruitment_plan' => 'I would recruit and train impartial observers across the state.',
             'polling_unit_scenario' => 'I would record the time, absence of officials, voters and security personnel, then report verified facts.',
-            'tools' => ['excel', 'google_forms'],
             'application_consent' => '1',
             'tor_accepted' => '1',
             'tor_version' => app(FocalPointApplicationContent::class)->torVersion(),

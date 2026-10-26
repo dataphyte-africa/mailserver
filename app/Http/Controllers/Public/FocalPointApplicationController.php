@@ -116,15 +116,12 @@ class FocalPointApplicationController extends Controller
         $fields = match ($step) {
             0 => ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027', 'website'],
             1 => ['observed_before', 'observation_experience', 'coordinated_before', 'coordination_experience', 'available_for_training'],
-            2 => ['recruitment_plan', 'polling_unit_scenario', 'tools', 'tools_other', 'application_consent', 'cv', 'certificate'],
+            2 => ['recruitment_plan', 'polling_unit_scenario', 'application_consent', 'cv', 'certificate'],
             default => throw ValidationException::withMessages(['step' => 'Choose a valid application section.']),
         };
         $validated = $request->validate(Arr::only($this->applications->rules(false), $fields));
         if ($step === 0 && $this->hasSubmittedApplication($validated['email'])) {
             throw ValidationException::withMessages(['email' => 'An application has already been submitted with this email address. Check your inbox for the confirmation email.']);
-        }
-        if ($step === 2 && in_array('other', $validated['tools'] ?? [], true) && blank($validated['tools_other'] ?? null)) {
-            throw ValidationException::withMessages(['tools_other' => 'Describe the other tools you can use.']);
         }
         $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
         if ($step === 2 && (! ($request->hasFile('cv') || $draft?->cv_drive_id || $draft?->cv_upload_path) || ! ($request->hasFile('certificate') || $draft?->certificate_drive_id || $draft?->certificate_upload_path))) {
