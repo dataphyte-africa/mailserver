@@ -34,10 +34,15 @@
         </div>
         <div class="form-platform-card">
             <h2>Application answers</h2>
+            @php
+                $answerLabels = [
+                    'recruitment_plan' => 'How would you coordinate observers in your state if selected as a coordinator?',
+                ];
+            @endphp
             <dl style="display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);gap:12px 20px;margin-top:18px">
                 @foreach($application->answers ?? [] as $key => $value)
                     @unless(in_array($key, ['state_id','lga_id','ward_id','tools','tools_other']))
-                        <dt style="font-weight:700">{{ str($key)->replace('_', ' ')->headline() }}</dt>
+                        <dt style="font-weight:700">{{ $answerLabels[$key] ?? str($key)->replace('_', ' ')->headline() }}</dt>
                         <dd style="margin:0;white-space:pre-wrap;overflow-wrap:anywhere">{{ is_array($value) ? implode(', ', $value) : $value }}</dd>
                     @endunless
                 @endforeach

@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 class FocalPointApplicationDraftService
 {
     private const DRAFT_LIFETIME_HOURS = 72;
+    private const EMAIL_VERIFICATION_LIFETIME_MINUTES = 10;
+    private const MAX_EMAIL_VERIFICATION_ATTEMPTS = 5;
 
     public function __construct(private readonly GoogleDriveApplicationStorage $drive) {}
 
@@ -76,6 +78,71 @@ class FocalPointApplicationDraftService
         ])->save();
 
         return $token;
+    }
+
+    /** @return array{draft: FocalPointApplicationDraft, code: string} */
+    public function issueEmailVerificationCode(string $email): array
+    {
+        $email = Str::lower(trim($email));
+        $draft = FocalPointApplicationDraft::query()
+            ->where('email', $email)
+            ->where('expires_at', '>', now())
+            ->latest('id')
+            ->first();
+
+        if (! $draft) {
+            $draft = new FocalPointApplicationDraft([
+                'uuid' => (string) Str::uuid(),
+                'email' => $email,
+                'answers' => [],
+                'expires_at' => now()->addHours(self::DRAFT_LIFETIME_HOURS),
+            ]);
+        }
+
+        $code = (string) random_int(100000, 999999);
+        $draft->forceFill([
+            'email_verification_code_hash' => hash('sha256', $code),
+            'email_verification_expires_at' => now()->addMinutes(self::EMAIL_VERIFICATION_LIFETIME_MINUTES),
+            'email_verification_sent_at' => now(),
+            'email_verification_attempts' => 0,
+        ])->save();
+
+        return ['draft' => $draft, 'code' => $code];
+    }
+
+    public function verifyEmail(string $email, string $code): ?FocalPointApplicationDraft
+    {
+        $draft = FocalPointApplicationDraft::query()
+            ->where('email', Str::lower(trim($email)))
+            ->where('expires_at', '>', now())
+            ->latest('id')
+            ->first();
+
+        if (! $draft || $draft->email_verified_at || ! $draft->email_verification_expires_at?->isFuture()) {
+            return null;
+        }
+
+        if ($draft->email_verification_attempts >= self::MAX_EMAIL_VERIFICATION_ATTEMPTS
+            || ! hash_equals((string) $draft->email_verification_code_hash, hash('sha256', $code))) {
+            $draft->increment('email_verification_attempts');
+
+            return null;
+        }
+
+        $verified = FocalPointApplicationDraft::query()
+            ->whereKey($draft->id)
+            ->where('email_verification_code_hash', hash('sha256', $code))
+            ->where('email_verification_expires_at', '>', now())
+            ->where('email_verification_attempts', '<', self::MAX_EMAIL_VERIFICATION_ATTEMPTS)
+            ->update([
+                'email_verified_at' => now(),
+                'email_verification_code_hash' => null,
+                'email_verification_expires_at' => null,
+                'email_verification_attempts' => 0,
+                'updated_at' => now(),
+            ]);
+
+        return $verified === 1 ? $draft->fresh() : null;
     }
 
     public function findResumable(string $uuid, string $token): ?FocalPointApplicationDraft

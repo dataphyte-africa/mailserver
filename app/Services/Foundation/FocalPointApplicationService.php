@@ -107,6 +107,10 @@ class FocalPointApplicationService
     /** @param array<string, mixed> $validated */
     public function submit(array $validated, FocalPointApplicationDraft $draft): FocalPointApplication
     {
+        if (! $draft->email_verified_at || Str::lower($validated['email']) !== $draft->email) {
+            throw ValidationException::withMessages(['email' => 'Verify your email address before submitting your application.']);
+        }
+
         $torHtml = $this->content->torHtml();
         $torVersion = 'sha256:'.hash('sha256', $torHtml);
         if ($validated['tor_version'] !== $torVersion) {

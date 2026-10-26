@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Mail\FocalPointApplicationReceivedMail;
 use App\Mail\FocalPointApplicationResumeMail;
+use App\Mail\FocalPointApplicationVerificationMail;
 use App\Models\FocalPointApplication;
 use App\Models\FocalPointApplicationDraft;
 use App\Services\Foundation\FocalPointApplicationContent;
@@ -68,9 +69,9 @@ class FocalPointApplicationController extends Controller
 
         $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
         $validated = $request->validate($this->applications->rules(false));
-        if (! $draft || Str::lower((string) $request->input('email')) !== $draft->email) {
+        if (! $draft || ! $draft->email_verified_at || Str::lower((string) $request->input('email')) !== $draft->email) {
             return back()->withInput($request->except(['cv', 'certificate']))
-                ->withErrors(['documents' => 'Save your application progress and wait for both document uploads before submitting.']);
+                ->withErrors(['email' => 'Verify your email address before submitting your application.']);
         }
 
         try {
@@ -124,10 +125,51 @@ class FocalPointApplicationController extends Controller
             throw ValidationException::withMessages(['email' => 'An application has already been submitted with this email address. Check your inbox for the confirmation email.']);
         }
         $draft = $this->drafts->fromSession($request->session()->get('focal_point_draft_uuid'));
+        if (! $draft || ! $draft->email_verified_at || ($step === 0 && Str::lower($validated['email']) !== $draft->email)) {
+            throw ValidationException::withMessages(['email' => 'Verify this email address before continuing.']);
+        }
         if ($step === 2 && (! ($request->hasFile('cv') || $draft?->cv_drive_id || $draft?->cv_upload_path) || ! ($request->hasFile('certificate') || $draft?->certificate_drive_id || $draft?->certificate_upload_path))) {
             throw ValidationException::withMessages(['documents' => 'Upload both documents before continuing.']);
         }
         $draft = $this->drafts->save($draft, $step, $validated, $request->file('cv'), $request->file('certificate'));
+
+        $request->session()->put('focal_point_draft_uuid', $draft->uuid);
+
+        return response()->json($this->draftPayload($draft));
+    }
+
+    public function requestEmailVerification(Request $request): JsonResponse
+    {
+        abort_unless($this->applications->isOpen(), 410, 'Applications have closed.');
+
+        $email = Str::lower((string) $request->validate(['email' => ['required', 'email:rfc', 'max:255']])['email']);
+        if ($this->hasSubmittedApplication($email)) {
+            throw ValidationException::withMessages(['email' => 'An application has already been submitted with this email address.']);
+        }
+
+        $verification = $this->drafts->issueEmailVerificationCode($email);
+        try {
+            Mail::to($email)->queue(
+                (new FocalPointApplicationVerificationMail($verification['code']))->onQueue('focal_point_mail')
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+            throw ValidationException::withMessages(['email' => 'We could not send the verification code. Please try again.']);
+        }
+
+        return response()->json(['message' => 'A six-digit verification code was sent to your email address.']);
+    }
+
+    public function confirmEmailVerification(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email:rfc', 'max:255'],
+            'code' => ['required', 'digits:6'],
+        ]);
+        $draft = $this->drafts->verifyEmail($validated['email'], $validated['code']);
+        if (! $draft) {
+            throw ValidationException::withMessages(['code' => 'This code is invalid or has expired. Request a new code and try again.']);
+        }
 
         $request->session()->put('focal_point_draft_uuid', $draft->uuid);
 
@@ -157,6 +199,10 @@ class FocalPointApplicationController extends Controller
         $hasDraft = FocalPointApplicationDraft::query()
             ->where('email', $email)
             ->where('expires_at', '>', now())
+            ->where(function ($query): void {
+                $query->whereNotNull('email_verified_at')
+                    ->orWhereJsonLength('answers', '>', 0);
+            })
             ->exists();
 
         return response()->json([
@@ -200,6 +246,7 @@ class FocalPointApplicationController extends Controller
             'cv_upload_error' => $draft->cv_upload_error,
             'certificate_upload_status' => $draft->certificate_upload_status,
             'certificate_upload_error' => $draft->certificate_upload_error,
+            'email_verified_at' => $draft->email_verified_at?->toIso8601String(),
             'expires_at' => $draft->expires_at?->toIso8601String(),
         ];
     }

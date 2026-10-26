@@ -9,11 +9,11 @@
         *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 90% 5%,#dce9f9 0,transparent 36%),var(--wash);color:var(--ink);font:15px/1.55 "Avenir Next","Segoe UI",sans-serif}
         .shell{max-width:720px;margin:0 auto;padding:0 0 72px}.head{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:76px;padding:15px 24px;background:#fff;border-bottom:1px solid var(--line)}.logo{display:block;width:195px;max-width:100%;height:auto;object-fit:contain}.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:var(--accent)}.head-nav{display:flex;align-items:center;justify-content:flex-end;gap:3px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;scrollbar-width:none}.head-nav[hidden],.entry-panel[hidden],.panel[hidden]{display:none}.head-nav::-webkit-scrollbar{display:none}.head-nav button{flex:none;scroll-snap-align:center;white-space:nowrap;border:0;border-radius:7px;background:transparent;color:var(--muted);padding:7px 8px;font-size:12px;font-weight:600;line-height:1.2}.head-nav button:hover{background:#f4f7fc;color:var(--ink);filter:none}.head-nav button.current,.head-nav button.current:hover{background:#eaf1fb;color:var(--accent)}.head-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         .hero{background:#4d70ad;color:#fff;border-radius:0;padding:30px 32px}.hero h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.035em;margin:0}.hero p{max-width:550px;color:#f4f7ff}.hero .deadline{display:block;margin-top:18px;color:#fff;font-size:14px;font-weight:700}
-        .intro{padding:10px 8px 0;margin-top:18px}.key-points{margin:0;padding-left:22px;display:grid;gap:14px}.key-points li{padding-left:4px;line-height:1.65}.key-points li::marker{color:var(--accent)}.note{font-weight:600;color:#2d4d81}.hero[hidden],.intro[hidden]{display:none}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-top:18px;box-shadow:0 6px 24px #14294a0b}.entry-panel{margin-top:20px;padding:28px;background:#edf5ff;border:1px solid #c5d8f3;border-radius:16px;box-shadow:0 6px 24px #14294a0b}.entry-panel h2{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin:0 0 8px}.entry-panel p{margin:0 0 18px;color:var(--muted)}.entry-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.entry-controls label{margin:0;flex:1;min-width:240px}.entry-controls input{font-size:17px;min-height:50px}.entry-controls button{min-height:50px}.entry-note{margin:14px 0 0!important;font-size:13px}.entry-message{min-height:20px;margin:12px 0 0!important;font-size:13px}.save-status{min-height:22px;margin:14px 0 -9px;color:var(--muted);font-size:13px}.save-status[data-state=error]{color:var(--danger)}.saved-file{display:block;color:#1d6040;font-size:12px;margin-top:5px}
+        .intro{padding:10px 8px 0;margin-top:18px}.key-points{margin:0;padding-left:22px;display:grid;gap:14px}.key-points li{padding-left:4px;line-height:1.65}.key-points li::marker{color:var(--accent)}.note{font-weight:600;color:#2d4d81}.hero[hidden],.intro[hidden]{display:none}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-top:18px;box-shadow:0 6px 24px #14294a0b}.entry-panel{margin-top:20px;padding:28px;background:#edf5ff;border:1px solid #c5d8f3;border-radius:16px;box-shadow:0 6px 24px #14294a0b}.entry-panel h2{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin:0 0 8px}.entry-panel p{margin:0 0 18px;color:var(--muted)}.entry-controls,.verification-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.entry-controls label{margin:0;flex:1;min-width:240px}.verification-controls label{margin:0;flex:1;min-width:155px}.entry-controls input,.verification-controls input{font-size:17px;min-height:50px}.verification-controls input{letter-spacing:.18em}.entry-controls button,.verification-controls button{min-height:50px}.verification-modal[hidden]{display:none}.verification-modal{position:fixed;z-index:100;inset:0;display:grid;place-items:center;padding:24px;background:#0b193b99}.verification-dialog{width:min(100%,440px);padding:28px;background:#fff;border:1px solid #c5d8f3;border-radius:16px;box-shadow:0 24px 56px #08163366}.verification-dialog h2{margin:0 0 8px;font-size:25px;line-height:1.2;letter-spacing:-.025em}.verification-dialog>p{margin:0 0 20px;color:var(--muted)}body.modal-open{overflow:hidden}.entry-note{margin:14px 0 0!important;font-size:13px}.entry-message{min-height:20px;margin:12px 0 0!important;font-size:13px}.save-status{min-height:22px;margin:14px 0 -9px;color:var(--muted);font-size:13px}.save-status[data-state=error]{color:var(--danger)}.saved-file{display:block;color:#1d6040;font-size:12px;margin-top:5px}
         .shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:18px;margin-right:18px}.draft-expiry{margin:14px 0 0;color:var(--muted);font-size:13px}.upload-status{display:block;color:var(--muted);font-size:12px;margin-top:5px}.upload-status[data-state=failed]{color:var(--danger)}.upload-status[data-state=ready]{color:#1d6040}
         fieldset.step{border:0;padding:0;margin:0;min-width:0;scroll-margin-top:100px}fieldset.step[hidden]{display:none}legend{font-size:21px;font-weight:700;letter-spacing:-.02em;padding:0;margin-bottom:5px}.section-intro{color:var(--muted);font-size:14px;margin:0 0 20px}.grid{display:grid;grid-template-columns:1fr;gap:17px}.field{min-width:0}.field.wide{grid-column:1/-1}label,.label{font-size:14px;font-weight:600;display:block;margin-bottom:7px}.help{display:block;color:var(--muted);font-size:12px;margin-top:5px}.required{color:var(--danger)}input:not([type=radio]):not([type=checkbox]),select,textarea{width:100%;font:inherit;color:var(--ink);padding:10px 12px;border:1px solid #b7c6dc;border-radius:9px;background:#fff;min-height:44px}textarea{min-height:110px;resize:vertical}input:focus,select:focus,textarea:focus{outline:2px solid #4887ea;outline-offset:1px}.options{display:flex;gap:12px 20px;flex-wrap:wrap}.options label{font-weight:500;margin:0;display:flex;align-items:center;gap:8px}.options input{width:17px;height:17px}.question{border-top:1px solid var(--line);padding-top:20px;margin-top:5px}.error{color:var(--danger);font-size:13px;margin:5px 0 0}.alert{padding:15px 18px;border-radius:11px;margin-top:20px}.alert.error-box{background:#fff1f1;border:1px solid #ebc8cb;color:#751b29}.alert.success{background:#e9f7ef;border:1px solid #a3d5b6;color:#1d6040}.actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px}button{font:inherit;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;padding:11px 20px;font-weight:600}button.secondary{background:#fff;color:var(--ink)}button:hover{filter:brightness(1.12)}button:disabled{opacity:.55;cursor:not-allowed}.foot{color:var(--muted);font-size:13px;margin:32px 0;text-align:center}
         .location-picker{position:relative}.location-picker.enhanced select{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0;pointer-events:none}.location-picker input[type=search]{padding-right:35px}.location-results{position:absolute;z-index:5;top:calc(100% + 4px);left:0;right:0;height:220px;max-height:45vh;overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #aebed6;border-radius:9px;box-shadow:0 12px 24px #14294a24}.location-results[hidden]{display:none}.location-option{display:block;width:100%;border:0;border-radius:0;background:#fff;color:var(--ink);padding:10px 12px;text-align:left;font-weight:500}.location-option:hover,.location-option.active{background:#e9f1ff;filter:none}.location-empty{padding:11px 12px;color:var(--muted)}.terms-scroll{height:320px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:#f8faff;padding:18px;line-height:1.55}.terms-scroll h2{font-size:17px;margin:20px 0 8px}.terms-scroll h2:first-child{margin-top:0}.terms-scroll p,.terms-scroll li{font-size:14px}.terms-scroll ul{padding-left:22px}.terms-accept{margin-top:20px;display:flex;align-items:flex-start;gap:10px;font-weight:500}.terms-accept input{margin-top:5px}.terms-accept.locked{color:var(--muted)}button:disabled{background:#8d97a9;border-color:#8d97a9;color:#fff;opacity:1;filter:none}
-        @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px}}@media(max-width:639px){.shell{padding-bottom:48px}.head{min-height:0;align-items:flex-start;flex-direction:column;gap:10px;padding:13px 18px}.logo{width:175px}.head-nav{width:100%;justify-content:flex-start;gap:2px}.head-nav button{font-size:12px;padding:7px 9px}.head .eyebrow{text-align:left}.hero{padding:23px 20px}.intro{padding:8px 5px 0}.entry-panel,.panel{padding:20px 17px}.entry-controls button{width:100%}.shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:12px;margin-right:12px}fieldset.step{scroll-margin-top:115px}.actions button{padding:10px 14px}}
+        @media(min-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px}}@media(max-width:639px){.shell{padding-bottom:48px}.head{min-height:0;align-items:flex-start;flex-direction:column;gap:10px;padding:13px 18px}.logo{width:175px}.head-nav{width:100%;justify-content:flex-start;gap:2px}.head-nav button{font-size:12px;padding:7px 9px}.head .eyebrow{text-align:left}.hero{padding:23px 20px}.intro{padding:8px 5px 0}.entry-panel,.panel{padding:20px 17px}.entry-controls button{width:100%}.verification-modal{align-items:end;padding:12px}.verification-dialog{width:100%;padding:23px 20px;border-radius:16px 16px 10px 10px}.verification-controls{display:grid}.verification-controls button{width:100%}.shell>.intro,.shell>.alert,.shell>.entry-panel,.shell>.panel,.shell>.foot{margin-left:12px;margin-right:12px}fieldset.step{scroll-margin-top:115px}.actions button{padding:10px 14px}}
     </style>
 </head>
 <body>
@@ -80,7 +80,7 @@
             <h2 id="submitted-application-title">Application already submitted</h2>
             <p>An application has already been submitted with this email address. Check your inbox for the confirmation email.</p>
         </section>
-        <form class="panel" action="{{ route('focal-points.applications.store') }}" method="post" enctype="multipart/form-data" id="application-form" data-draft-step-url="{{ route('focal-points.applications.drafts.step') }}" data-draft-status-url="{{ route('focal-points.applications.drafts.status') }}" data-draft-lookup-url="{{ route('focal-points.applications.drafts.lookup') }}" data-resume-request-url="{{ route('focal-points.applications.drafts.resume.request') }}" @unless($showApplicationForm) hidden @endunless novalidate>
+        <form class="panel" action="{{ route('focal-points.applications.store') }}" method="post" enctype="multipart/form-data" id="application-form" data-draft-step-url="{{ route('focal-points.applications.drafts.step') }}" data-draft-status-url="{{ route('focal-points.applications.drafts.status') }}" data-draft-lookup-url="{{ route('focal-points.applications.drafts.lookup') }}" data-email-verification-request-url="{{ route('focal-points.applications.email-verification.request') }}" data-email-verification-confirm-url="{{ route('focal-points.applications.email-verification.confirm') }}" data-resume-request-url="{{ route('focal-points.applications.drafts.resume.request') }}" @unless($showApplicationForm) hidden @endunless novalidate>
             @csrf
             <input type="hidden" name="tor_version" value="{{ $torVersion }}">
             <input type="text" name="website" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px" value="">
@@ -156,8 +156,16 @@
     @endif
 </main>
 @if($isOpen && !session('application_received'))
+<div class="verification-modal" id="email-verification" hidden role="dialog" aria-modal="true" aria-labelledby="verification-title" aria-describedby="verification-description">
+    <div class="verification-dialog">
+        <h2 id="verification-title">Verify your email</h2>
+        <p id="verification-description">We sent a six-digit code to <strong id="verification-email"></strong>. Enter it to save your Personal information and continue.</p>
+        <div class="verification-controls"><label for="verification-code">Verification code<input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label><button type="button" id="confirm-verification">Verify and continue</button><button type="button" class="secondary" id="resend-verification">Resend code</button><button type="button" class="secondary" id="change-verification-email">Change email</button></div>
+        <p id="verification-message" class="entry-message" aria-live="polite"></p>
+    </div>
+</div>
 @php
-    $initialDraft = $draft ? ['answers' => $draft->answers, 'lastCompletedStep' => $draft->last_completed_step, 'cvFilename' => $draft->cv_filename, 'certificateFilename' => $draft->certificate_filename, 'cvUploadStatus' => $draft->cv_upload_status, 'cvUploadError' => $draft->cv_upload_error, 'certificateUploadStatus' => $draft->certificate_upload_status, 'certificateUploadError' => $draft->certificate_upload_error, 'expiresAt' => $draft->expires_at?->toIso8601String()] : null;
+    $initialDraft = $draft ? ['answers' => $draft->answers, 'lastCompletedStep' => $draft->last_completed_step, 'cvFilename' => $draft->cv_filename, 'certificateFilename' => $draft->certificate_filename, 'cvUploadStatus' => $draft->cv_upload_status, 'cvUploadError' => $draft->cv_upload_error, 'certificateUploadStatus' => $draft->certificate_upload_status, 'certificateUploadError' => $draft->certificate_upload_error, 'emailVerifiedAt' => $draft->email_verified_at?->toIso8601String(), 'expiresAt' => $draft->expires_at?->toIso8601String()] : null;
 @endphp
 <script>
 (() => {
@@ -184,9 +192,51 @@
     const entryContinue = document.querySelector('#entry-continue');
     const resumeLink = document.querySelector('#send-resume-link');
     const startAgain = document.querySelector('#start-again');
+    const email = form.querySelector('#email');
+    const verification = document.querySelector('#email-verification');
+    const verificationEmail = document.querySelector('#verification-email');
+    const verificationCode = document.querySelector('#verification-code');
+    const verificationMessage = document.querySelector('#verification-message');
+    const confirmVerification = document.querySelector('#confirm-verification');
+    const resendVerification = document.querySelector('#resend-verification');
+    const changeVerificationEmail = document.querySelector('#change-verification-email');
     const initialDraft = @json($initialDraft);
     const storageKey = 'focal-point-application-unsaved-step';
     let serverDraft = initialDraft;
+    const openVerificationModal = (codeReady = false) => {
+        verification.hidden = false;
+        document.body.classList.add('modal-open');
+        verificationCode.required = codeReady;
+        verificationCode.disabled = !codeReady;
+        confirmVerification.disabled = !codeReady;
+        (codeReady ? verificationCode : resendVerification).focus();
+    };
+    const closeVerificationModal = () => {
+        verification.hidden = true;
+        document.body.classList.remove('modal-open');
+        verificationCode.required = false;
+        verificationCode.disabled = false;
+        confirmVerification.disabled = false;
+    };
+    document.addEventListener('keydown', event => {
+        if (verification.hidden) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            verificationCode.focus();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+        const controls = [...verification.querySelectorAll('input:not([disabled]), button:not([disabled])')];
+        const first = controls[0];
+        const last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
     for (const [answerId, detailId] of [['observed_before', 'observation_experience'], ['coordinated_before', 'coordination_experience']]) {
         const answer = document.querySelector(`#${answerId}`);
         const detail = document.querySelector(`#${detailId}`);
@@ -237,7 +287,7 @@
     };
     const formatExpiry = value => new Intl.DateTimeFormat('en-NG', {dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Lagos'}).format(new Date(value));
     const updateDraftMeta = payload => {
-        serverDraft = {answers: payload.answers, lastCompletedStep: payload.last_completed_step, cvFilename: payload.cv_filename, certificateFilename: payload.certificate_filename, cvUploadStatus: payload.cv_upload_status, cvUploadError: payload.cv_upload_error, certificateUploadStatus: payload.certificate_upload_status, certificateUploadError: payload.certificate_upload_error, expiresAt: payload.expires_at};
+        serverDraft = {answers: payload.answers, lastCompletedStep: payload.last_completed_step, cvFilename: payload.cv_filename, certificateFilename: payload.certificate_filename, cvUploadStatus: payload.cv_upload_status, cvUploadError: payload.cv_upload_error, certificateUploadStatus: payload.certificate_upload_status, certificateUploadError: payload.certificate_upload_error, emailVerifiedAt: payload.email_verified_at, expiresAt: payload.expires_at};
         savedFile('cv', serverDraft.cvFilename, serverDraft.cvUploadStatus, serverDraft.cvUploadError);
         savedFile('certificate', serverDraft.certificateFilename, serverDraft.certificateUploadStatus, serverDraft.certificateUploadError);
         draftExpiry.hidden = !serverDraft.expiresAt;
@@ -434,10 +484,49 @@
         return true;
     }
     form.querySelectorAll('[data-max-words]').forEach(field => field.addEventListener('input', () => field.setCustomValidity('')));
+    const sendVerificationCode = async () => {
+        const response = await fetch(form.dataset.emailVerificationRequestUrl, {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value},
+            body: JSON.stringify({email: email.value}),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(response.status === 429
+            ? 'Too many code requests. Please wait a few minutes, then resend the code.'
+            : Object.values(payload.errors || {}).flat()[0] || 'We could not send the verification code.');
+        return payload;
+    };
+    const requestEmailVerification = async () => {
+        next.disabled = true;
+        setSaveStatus('Sending verification code…');
+        email.readOnly = true;
+        verificationEmail.textContent = email.value;
+        verificationCode.value = '';
+        verificationMessage.textContent = 'Sending a verification code…';
+        openVerificationModal();
+        try {
+            const payload = await sendVerificationCode();
+            verificationMessage.textContent = payload.message;
+            setSaveStatus('Verify your email to save this section and continue.');
+            verificationCode.disabled = false;
+            verificationCode.required = true;
+            confirmVerification.disabled = false;
+            verificationCode.focus();
+        } catch (error) {
+            setSaveStatus(error.message, 'error');
+            verificationMessage.textContent = error.message;
+        } finally {
+            next.disabled = false;
+        }
+    };
     let savingStep = false;
     const saveCurrentStep = async () => {
         if (savingStep) return false;
         if (!validStep()) return false;
+        if (current === 0 && !serverDraft?.emailVerifiedAt) {
+            await requestEmailVerification();
+            return false;
+        }
         savingStep = true;
         next.disabled = true;
         setSaveStatus('Saving progress…');
@@ -505,6 +594,7 @@
         pending.hidden = true;
         submitted.hidden = true;
         form.querySelector('#email').value = email;
+        email.readOnly = false;
         show(0);
         form.querySelector('#full_name').focus();
     };
@@ -549,9 +639,49 @@
         } catch (error) { pendingMessage.textContent = error.message; }
         finally { resumeLink.disabled = false; }
     });
+    confirmVerification.addEventListener('click', async () => {
+        if (!verificationCode.checkValidity()) { verificationCode.reportValidity(); return; }
+        confirmVerification.disabled = true;
+        verificationMessage.textContent = 'Verifying…';
+        try {
+            const response = await fetch(form.dataset.emailVerificationConfirmUrl, {
+                method: 'POST', credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken},
+                body: JSON.stringify({email: email.value, code: verificationCode.value}),
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(Object.values(payload.errors || {}).flat()[0] || 'We could not verify this code.');
+            updateDraftMeta(payload);
+            closeVerificationModal();
+            setSaveStatus('Email verified. Saving your personal information…');
+            if (await saveCurrentStep()) show(1);
+        } catch (error) {
+            verificationMessage.textContent = error.message;
+        } finally {
+            confirmVerification.disabled = false;
+        }
+    });
+    resendVerification.addEventListener('click', async () => {
+        resendVerification.disabled = true;
+        verificationMessage.textContent = 'Sending a verification code…';
+        try {
+            verificationMessage.textContent = (await sendVerificationCode()).message;
+            verificationCode.value = '';
+            verificationCode.disabled = false;
+            verificationCode.required = true;
+            confirmVerification.disabled = false;
+            verificationCode.focus();
+        } catch (error) { verificationMessage.textContent = error.message; }
+        finally { resendVerification.disabled = false; }
+    });
+    changeVerificationEmail.addEventListener('click', () => {
+        closeVerificationModal();
+        verificationMessage.textContent = '';
+        email.readOnly = false;
+        email.focus();
+    });
     startAgain.addEventListener('click', () => startFresh(pending.dataset.email));
     applyAnswers(serverDraft?.answers);
-    syncToolsOther();
     const localDraft = readLocal();
     if (localDraft) {
         applyAnswers(localDraft.answers);
@@ -568,26 +698,19 @@
             cv_upload_error: serverDraft.cvUploadError,
             certificate_upload_status: serverDraft.certificateUploadStatus,
             certificate_upload_error: serverDraft.certificateUploadError,
+            email_verified_at: serverDraft.emailVerifiedAt,
             expires_at: serverDraft.expiresAt,
         });
+        email.readOnly = true;
         setSaveStatus('Saved application restored.');
         pollUploadStatus();
     }
-    syncToolsOther();
     restore().then(() => {
         if (serverDraft) {
             hero.hidden = true;
             intro.hidden = true;
             show(current);
             return;
-        }
-        if (localDraft?.answers?.email) {
-            form.hidden = false;
-            hero.hidden = true;
-            intro.hidden = true;
-            nav.hidden = false;
-            entry.hidden = true;
-            show(current);
         }
     });
     @if($errors->any())

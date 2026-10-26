@@ -54,6 +54,10 @@ Route::prefix('applications/call-for-state-coordinators')->name('focal-points.ap
         ->middleware('throttle:60,1')->name('drafts.step');
     Route::post('/drafts/lookup', [FocalPointApplicationController::class, 'lookupDraft'])
         ->middleware('throttle:10,1')->name('drafts.lookup');
+    Route::post('/email-verification/request', [FocalPointApplicationController::class, 'requestEmailVerification'])
+        ->middleware('throttle:5,10')->name('email-verification.request');
+    Route::post('/email-verification/confirm', [FocalPointApplicationController::class, 'confirmEmailVerification'])
+        ->middleware('throttle:10,10')->name('email-verification.confirm');
     Route::post('/drafts/resume', [FocalPointApplicationController::class, 'requestResume'])
         ->middleware('throttle:5,1')->name('drafts.resume.request');
     Route::get('/drafts/{uuid}/resume/{token}', [FocalPointApplicationController::class, 'resume'])
@@ -71,6 +75,11 @@ Route::prefix('applications/call-for-state-coordinators')->name('focal-points.ap
 });
 
 Route::get('applications/2027-state-focal-points', fn () => redirect()->route('focal-points.applications.show', [], 301));
+Route::get('applications/2027-state-focal-points/locations/states', fn () => redirect()->route('focal-points.applications.locations.states', [], 301));
+Route::get('applications/2027-state-focal-points/locations/states/{state}/lgas', fn (int $state) => redirect()->route('focal-points.applications.locations.lgas', compact('state'), 301))
+    ->whereNumber('state');
+Route::get('applications/2027-state-focal-points/locations/states/{state}/lgas/{lga}/wards', fn (int $state, int $lga) => redirect()->route('focal-points.applications.locations.wards', compact('state', 'lga'), 301))
+    ->whereNumber('state')->whereNumber('lga');
 
 /*
 |--------------------------------------------------------------------------

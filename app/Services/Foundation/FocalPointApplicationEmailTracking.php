@@ -12,7 +12,10 @@ class FocalPointApplicationEmailTracking
     public function apply(WebhookLog $log, string $event): bool
     {
         $payload = $log->payload ?? [];
-        if (($payload['lifecycle_email'] ?? null) !== 'focal_point_application_receipt') {
+        $isReceipt = ($payload['lifecycle_email'] ?? null) === 'focal_point_application_receipt'
+            || Str::lower(trim((string) ($payload['subject'] ?? $payload['Subject'] ?? ''))) === 'state coordinator application received';
+
+        if (! $isReceipt) {
             return false;
         }
 
@@ -22,11 +25,12 @@ class FocalPointApplicationEmailTracking
         }
 
         $reference = $payload['focal_point_application_id'] ?? null;
+        $email = Str::lower(trim((string) $log->to_email));
         $application = is_string($reference) && Str::isUuid($reference)
             ? FocalPointApplication::query()->where('uuid', $reference)->first()
-            : null;
+            : FocalPointApplication::query()->where('email', $email)->first();
 
-        if (! $application || ! $log->to_email || ! hash_equals($application->email, Str::lower($log->to_email))) {
+        if (! $application || blank($email) || ! hash_equals($application->email, $email)) {
             return true;
         }
 

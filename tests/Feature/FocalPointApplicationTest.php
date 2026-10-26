@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Mail\FocalPointApplicationReceivedMail;
 use App\Mail\FocalPointApplicationResumeMail;
+use App\Mail\FocalPointApplicationVerificationMail;
 use App\Models\FocalPointApplication;
 use App\Models\FocalPointApplicationDraft;
 use App\Services\Foundation\FocalPointApplicationContent;
@@ -63,6 +64,7 @@ class FocalPointApplicationTest extends TestCase
             ->assertSee('Experience')
             ->assertSee('Coordination')
             ->assertSee('Terms')
+            ->assertSee('Verify your email')
             ->assertDontSee('Tools you can use')
             ->assertDontSee('Applications are reviewed by authorised staff only.');
 
@@ -70,6 +72,13 @@ class FocalPointApplicationTest extends TestCase
             ->assertOk()->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.name', 'FCT (Abuja)')
             ->assertJsonPath('data.1.name', 'Osun');
+
+        $this->get('/applications/2027-state-focal-points/locations/states')
+            ->assertRedirect(route('focal-points.applications.locations.states'));
+        $this->get('/applications/2027-state-focal-points/locations/states/1/lgas')
+            ->assertRedirect(route('focal-points.applications.locations.lgas', ['state' => 1]));
+        $this->get('/applications/2027-state-focal-points/locations/states/1/lgas/10/wards')
+            ->assertRedirect(route('focal-points.applications.locations.wards', ['state' => 1, 'lga' => 10]));
     }
 
     public function test_submission_requires_separate_documents_and_rejects_mismatched_locations(): void
@@ -87,7 +96,7 @@ class FocalPointApplicationTest extends TestCase
     public function test_document_size_limits_are_enforced(): void
     {
         $draft = FocalPointApplicationDraft::query()->create([
-            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'expires_at' => now()->addHours(72),
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'email_verified_at' => now(), 'expires_at' => now()->addHours(72),
         ]);
 
         $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
@@ -140,7 +149,7 @@ class FocalPointApplicationTest extends TestCase
             $this->assertNotNull($admin);
             $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
             $this->get(cp_route('focal-point-applications.index'))->assertOk()->assertSee('Ada Observer')->assertSee('Email status')->assertSee('Pending')->assertDontSee('Review status');
-            $this->get(cp_route('focal-point-applications.show', $application))->assertOk()->assertSee('View CV')->assertSee('Email status')->assertSee('Application details')->assertDontSee('Review status');
+            $this->get(cp_route('focal-point-applications.show', $application))->assertOk()->assertSee('View CV')->assertSee('Email status')->assertSee('Application details')->assertSee('How would you coordinate observers in your state if selected as a coordinator?')->assertDontSee('Recruitment Plan')->assertDontSee('Review status');
             $csv = $this->get(cp_route('focal-point-applications.export'))->assertOk()->streamedContent();
             $this->assertStringContainsString('https://drive.google.com/file/d/cv-id/view', $csv);
             $this->assertStringContainsString('https://drive.google.com/file/d/cert-id/view', $csv);
@@ -189,6 +198,26 @@ class FocalPointApplicationTest extends TestCase
         $this->assertSame('opened', $application->fresh()->confirmation_email_status);
         $this->assertNotNull($application->fresh()->confirmation_email_opened_at);
 
+        $fallbackApplication = FocalPointApplication::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'email' => 'fallback@example.test',
+            'full_name' => 'Fallback Applicant',
+            'answers' => [],
+            'cv_drive_id' => 'fallback-cv-id',
+            'cv_drive_url' => 'https://drive.google.com/file/d/fallback-cv-id/view',
+            'cv_filename' => 'cv.pdf',
+            'certificate_drive_id' => 'fallback-certificate-id',
+            'certificate_drive_url' => 'https://drive.google.com/file/d/fallback-certificate-id/view',
+            'certificate_filename' => 'certificate.pdf',
+        ]);
+        $this->postJson($url, [
+            'to' => $fallbackApplication->email,
+            'eventtype' => 'Opened',
+            'subject' => 'State Coordinator application received',
+            'date' => '2026-10-20T13:05:00Z',
+        ])->assertOk();
+        $this->assertSame('opened', $fallbackApplication->fresh()->confirmation_email_status);
+
         $this->postJson($url, [...$payload, 'eventtype' => 'Delivery'])->assertOk();
         $this->assertSame('opened', $application->fresh()->confirmation_email_status);
 
@@ -204,7 +233,7 @@ class FocalPointApplicationTest extends TestCase
         Queue::fake();
         Storage::fake('local');
         $draft = FocalPointApplicationDraft::query()->create([
-            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'expires_at' => now()->addHours(72),
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'email_verified_at' => now(), 'expires_at' => now()->addHours(72),
         ]);
 
         $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
@@ -357,10 +386,14 @@ class FocalPointApplicationTest extends TestCase
 
     public function test_completed_personal_step_is_saved_as_a_private_draft(): void
     {
-        $response = $this->postJson(route('focal-points.applications.drafts.step'), [
-            ...Arr::only($this->payload(), ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027']),
-            'step' => 0,
+        $draft = FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'email_verified_at' => now(), 'expires_at' => now()->addHours(72),
         ]);
+        $response = $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
+            ->postJson(route('focal-points.applications.drafts.step'), [
+                ...Arr::only($this->payload(), ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027']),
+                'step' => 0,
+            ]);
 
         $response->assertOk()->assertJsonPath('answers.email', 'ada@example.test');
         $draft = FocalPointApplicationDraft::query()->sole();
@@ -375,6 +408,34 @@ class FocalPointApplicationTest extends TestCase
             'step' => 0,
             ...Arr::only($this->payload(['age' => 17]), ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027']),
         ])->assertUnprocessable()->assertJsonValidationErrors('age');
+    }
+
+    public function test_personal_information_is_saved_only_after_email_verification(): void
+    {
+        $this->postJson(route('focal-points.applications.email-verification.request'), ['email' => 'ada@example.test'])
+            ->assertOk()->assertJsonPath('message', 'A six-digit verification code was sent to your email address.');
+
+        $draft = FocalPointApplicationDraft::query()->sole();
+        $this->assertEmpty($draft->answers);
+        $code = null;
+        Mail::assertQueued(FocalPointApplicationVerificationMail::class, function (FocalPointApplicationVerificationMail $mail) use (&$code): bool {
+            $code = $mail->code;
+
+            return $mail->queue === 'focal_point_mail';
+        });
+
+        $this->postJson(route('focal-points.applications.email-verification.confirm'), [
+            'email' => $draft->email,
+            'code' => $code,
+        ])->assertOk()->assertJsonPath('email_verified_at', now()->toIso8601String());
+
+        $this->withSession(['focal_point_draft_uuid' => $draft->uuid])
+            ->postJson(route('focal-points.applications.drafts.step'), [
+                'step' => 0,
+                ...Arr::only($this->payload(), ['full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age', 'has_disability', 'education', 'linkedin_url', 'state_id', 'lga_id', 'ward_id', 'residential_address', 'resident_in_state', 'residence_length', 'party_member', 'candidate_2027']),
+            ])->assertOk()->assertJsonPath('answers.email', 'ada@example.test');
+
+        $this->assertSame('Ada Observer', $draft->fresh()->answers['full_name']);
     }
 
     public function test_resume_link_is_single_use_and_does_not_reveal_draft_existence(): void
@@ -415,6 +476,13 @@ class FocalPointApplicationTest extends TestCase
             ->assertOk()->assertJsonPath('has_draft', true);
         $this->postJson(route('focal-points.applications.drafts.lookup'), ['email' => 'new@example.test'])
             ->assertOk()->assertJsonPath('has_draft', false);
+
+        FocalPointApplicationDraft::query()->create([
+            'uuid' => (string) Str::uuid(), 'email' => 'verification-only@example.test', 'answers' => [],
+            'expires_at' => now()->addHours(72),
+        ]);
+        $this->postJson(route('focal-points.applications.drafts.lookup'), ['email' => 'verification-only@example.test'])
+            ->assertOk()->assertJsonPath('has_draft', false);
     }
 
     public function test_submitted_email_cannot_start_another_application(): void
@@ -442,6 +510,7 @@ class FocalPointApplicationTest extends TestCase
             'uuid' => (string) Str::uuid(), 'email' => 'ada@example.test', 'answers' => [], 'last_completed_step' => 2,
             'cv_drive_id' => 'draft-cv-id', 'cv_drive_url' => 'https://drive.google.com/file/d/draft-cv-id/view', 'cv_filename' => 'saved-cv.pdf',
             'certificate_drive_id' => 'draft-cert-id', 'certificate_drive_url' => 'https://drive.google.com/file/d/draft-cert-id/view', 'certificate_filename' => 'saved-certificate.pdf',
+            'email_verified_at' => now(),
             'expires_at' => now()->addHours(72),
         ]);
         $drive = Mockery::mock(GoogleDriveApplicationStorage::class);
@@ -487,6 +556,7 @@ class FocalPointApplicationTest extends TestCase
             'uuid' => (string) Str::uuid(),
             'email' => 'ada@example.test',
             'answers' => [],
+            'email_verified_at' => now(),
             'last_completed_step' => 2,
             'cv_drive_id' => 'cv-id',
             'cv_drive_url' => 'https://drive.google.com/file/d/cv-id/view',
