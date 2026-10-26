@@ -49,9 +49,9 @@ Route::get('/', function () {
 Route::prefix('applications/call-for-state-coordinators')->name('focal-points.applications.')->group(function () {
     Route::get('/', [FocalPointApplicationController::class, 'show'])->name('show');
     Route::post('/', [FocalPointApplicationController::class, 'store'])
-        ->middleware('throttle:5,1')->name('store');
+        ->middleware('throttle:10,1')->name('store');
     Route::post('/drafts/step', [FocalPointApplicationController::class, 'saveDraftStep'])
-        ->middleware('throttle:20,1')->name('drafts.step');
+        ->middleware('throttle:60,1')->name('drafts.step');
     Route::post('/drafts/lookup', [FocalPointApplicationController::class, 'lookupDraft'])
         ->middleware('throttle:10,1')->name('drafts.lookup');
     Route::post('/drafts/resume', [FocalPointApplicationController::class, 'requestResume'])

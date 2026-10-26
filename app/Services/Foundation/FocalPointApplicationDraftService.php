@@ -156,6 +156,6 @@ class FocalPointApplicationDraftService
         }
 
         UploadFocalPointApplicationDocument::dispatch($draft->uuid, $kind, $path)
-            ->onQueue('focal-point-uploads');
+            ->onQueue('focal_point_uploads');
     }
 }

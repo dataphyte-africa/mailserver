@@ -120,7 +120,7 @@ class FocalPointApplicationTest extends TestCase
             return $mail->hasTo($application->email)
                 && $mail->fullName === $application->full_name
                 && $mail->reference === $application->uuid
-                && $mail->queue === 'focal-point-mail'
+                && $mail->queue === 'focal_point_mail'
                 && $mail->headers()->text['X-Focal-Point-Application-Id'] === $application->uuid
                 && str_contains($mail->render(), $application->uuid)
                 && str_contains($mail->render(), 'assets/foundation/Dataphyte%20Foundation%20Logo.png');
@@ -397,7 +397,7 @@ class FocalPointApplicationTest extends TestCase
             ->assertOk()->assertJsonPath('message', 'If an unfinished application matches that email, a resume link has been sent.');
         Mail::assertQueued(FocalPointApplicationResumeMail::class, fn (FocalPointApplicationResumeMail $mail): bool => str_contains(
             $mail->render(), 'assets/foundation/Dataphyte%20Foundation%20Logo.png'
-        ) && $mail->queue === 'focal-point-mail');
+        ) && $mail->queue === 'focal_point_mail');
 
         $token = app(\App\Services\Foundation\FocalPointApplicationDraftService::class)->createResumeToken($draft);
         $this->get(route('focal-points.applications.drafts.resume', ['uuid' => $draft->uuid, 'token' => $token]))

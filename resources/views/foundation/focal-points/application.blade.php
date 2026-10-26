@@ -220,7 +220,7 @@
     form.querySelectorAll('[name="tools[]"]').forEach(field => field.addEventListener('change', syncToolsOther));
     syncToolsOther();
     const updateSubmitState = () => {
-        submit.disabled = !@json($isReady) || termsCheck.disabled || !termsCheck.checked;
+        submit.disabled = !@json($isReady) || termsCheck.disabled || !termsCheck.checked || !uploadsReady();
     };
     const unlockTerms = () => {
         if (terms.scrollTop + terms.clientHeight < terms.scrollHeight - 8) return;
@@ -261,6 +261,7 @@
         draftExpiry.textContent = serverDraft.expiresAt ? `Your saved application expires on ${formatExpiry(serverDraft.expiresAt)} WAT.` : '';
     };
     const uploadsReady = () => serverDraft?.cvUploadStatus === 'ready' && serverDraft?.certificateUploadStatus === 'ready';
+    const uploadsFailed = () => ['failed'].includes(serverDraft?.cvUploadStatus) || ['failed'].includes(serverDraft?.certificateUploadStatus);
     const pollUploadStatus = () => {
         if (uploadPoll || uploadsReady() || !serverDraft) return;
         uploadPoll = window.setInterval(async () => {
@@ -269,7 +270,7 @@
                 if (!response.ok) return;
                 const payload = await response.json();
                 updateDraftMeta(payload);
-                if (uploadsReady() || ['failed'].includes(serverDraft.cvUploadStatus) || ['failed'].includes(serverDraft.certificateUploadStatus)) {
+                if (uploadsReady() || uploadsFailed()) {
                     window.clearInterval(uploadPoll); uploadPoll = null;
                     if (uploadsReady()) setSaveStatus('Documents uploaded. You can continue.');
                 }
@@ -334,6 +335,10 @@
         back.hidden = index === 0; next.hidden = index === steps.length - 1; submit.hidden = index !== steps.length - 1;
         if (index === steps.length - 1) unlockTerms();
         updateSubmitState();
+        if (index === steps.length - 1 && serverDraft && !uploadsReady() && !uploadsFailed()) {
+            pollUploadStatus();
+            setSaveStatus('Your answers are saved. Document uploads are still in progress. Submission will unlock automatically.');
+        }
         steps[index].scrollIntoView({behavior, block: 'start'});
     };
     const pickers = new Map();
@@ -450,8 +455,12 @@
         return true;
     }
     form.querySelectorAll('[data-max-words]').forEach(field => field.addEventListener('input', () => field.setCustomValidity('')));
+    let savingStep = false;
     const saveCurrentStep = async () => {
+        if (savingStep) return false;
         if (!validStep()) return false;
+        savingStep = true;
+        next.disabled = true;
         setSaveStatus('Saving progress…');
         const body = new FormData(form);
         body.append('step', String(current));
@@ -459,8 +468,12 @@
             const response = await fetch(form.dataset.draftStepUrl, {
                 method: 'POST', body, credentials: 'same-origin', headers: {Accept: 'application/json', 'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value},
             });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(Object.values(payload.errors || {}).flat()[0] || 'We could not save your progress.');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(response.status === 429
+                    ? 'Too many attempts. Please wait a minute before trying again.'
+                    : Object.values(payload.errors || {}).flat()[0] || 'We could not save your progress.');
+            }
             updateDraftMeta(payload);
             ['cv', 'certificate'].forEach(kind => {
                 if (form.querySelector(`#${kind}`).files.length) form.querySelector(`#${kind}`).value = '';
@@ -468,15 +481,17 @@
             clearLocal();
             if (current === 2 && !uploadsReady()) {
                 pollUploadStatus();
-                setSaveStatus('Your answers are saved. Wait for both document uploads to finish.', 'error');
-                return false;
+                setSaveStatus('Your answers are saved. Documents are uploading in the background. You can continue to the Terms.');
             }
-            setSaveStatus('Saved.');
+            else setSaveStatus('Saved.');
             return true;
         } catch (error) {
             stashCurrentStep();
             setSaveStatus(`${error.message} Your changes remain on this device until you retry.`, 'error');
             return false;
+        } finally {
+            savingStep = false;
+            next.disabled = false;
         }
     };
     labels.forEach((label, index) => label.addEventListener('click', async () => {

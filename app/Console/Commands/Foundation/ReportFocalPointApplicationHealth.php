@@ -40,7 +40,7 @@ class ReportFocalPointApplicationHealth extends Command
             'storage_available_bytes' => disk_free_space(storage_path()) ?: null,
         ];
 
-        foreach (['focal-point-uploads', 'focal-point-mail'] as $queue) {
+        foreach (['focal_point_uploads', 'focal_point_mail'] as $queue) {
             try {
                 $metrics["{$queue}_depth"] = Queue::size($queue);
             } catch (\Throwable $exception) {

@@ -228,7 +228,7 @@ return [
         // Applicant receipts and resume links should not wait behind campaign or tracking work.
         'supervisor-focal-point-mail' => [
             'connection' => 'redis',
-            'queue' => ['focal-point-mail'],
+            'queue' => ['focal_point_mail'],
             'balance' => 'simple',
             'maxProcesses' => 1,
             'maxTime' => 0,
@@ -241,7 +241,7 @@ return [
         // Drive transfers are intentionally isolated from request and mail capacity.
         'supervisor-focal-point-uploads' => [
             'connection' => 'redis',
-            'queue' => ['focal-point-uploads'],
+            'queue' => ['focal_point_uploads'],
             'balance' => 'simple',
             'maxProcesses' => 2,
             'maxTime' => 0,

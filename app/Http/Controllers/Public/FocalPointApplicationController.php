@@ -93,7 +93,7 @@ class FocalPointApplicationController extends Controller
         try {
             Mail::to($application->email, $application->full_name)->queue(
                 (new FocalPointApplicationReceivedMail($application->full_name, $application->uuid))
-                    ->onQueue('focal-point-mail')
+                    ->onQueue('focal_point_mail')
             );
         } catch (\Throwable $exception) {
             $application->forceFill([
@@ -147,7 +147,7 @@ class FocalPointApplicationController extends Controller
             $token = $this->drafts->createResumeToken($draft);
             Mail::to($draft->email)->queue((new FocalPointApplicationResumeMail(
                 route('focal-points.applications.drafts.resume', ['uuid' => $draft->uuid, 'token' => $token]),
-            ))->onQueue('focal-point-mail'));
+            ))->onQueue('focal_point_mail'));
             Log::info('Focal point resume email queued.', ['draft_uuid' => $draft->uuid]);
         }
 
