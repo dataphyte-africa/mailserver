@@ -79,7 +79,6 @@ class FormDataCollectionServiceProvider extends ServiceProvider
                 \Route::get('/', [CpFocalPointApplicationController::class, 'index'])->name('index');
                 \Route::get('/export/csv', [CpFocalPointApplicationController::class, 'export'])->name('export');
                 \Route::get('/{applicationId}', [CpFocalPointApplicationController::class, 'show'])->whereNumber('applicationId')->name('show');
-                \Route::post('/{applicationId}/status', [CpFocalPointApplicationController::class, 'updateStatus'])->whereNumber('applicationId')->name('status');
             });
 
             \Route::prefix('subscription-forms')->name('subscription-forms.')->middleware(EnforceCpOwnership::class)->group(function (): void {

@@ -36,18 +36,18 @@ class FocalPointApplicationEmailTracking
 
         if (in_array($event, ['opened', 'clicked'], true)) {
             $application->forceFill([
-                'confirmation_email_status' => 'confirmed',
+                'confirmation_email_status' => 'opened',
                 'confirmation_email_delivered_at' => $application->confirmation_email_delivered_at ?? $eventAt,
                 'confirmation_email_opened_at' => $application->confirmation_email_opened_at ?? $eventAt,
                 'confirmation_email_failed_at' => null,
             ])->save();
-        } elseif ($event === 'delivered' && $application->confirmation_email_status !== 'confirmed') {
+        } elseif ($event === 'delivered' && $application->confirmation_email_status !== 'opened') {
             $application->forceFill([
                 'confirmation_email_status' => 'delivered',
                 'confirmation_email_delivered_at' => $application->confirmation_email_delivered_at ?? $eventAt,
                 'confirmation_email_failed_at' => null,
             ])->save();
-        } elseif (in_array($event, ['failed', 'bounced'], true) && $application->confirmation_email_status !== 'confirmed') {
+        } elseif (in_array($event, ['failed', 'bounced'], true) && $application->confirmation_email_status !== 'opened') {
             $application->forceFill([
                 'confirmation_email_status' => 'failed',
                 'confirmation_email_failed_at' => $application->confirmation_email_failed_at ?? $eventAt,

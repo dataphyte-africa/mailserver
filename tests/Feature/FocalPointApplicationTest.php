@@ -138,18 +138,14 @@ class FocalPointApplicationTest extends TestCase
             $admin = StatamicUser::findByEmail('admin@mailserver.test');
             $this->assertNotNull($admin);
             $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
-            $this->get(cp_route('focal-point-applications.index'))->assertOk()->assertSee('Ada Observer')->assertSee('Email status')->assertSee('Pending');
-            $this->get(cp_route('focal-point-applications.show', $application))->assertOk()->assertSee('View CV')->assertSee('Email status');
+            $this->get(cp_route('focal-point-applications.index'))->assertOk()->assertSee('Ada Observer')->assertSee('Email status')->assertSee('Pending')->assertDontSee('Review status');
+            $this->get(cp_route('focal-point-applications.show', $application))->assertOk()->assertSee('View CV')->assertSee('Email status')->assertSee('Application details')->assertDontSee('Review status');
             $csv = $this->get(cp_route('focal-point-applications.export'))->assertOk()->streamedContent();
             $this->assertStringContainsString('https://drive.google.com/file/d/cv-id/view', $csv);
             $this->assertStringContainsString('https://drive.google.com/file/d/cert-id/view', $csv);
             $this->assertStringContainsString('tor_accepted_at', $csv);
             $this->assertStringContainsString('confirmation_email_status', $csv);
 
-            $this->post(cp_route('focal-point-applications.status', $application), [
-                'status' => 'under_review',
-            ])->assertRedirect();
-            $this->assertSame('under_review', $application->fresh()->status);
         } finally {
             $operator->delete();
         }
@@ -189,17 +185,17 @@ class FocalPointApplicationTest extends TestCase
         $this->assertNotNull($application->fresh()->confirmation_email_delivered_at);
 
         $this->postJson($url, [...$payload, 'eventtype' => 'Open', 'date' => '2026-10-20T13:05:00Z'])->assertOk();
-        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
+        $this->assertSame('opened', $application->fresh()->confirmation_email_status);
         $this->assertNotNull($application->fresh()->confirmation_email_opened_at);
 
         $this->postJson($url, [...$payload, 'eventtype' => 'Delivery'])->assertOk();
-        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
+        $this->assertSame('opened', $application->fresh()->confirmation_email_status);
 
         $this->postJson($url, [...$payload, 'to' => 'someone-else@example.test', 'eventtype' => 'Bounce'])->assertOk();
-        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
+        $this->assertSame('opened', $application->fresh()->confirmation_email_status);
 
         $this->postJson(route('newsletter.webhook.elastic-email'), [...$payload, 'eventtype' => 'Bounce'])->assertUnauthorized();
-        $this->assertSame('confirmed', $application->fresh()->confirmation_email_status);
+        $this->assertSame('opened', $application->fresh()->confirmation_email_status);
     }
 
     public function test_document_uploads_are_staged_and_queued_without_waiting_for_google_drive(): void

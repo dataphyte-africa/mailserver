@@ -4,8 +4,6 @@ namespace App\Http\Controllers\CP\Forms;
 
 use App\Models\FocalPointApplication;
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Statamic\Facades\User;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -28,30 +26,14 @@ class FocalPointApplicationController
         return view('foundation.focal-points.cp.show', compact('application'));
     }
 
-    public function updateStatus(Request $request, string $applicationId): RedirectResponse
-    {
-        $this->assertSuper();
-        $application = FocalPointApplication::query()->findOrFail($applicationId);
-        $status = $request->validate(['status' => ['required', 'in:under_review,approved,rejected']])['status'];
-        abort_if(in_array($application->status, ['approved', 'rejected'], true), 409, 'This decision is final.');
-
-        $application->forceFill([
-            'status' => $status,
-            'reviewed_at' => now(),
-            'reviewed_by' => (string) User::current()?->email(),
-        ])->save();
-
-        return back()->with('success', 'Application status updated.');
-    }
-
     public function export(): StreamedResponse
     {
         $this->assertSuper();
 
         $headers = [
-            'application_id', 'status', 'confirmation_email_status', 'confirmation_email_delivered_at',
+            'application_id', 'confirmation_email_status', 'confirmation_email_delivered_at',
             'confirmation_email_opened_at', 'confirmation_email_failed_at',
-            'submitted_at', 'reviewed_at', 'reviewed_by', 'tor_version', 'tor_accepted_at',
+            'submitted_at', 'tor_version', 'tor_accepted_at',
             'full_name', 'primary_phone', 'other_phone', 'email', 'gender', 'age',
             'has_disability', 'education', 'linkedin_url', 'state', 'lga', 'ward',
             'residential_address', 'resident_in_state', 'residence_length', 'party_member',
@@ -69,14 +51,11 @@ class FocalPointApplicationController
                     foreach ($headers as $header) {
                         $value = match ($header) {
                             'application_id' => $application->uuid,
-                            'status' => $application->status,
                             'confirmation_email_status' => $application->confirmation_email_status,
                             'confirmation_email_delivered_at' => $application->confirmation_email_delivered_at?->toIso8601String(),
                             'confirmation_email_opened_at' => $application->confirmation_email_opened_at?->toIso8601String(),
                             'confirmation_email_failed_at' => $application->confirmation_email_failed_at?->toIso8601String(),
                             'submitted_at' => $application->created_at?->toIso8601String(),
-                            'reviewed_at' => $application->reviewed_at?->toIso8601String(),
-                            'reviewed_by' => $application->reviewed_by,
                             'tor_version' => $application->tor_version,
                             'tor_accepted_at' => $application->tor_accepted_at?->toIso8601String(),
                             'cv_url' => $application->cv_drive_url,

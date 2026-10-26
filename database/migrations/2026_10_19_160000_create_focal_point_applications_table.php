@@ -13,7 +13,6 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
             $table->string('email')->index();
             $table->string('full_name');
-            $table->string('status')->default('pending_review')->index();
             $table->json('answers');
             $table->string('cv_drive_id');
             $table->string('cv_drive_url');
@@ -21,8 +20,6 @@ return new class extends Migration
             $table->string('certificate_drive_id');
             $table->string('certificate_drive_url');
             $table->string('certificate_filename');
-            $table->timestamp('reviewed_at')->nullable();
-            $table->string('reviewed_by')->nullable();
             $table->timestamps();
         });
     }
