@@ -68,7 +68,10 @@ class EnforceCpOwnership
 
         $organisation = $request->route('organisation');
         if ($organisation instanceof Organisation) {
-            abort_unless(in_array((int) $organisation->id, $this->scope->organisationIds($operator), true), 403);
+            $organisationIds = $request->routeIs('*organisation-profiles.update')
+                ? $this->scope->delegatedOrganisationIds($operator)
+                : $this->scope->organisationIds($operator);
+            abort_unless(in_array((int) $organisation->id, $organisationIds, true), 403);
         }
 
         $form = $request->route('productForm');

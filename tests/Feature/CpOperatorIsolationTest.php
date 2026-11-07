@@ -113,7 +113,7 @@ class CpOperatorIsolationTest extends TestCase
         }
     }
 
-    public function test_product_blueprint_create_and_store_require_a_scoped_blueprint(): void
+    public function test_assigned_organisation_blueprint_create_and_store_require_a_scoped_blueprint(): void
     {
         $product = $this->product('Policy', 'policy_point_newsletters');
         $user = StatamicUser::make()->id((string) Str::uuid())->email('blueprint-'.Str::random(8).'@example.test');
@@ -125,6 +125,10 @@ class CpOperatorIsolationTest extends TestCase
             ProductUserScope::query()->create([
                 'user_id' => $identity->id, 'product_id' => $product->id,
                 'scope_role' => 'product_operator', 'status' => 'active',
+            ]);
+            OrganisationUserScope::query()->create([
+                'user_id' => $identity->id, 'organisation_id' => $product->organisation_id,
+                'scope_role' => 'organisation_operator', 'status' => 'active',
             ]);
             $collection = (new \Statamic\Entries\Collection)->handle($product->primary_collection_handle);
             $policy = app(ScopedEntryPolicy::class);
@@ -172,6 +176,10 @@ class CpOperatorIsolationTest extends TestCase
             ProductUserScope::query()->create([
                 'user_id' => $identity->id, 'product_id' => $product->id,
                 'scope_role' => 'product_operator', 'status' => 'active',
+            ]);
+            OrganisationUserScope::query()->create([
+                'user_id' => $identity->id, 'organisation_id' => $organisation->id,
+                'scope_role' => 'organisation_operator', 'status' => 'active',
             ]);
             $policy = app(ScopedEntryPolicy::class);
             $collection = \Statamic\Facades\Collection::make('foundation_newsletters')
@@ -316,11 +324,15 @@ class CpOperatorIsolationTest extends TestCase
 
             $admin = StatamicUser::findByEmail('admin@mailserver.test');
             $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
-            $this->get(cp_route('operator-scopes.index'))->assertOk()->assertSee($user->email());
+            $accessPage = $this->get(cp_route('operator-scopes.index', ['user' => $user->id()]))
+                ->assertOk()->assertSee($user->email());
+            $this->assertSame(1, substr_count($accessPage->getContent(), 'class="operator-scopes-card"'));
+            $accessPage->assertSee('action="'.cp_route('operator-scopes.update', $user->id()).'"', false);
+            $this->get(cp_route('operator-scopes.index', ['user' => 'unknown-user']))->assertNotFound();
             $this->put(cp_route('operator-scopes.update', $user->id()), [
                 'organisation_ids' => [$foreign->organisation_id],
                 'product_ids' => [],
-            ])->assertRedirect();
+            ])->assertRedirect(cp_route('operator-scopes.index', ['user' => $user->id()]));
 
             $this->assertFalse($scope->canCampaign($user, $ownedCampaign));
             $this->assertTrue($scope->canCampaign($user, $foreignCampaign));
@@ -332,17 +344,15 @@ class CpOperatorIsolationTest extends TestCase
             $this->assertSame(0, ProductUserScope::query()->where('user_id', $identity->id)
                 ->where('product_id', $foreign->id)->where('status', 'active')->count());
             $accessPage = $this->get(cp_route('operator-scopes.index'))->assertOk();
-            $this->assertMatchesRegularExpression(
-                '/data-products-for-organisation=.{0,100}hidden/s',
-                $accessPage->getContent(),
-            );
+            $accessPage->assertSee('Each assignment includes all active products in that organisation.')
+                ->assertDontSee('name="product_ids[]"', false);
 
             $this->put(cp_route('operator-scopes.update', $user->id()), [
                 'organisation_ids' => [],
                 'product_ids' => [$owned->id],
             ])->assertRedirect();
-            $this->assertSame(['owned-product'], $scope->blueprintHandlesForCollection($user, 'foundation_newsletters'));
-            $this->assertTrue($scope->canEntry($user, 'foundation_newsletters', 'owned-product'));
+            $this->assertSame([], $scope->blueprintHandlesForCollection($user, 'foundation_newsletters'));
+            $this->assertFalse($scope->canEntry($user, 'foundation_newsletters', 'owned-product'));
             $this->assertFalse($scope->canEntry($user, 'foundation_newsletters', 'another-product'));
 
             $this->put(cp_route('operator-scopes.update', $user->id()), [

@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Organisation;
+use App\Models\OrganisationUserScope;
 use App\Models\Product;
 use App\Models\ProductUserScope;
 use App\Models\Subscriber;
@@ -138,7 +139,7 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
         $this->deletions = new ScopedSubscriberGroupDeletionService($this->selector, $scope);
     }
 
-    public function test_lists_only_products_in_direct_active_scope_with_active_organisations(): void
+    public function test_lists_only_products_in_assigned_active_organisations(): void
     {
         $user = $this->createUser('statamic-123');
         $allowed = $this->createProduct('allowed');
@@ -582,6 +583,12 @@ class ScopedSubscriberGroupProductSelectorTest extends TestCase
 
     private function scope(User $user, Product $product, string $status = 'active'): void
     {
+        if ($status === 'active') {
+            OrganisationUserScope::query()->firstOrCreate(
+                ['user_id' => $user->getKey(), 'organisation_id' => $product->organisation_id],
+                ['scope_role' => 'organisation_operator', 'status' => 'active'],
+            );
+        }
         ProductUserScope::query()->create([
             'user_id' => $user->getKey(),
             'product_id' => $product->getKey(),

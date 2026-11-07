@@ -15,6 +15,8 @@ use Statamic\Contracts\Auth\User as StatamicUser;
 
 class CpOperatorScope
 {
+    public const ACTIVE_ORGANISATION_SESSION_KEY = 'cp_active_organisation_id';
+
     public function __construct(
         private readonly StatamicUserIdentityBridgeInterface $identity,
         private readonly ScopeResolverInterface $scopes,
@@ -26,6 +28,16 @@ class CpOperatorScope
     }
 
     public function organisationIds(?Authenticatable $operator): array
+    {
+        $activeId = $this->activeOrganisationId($operator);
+
+        return $this->isSuper($operator) ? $this->delegatedOrganisationIds($operator)
+            : ($activeId !== null
+                ? array_values(array_filter($this->delegatedOrganisationIds($operator), fn ($id) => (int) $id === $activeId))
+                : []);
+    }
+
+    public function delegatedOrganisationIds(?Authenticatable $operator): array
     {
         if ($this->isSuper($operator)) {
             return \App\Models\Organisation::query()->pluck('id')->all();
@@ -47,14 +59,52 @@ class CpOperatorScope
             return [];
         }
 
-        $organisationIds = $this->scopes->organisationIds($user);
-        $directIds = $this->scopes->productIds($user);
+        $activeId = $this->activeOrganisationId($operator);
+        if ($activeId === null) {
+            return [];
+        }
 
         return Product::query()
+            ->where('organisation_id', $activeId)
             ->where('status', 'active')
             ->whereHas('organisation', fn ($q) => $q->where('status', 'active'))
-            ->where(fn ($q) => $q->whereIn('id', $directIds)->orWhereIn('organisation_id', $organisationIds))
+            ->whereIn('organisation_id', $this->delegatedOrganisationIds($operator))
             ->pluck('id')->all();
+    }
+
+    public function availableOrganisations(?Authenticatable $operator): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($this->isSuper($operator)) {
+            return \App\Models\Organisation::query()->where('status', 'active')->orderBy('name')->get();
+        }
+
+        $user = $this->identity->resolve($operator);
+        if (! $user) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        return \App\Models\Organisation::query()->where('status', 'active')
+            ->whereKey($this->scopes->organisationIds($user))
+            ->orderBy('id')->get();
+    }
+
+    public function activeOrganisationId(?Authenticatable $operator): ?int
+    {
+        if ($this->isSuper($operator)) {
+            return null;
+        }
+
+        $ids = $this->availableOrganisations($operator)->modelKeys();
+        if ($ids === []) {
+            return null;
+        }
+
+        $request = app()->bound('request') ? app('request') : null;
+        $selected = $request?->hasSession()
+            ? (int) $request->session()->get(self::ACTIVE_ORGANISATION_SESSION_KEY)
+            : 0;
+
+        return in_array($selected, $ids, true) ? $selected : (int) $ids[0];
     }
 
     public function campaignQuery(?Authenticatable $operator): Builder
@@ -188,10 +238,12 @@ class CpOperatorScope
             return [];
         }
 
-        $organisationIds = $this->scopes->organisationIds($user);
-        $directProductIds = $this->scopes->productIds($user);
+        $organisationIds = $this->organisationIds($operator);
+        $directProductIds = $this->productIds($operator);
 
-        return Product::query()->whereNotNull('primary_collection_handle')
+        return Product::query()->where('status', 'active')
+            ->whereHas('organisation', fn ($organisation) => $organisation->where('status', 'active'))
+            ->whereNotNull('primary_collection_handle')
             ->get(['id', 'organisation_id', 'primary_collection_handle'])
             ->groupBy('primary_collection_handle')
             ->filter(fn ($products) => $products->pluck('organisation_id')->unique()->count() === 1

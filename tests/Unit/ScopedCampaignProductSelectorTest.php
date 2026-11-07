@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\Campaign;
 use App\Models\Organisation;
+use App\Models\OrganisationUserScope;
 use App\Models\Product;
 use App\Models\ProductUserScope;
 use App\Models\User;
@@ -111,6 +112,24 @@ class ScopedCampaignProductSelectorTest extends TestCase
 
         $this->assertSame([$allowed->getKey()], $products->modelKeys());
         $this->assertNotContains($unscoped->getKey(), $products->modelKeys());
+    }
+
+    public function test_product_grant_without_organisation_assignment_grants_no_access(): void
+    {
+        $user = $this->createUser('product-only');
+        $product = $this->createProduct('Product Only', 'product-only', 'product_only_newsletters');
+        $campaign = $this->createCampaign($product);
+        ProductUserScope::query()->create([
+            'user_id' => $user->getKey(),
+            'product_id' => $product->getKey(),
+            'scope_role' => 'product_manager',
+            'status' => 'active',
+        ]);
+
+        $operator = $this->statamicUser('product-only');
+        $this->assertSame([], $this->selector->productsFor($operator)->modelKeys());
+        $this->assertNull($this->selector->resolve($operator, $product->getKey(), 'product_only_newsletters'));
+        $this->assertNull($this->selector->resolveCampaign($operator, $campaign));
     }
 
     public function test_super_user_can_list_active_newsletter_products_without_relational_scope_rows(): void
@@ -279,6 +298,12 @@ class ScopedCampaignProductSelectorTest extends TestCase
 
     private function scope(User $user, Product $product, string $status = 'active'): void
     {
+        if ($status === 'active') {
+            OrganisationUserScope::query()->firstOrCreate(
+                ['user_id' => $user->getKey(), 'organisation_id' => $product->organisation_id],
+                ['scope_role' => 'organisation_operator', 'status' => 'active'],
+            );
+        }
         ProductUserScope::query()->create([
             'user_id' => $user->getKey(),
             'product_id' => $product->getKey(),

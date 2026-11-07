@@ -250,6 +250,16 @@ class NewsletterServiceProvider extends ServiceProvider
     protected function registerCpNav(): void
     {
         Nav::extend(function ($nav) {
+            $operator = \Statamic\Facades\User::current();
+            $scope = app(\App\Services\Platform\CpOperatorScope::class);
+            if ($operator && ! $scope->isSuper($operator) && $scope->availableOrganisations($operator)->count() > 1) {
+                $active = $scope->availableOrganisations($operator)->firstWhere('id', $scope->activeOrganisationId($operator));
+                $nav->content('Working in: '.($active?->name ?? 'Organisation'))
+                    ->section('Settings')
+                    ->url(cp_route('newsletter.organisation-context.index'))
+                    ->icon('earth');
+            }
+
             if (! \Statamic\Facades\User::current()?->isSuper()) {
                 $nav->content('Create Newsletter')
                     ->section('Newsletter')
@@ -298,6 +308,11 @@ class NewsletterServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         Statamic::pushCpRoutes(function () {
+            \Route::prefix('newsletter/organisation-context')->name('newsletter.organisation-context.')->group(function () {
+                \Route::get('/', [\App\Http\Controllers\CP\Platform\ActiveOrganisationController::class, 'index'])->name('index');
+                \Route::post('/', [\App\Http\Controllers\CP\Platform\ActiveOrganisationController::class, 'update'])->name('update');
+            });
+
             \Route::name('newsletter.')->prefix('newsletter')->middleware(\App\Http\Middleware\EnforceCpOwnership::class)->group(function () {
 
                 \Route::get('/create', [\App\Http\Controllers\CP\Newsletter\NewsletterEntryController::class, 'create'])->name('entries.create');
