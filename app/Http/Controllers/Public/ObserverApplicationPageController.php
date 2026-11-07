@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organisation;
+use App\Models\ProductForm;
+use App\Services\Forms\ProductFormService;
 use App\Services\Foundation\ElectionLocationService;
 use App\Services\Newsletter\SubscriptionFormService;
 use Illuminate\Http\Response;
@@ -16,17 +18,34 @@ class ObserverApplicationPageController extends Controller
         private readonly ElectionLocationService $locations,
     ) {}
 
-    public function show(string $form): Response
+    public function show(string $form): Response|\Illuminate\Http\RedirectResponse
     {
         $resolved = $this->forms->resolveForm($form);
 
         abort_unless($resolved, 404);
         if ($this->forms->submissionMode($resolved) === 'subscription') {
+            $hostedSlug = match ([$resolved->handle(), $this->forms->collectionHandle($resolved)]) {
+                ['insight_subscribe', 'insight_newsletters'] => 'insight-subscribe',
+                ['policy_point_subscribe', 'policy_point_newsletters'] => 'policy-point-subscribe',
+                default => null,
+            };
+            $hostedForm = $hostedSlug
+                ? ProductForm::query()->where('slug', $hostedSlug)->where('mode', 'subscription')
+                    ->where('status', 'published')
+                    ->whereHas('organisation', fn ($query) => $query->where('primary_collection_handle', $this->forms->collectionHandle($resolved)))
+                    ->first()
+                : null;
+            if ($hostedForm) {
+                return redirect()->to(app(ProductFormService::class)->hostedPageUrl($hostedForm));
+            }
+
             $organisation = Organisation::query()
                 ->where('primary_collection_handle', $this->forms->collectionHandle($resolved))
                 ->first();
 
-            return response()->view('newsletter.public.legacy-subscribe', [
+            return response()->view($this->forms->isInsightCutover($resolved)
+                ? 'newsletter.public.insight-subscribe'
+                : 'newsletter.public.legacy-subscribe', [
                 'form' => $resolved,
                 'schema' => $this->forms->schema($resolved),
                 'organisation' => $organisation,

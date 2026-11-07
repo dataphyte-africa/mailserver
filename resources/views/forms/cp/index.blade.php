@@ -51,8 +51,13 @@
                         </a>
                     </div>
                 </div>
-                <label class="form-platform-label" for="form-url-{{ $form->getKey() }}">Shareable subscription link</label>
+                <label class="form-platform-label" for="form-url-{{ $form->getKey() }}">Hosted form page (GET)</label>
                 <input id="form-url-{{ $form->getKey() }}" class="form-platform-control" type="text" readonly value="{{ $formService->hostedPageUrl($form) }}" onclick="this.select()">
+                @if($form->mode === 'subscription')
+                    <label class="form-platform-label" for="form-submit-url-{{ $form->getKey() }}">Website integration endpoint (POST)</label>
+                    <input id="form-submit-url-{{ $form->getKey() }}" class="form-platform-control" type="text" readonly value="{{ $formService->submitUrl($form) }}" onclick="this.select()">
+                    <p class="form-platform-help">Share the hosted page directly, or POST subscriber data from your website to the integration endpoint. Add the website's origin under Allowed Embed Origins when it differs from this organisation's domain. <a href="{{ $formService->schemaUrl($form) }}" target="_blank" rel="noopener">View JSON schema</a> for the required fields.</p>
+                @endif
             </div>
         @empty
             @if($legacyForms->isEmpty() && $bespokeForms->isEmpty())

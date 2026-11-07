@@ -202,9 +202,9 @@
     <div class="form-platform-card form-platform-stack">
         <strong>Subscription form options</strong>
         <p class="form-platform-help">Used by subscription templates. These fields are optional for subscribers and are stored with their form submission.</p>
-        @foreach(['country' => 'Country', 'profession' => 'Profession', 'gender' => 'Gender'] as $handle => $label)
+        @foreach(['country' => 'Country', 'organisation' => 'Organisation', 'profession' => 'Profession', 'gender' => 'Gender'] as $handle => $label)
             <label class="form-platform-checkbox">
-                <input type="checkbox" name="include_{{ $handle }}" value="1" @checked(old('include_'.$handle, collect($form?->field_definitions ?? [])->contains(fn ($field) => ($field['handle'] ?? '') === $handle)))>
+                <input type="checkbox" name="include_{{ $handle }}" value="1" @checked(old('include_'.$handle, $form ? collect($form->field_definitions ?? [])->contains(fn ($field) => ($field['handle'] ?? '') === $handle) : $handle !== 'gender'))>
                 Ask for {{ $label }}
             </label>
         @endforeach
@@ -219,7 +219,7 @@
         <div class="form-platform-field">
             <label class="form-platform-label">Welcome email message</label>
             <textarea name="welcome_body" rows="5" class="input-text form-platform-control" placeholder="Thank you for subscribing.">{{ old('welcome_body', $form?->settings['welcome_body'] ?? '') }}</textarea>
-            <p class="form-platform-help">The email is queued after signup. A pending subscriber becomes active only after confirmed delivery.</p>
+            <p class="form-platform-help">The email is queued after signup. The selected subscriptions take effect immediately.</p>
         </div>
         <div class="form-platform-field">
             <label class="form-platform-label">Resubscription email subject</label>
@@ -248,7 +248,7 @@
         <label class="form-platform-label">Field Definitions JSON</label>
         <textarea name="field_definitions_json" rows="14" class="input-text form-platform-control form-platform-code" required>{{ old('field_definitions_json', $fieldDefinitionsJson) }}</textarea>
         <p class="form-platform-help">
-            Supported field types: text, email, textarea, select, country. Country options come from the shared database catalogue.
+            Supported field types: text, email, textarea, select, country, checkbox. Country options come from the shared database catalogue.
             @if($subscriptionWorkspace)
                 Subscription forms require a required <code>email</code> field. The public form lists only the approved preferences selected above; each subscriber choice enrolls them in that audience.
             @endif

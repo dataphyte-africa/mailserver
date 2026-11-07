@@ -335,7 +335,7 @@ class ProductFormService
             ]);
             $validated['preferences'] = $this->subscriptions->validateSelection($form, $payload);
         }
-        $status = $form->requires_review ? 'pending_review' : 'submitted';
+        $status = $form->mode !== 'subscription' && $form->requires_review ? 'pending_review' : 'submitted';
 
         return ProductFormSubmission::query()->create([
             'product_form_id' => $form->getKey(),
@@ -413,6 +413,12 @@ class ProductFormService
 
     public function transitionSubmission(ProductForm $form, ProductFormSubmission $submission, string $status): ProductFormSubmission
     {
+        if ($form->mode === 'subscription') {
+            throw ValidationException::withMessages([
+                'status' => ['Subscription submissions are enrolled immediately and cannot be reviewed.'],
+            ]);
+        }
+
         if ((int) $submission->product_form_id !== (int) $form->getKey()) {
             throw ValidationException::withMessages([
                 'submission' => ['This submission does not belong to the selected form.'],
@@ -594,7 +600,7 @@ class ProductFormService
                 ]);
             }
 
-            if (! in_array($type, ['text', 'email', 'textarea', 'select', 'country'], true)) {
+            if (! in_array($type, ['text', 'email', 'textarea', 'select', 'country', 'checkbox'], true)) {
                 throw ValidationException::withMessages([
                     "field_definitions.{$index}.type" => ['Unsupported field type for this baseline.'],
                 ]);
@@ -670,6 +676,9 @@ class ProductFormService
             $rule = [$field['required'] ? 'required' : 'nullable'];
 
             switch ($field['type']) {
+                case 'checkbox':
+                    $rule = $field['required'] ? ['accepted'] : ['nullable', 'boolean'];
+                    break;
                 case 'email':
                     $rule[] = 'email';
                     break;

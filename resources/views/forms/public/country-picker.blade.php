@@ -85,7 +85,7 @@
                         const term = normalize(query);
                         matches = countries.filter(country =>
                             normalize(country.name).includes(term) || country.code.toLowerCase().includes(term)
-                        ).slice(0, 8);
+                        );
                         menu.replaceChildren();
                         active = -1;
                         if (matches.length === 0) {

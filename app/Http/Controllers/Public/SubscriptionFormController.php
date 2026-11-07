@@ -45,7 +45,7 @@ class SubscriptionFormController extends Controller
         $payload = $fields->process()->values()->all();
 
         if ($this->forms->isInsightCutover($resolved)) {
-            foreach (['country', 'profession', 'gender'] as $handle) {
+            foreach (['country', 'profession', 'organisation', 'gender', 'consent'] as $handle) {
                 if (array_key_exists($handle, $input)) {
                     $payload[$handle] = $input[$handle];
                 }
@@ -53,7 +53,9 @@ class SubscriptionFormController extends Controller
             Validator::make($payload, [
                 'country' => ['nullable', Rule::exists('countries', 'code')],
                 'profession' => ['nullable', 'string', 'max:255'],
+                'organisation' => ['nullable', 'string', 'max:255'],
                 'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
+                'consent' => ['accepted'],
             ])->validate();
         }
 

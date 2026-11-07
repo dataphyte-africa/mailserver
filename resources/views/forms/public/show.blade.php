@@ -22,8 +22,9 @@
         .preference-group h2 { font-size: 1rem; margin: 0 0 8px; }
         .preference-option { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-weight: 400; }
         .preference-option input { width: auto; }
+        .consent-option { display: flex; align-items: flex-start; gap: 10px; font-weight: 500; }
+        .consent-option input { width: auto; margin-top: 4px; }
         .help { color: #556276; font-size: 0.9rem; margin-top: 6px; }
-        .meta { color: #556276; font-size: 0.92rem; margin-top: 18px; }
         .success { background: #ecfdf3; border: 1px solid #86efac; color: #166534; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; }
         button { background: #0f4c81; color: #fff; border: 0; border-radius: 999px; padding: 14px 22px; font: inherit; cursor: pointer; }
     </style>
@@ -46,15 +47,21 @@
             <form method="POST" action="{{ $submitUrl }}">
                 @csrf
                 @foreach($form->field_definitions ?? [] as $field)
+                    @continue($form->mode === 'subscription' && $field['type'] === 'checkbox')
                     <div class="field">
-                        @if($field['type'] !== 'country')
+                        @if(!in_array($field['type'], ['country', 'checkbox'], true))
                             <label for="field-{{ $field['handle'] }}">
                                 {{ $field['label'] }}
                                 @if($field['required']) * @endif
                             </label>
                         @endif
 
-                        @if($field['type'] === 'textarea')
+                        @if($field['type'] === 'checkbox')
+                            <label class="consent-option" for="field-{{ $field['handle'] }}">
+                                <input id="field-{{ $field['handle'] }}" type="checkbox" name="{{ $field['handle'] }}" value="1" @checked((bool) old($field['handle'])) @required($field['required'])>
+                                <span>{{ $field['label'] }} @if($field['required']) * @endif</span>
+                            </label>
+                        @elseif($field['type'] === 'textarea')
                             <textarea id="field-{{ $field['handle'] }}" name="{{ $field['handle'] }}" @required($field['required'])>{{ old($field['handle']) }}</textarea>
                         @elseif($field['type'] === 'country')
                             @include('forms.public.country-picker', [
@@ -86,15 +93,17 @@
 
                 @if($form->mode === 'subscription')
                     <fieldset class="preferences">
-                        <legend>Your preferences *</legend>
+                        <legend>Newsletters to receive *</legend>
                         <input type="hidden" name="preferences_present" value="1">
                         @forelse($publicPreferences as $group)
                             <div class="preference-group">
-                                <h2>{{ $group->name }}</h2>
+                                @if($group->subGroups->count() > 1)
+                                    <h2>{{ $group->product?->name ?? $group->name }}</h2>
+                                @endif
                                 @foreach($group->subGroups as $subGroup)
                                     <label class="preference-option">
-                                        <input type="checkbox" name="preferences[]" value="{{ $subGroup->getKey() }}" @checked(in_array((string) $subGroup->getKey(), array_map('strval', old('preferences', [])), true))>
-                                        <span>{{ $subGroup->name }}</span>
+                                        <input type="{{ $group->subGroups->count() > 1 ? 'radio' : 'checkbox' }}" name="{{ $group->subGroups->count() > 1 ? 'preferences['.$group->id.']' : 'preferences[]' }}" value="{{ $subGroup->getKey() }}" @checked(in_array((string) $subGroup->getKey(), array_map('strval', old('preferences', [])), true))>
+                                        <span>{{ $group->subGroups->count() === 1 ? 'Subscribe to receive '.($group->product?->name ?? $group->name) : $subGroup->name }}</span>
                                     </label>
                                 @endforeach
                             </div>
@@ -105,6 +114,19 @@
                             <div class="help" style="color: #b91c1c;">{{ $errors->first('preferences') }}</div>
                         @endif
                     </fieldset>
+                    @foreach($form->field_definitions ?? [] as $field)
+                        @if($field['type'] === 'checkbox')
+                            <div class="field">
+                                <label class="consent-option" for="field-{{ $field['handle'] }}">
+                                    <input id="field-{{ $field['handle'] }}" type="checkbox" name="{{ $field['handle'] }}" value="1" @checked((bool) old($field['handle'])) @required($field['required'])>
+                                    <span>{{ $field['label'] }} @if($field['required']) * @endif</span>
+                                </label>
+                                @if(isset($errors) && $errors->has($field['handle']))
+                                    <div class="help" style="color: #b91c1c;">{{ $errors->first($field['handle']) }}</div>
+                                @endif
+                            </div>
+                        @endif
+                    @endforeach
                     <p class="help">By subscribing, you agree to receive the selected newsletters. Your subscription starts immediately; you can unsubscribe using the link in any email.
                         @if($form->settings['privacy_url'] ?? null)
                             <a href="{{ $form->settings['privacy_url'] }}">Privacy policy</a>.
@@ -115,11 +137,6 @@
                 <button type="submit">{{ $form->mode === 'subscription' ? 'Subscribe' : 'Submit' }}</button>
             </form>
 
-            <div class="meta">
-                Hosted URL: {{ $hostedPageUrl }}<br>
-                Schema endpoint: <a href="{{ $schemaUrl }}">JSON schema</a><br>
-                Submit endpoint: {{ $submitUrl }}
-            </div>
         </div>
     </div>
 </body>

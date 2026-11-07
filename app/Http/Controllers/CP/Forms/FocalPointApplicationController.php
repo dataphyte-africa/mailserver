@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\CP\Forms;
 
 use App\Models\FocalPointApplication;
+use App\Services\Foundation\FocalPointApplicationEmailBackfillService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Contracts\View\View;
 use Statamic\Facades\User;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -24,6 +26,25 @@ class FocalPointApplicationController
         $application = FocalPointApplication::query()->findOrFail($applicationId);
 
         return view('foundation.focal-points.cp.show', compact('application'));
+    }
+
+    public function syncEmailStatuses(FocalPointApplicationEmailBackfillService $backfill): RedirectResponse
+    {
+        $this->assertSuper();
+
+        $result = $backfill->sync();
+
+        if (! ($result['ok'] ?? false)) {
+            return redirect(cp_route('focal-point-applications.index'))
+                ->with('error', $result['error'] ?? 'Unable to refresh email statuses.');
+        }
+
+        $message = "Email statuses refreshed: {$result['updated']} application(s) updated from Elastic Email events.";
+        if (! ($result['complete'] ?? true)) {
+            $message .= ' The provider result limit was reached; run the refresh again to continue.';
+        }
+
+        return redirect(cp_route('focal-point-applications.index'))->with('success', $message);
     }
 
     public function export(): StreamedResponse

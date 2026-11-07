@@ -229,13 +229,16 @@ class SubscriptionFormService
         })->values()->all();
         if ($availableInsightSlugs !== null) {
             $handles = array_column($fields, 'handle');
-            foreach (['country', 'profession', 'gender'] as $handle) {
+            foreach (['country', 'profession', 'gender', 'organisation', 'consent'] as $handle) {
                 if (in_array($handle, $handles, true)) {
                     continue;
                 }
                 $fields[] = [
-                    'handle' => $handle, 'type' => $handle === 'gender' ? 'select' : 'text',
-                    'display' => ucfirst($handle), 'instructions' => null, 'required' => false,
+                    'handle' => $handle, 'type' => $handle === 'gender' ? 'select' : ($handle === 'consent' ? 'toggle' : 'text'),
+                    'display' => $handle === 'consent'
+                        ? 'I agree to receive newsletters and product updates from Dataphyte Insight for the products I select.'
+                        : ucfirst($handle),
+                    'instructions' => null, 'required' => $handle === 'consent',
                     'options' => $handle === 'country' ? $this->countryOptions() : ($handle === 'gender' ? [
                         ['value' => 'male', 'label' => 'Male'],
                         ['value' => 'female', 'label' => 'Female'],

@@ -175,6 +175,11 @@ class ProductFormSubscriptionService
             throw ValidationException::withMessages(['preferences' => ['One or more selected preferences are unavailable for this organisation.']]);
         }
 
+        $groupIds = SubscriberSubGroup::query()->whereKey($ids)->pluck('subscriber_group_id');
+        if ($groupIds->unique()->count() !== $groupIds->count()) {
+            throw ValidationException::withMessages(['preferences' => ['Select only one preference within each audience.']]);
+        }
+
         return $ids;
     }
 

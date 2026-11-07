@@ -35,7 +35,19 @@ class ProductFormPageController
             ]);
         }
 
-        return view('forms.public.show', [
+        $collection = $resolved->organisation?->primary_collection_handle;
+        $brandedSubscription = $resolved->mode === 'subscription'
+            && in_array([$resolved->slug, $collection], [
+                ['foundation-subscribe', 'foundation_newsletters'],
+                ['academy-subscribe', 'academy_newsletters'],
+                ['insight-subscribe', 'insight_newsletters'],
+                ['policy-point-subscribe', 'policy_point_newsletters'],
+            ], true);
+        $view = $brandedSubscription
+                ? 'forms.public.foundation-subscription'
+                : 'forms.public.show';
+
+        return view($view, [
             'form' => $resolved->loadMissing(['product.organisation']),
             'hostedPageUrl' => $this->forms->hostedPageUrl($resolved),
             'schemaUrl' => $this->forms->schemaUrl($resolved),

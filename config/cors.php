@@ -2,7 +2,7 @@
 
 return [
 
-    'paths' => ['subscribe/*'],
+    'paths' => ['subscribe/*', 'forms/*'],
 
     'allowed_methods' => ['*'],
 

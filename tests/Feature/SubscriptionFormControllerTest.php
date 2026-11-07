@@ -74,6 +74,11 @@ class SubscriptionFormControllerTest extends TestCase
         $this->assertContains(['value' => 'NGA', 'label' => 'Nigeria'], collect($schema['fields'])->firstWhere('handle', 'country')['options']);
         $this->get(route('newsletter.forms.show', ['form' => 'insight']))
             ->assertOk()
+            ->assertViewIs('newsletter.public.insight-subscribe')
+            ->assertSee('Explore the stories behind the data')
+            ->assertSee('Data Dive')
+            ->assertDontSee('Pocket Science')
+            ->assertSee('name="preference[]"', false)
             ->assertSee('data-country-picker', false)
             ->assertSee('data-country-search', false)
             ->assertSee('name="country"', false)
@@ -84,7 +89,11 @@ class SubscriptionFormControllerTest extends TestCase
         ])->assertUnprocessable();
         $this->postJson(route('newsletter.forms.submit', ['form' => 'insight']), [
             'firstname' => 'Ada', 'email' => 'insight@example.test', 'preference' => ['data-dive'],
-            'country' => 'NGA', 'profession' => 'Reporter', 'gender' => 'female',
+        ])->assertUnprocessable()->assertJsonValidationErrors('consent');
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'insight']), [
+            'firstname' => 'Ada', 'email' => 'insight@example.test', 'preference' => ['data-dive'],
+            'country' => 'NGA', 'organisation' => 'Dataphyte', 'profession' => 'Reporter',
+            'gender' => 'female', 'consent' => '1',
         ])->assertOk()->assertJsonPath('status', 'subscribed');
 
         $subscriber = Subscriber::query()->where('email', 'insight@example.test')->firstOrFail();
@@ -94,6 +103,7 @@ class SubscriptionFormControllerTest extends TestCase
         $this->assertFalse($subscriber->subGroups()->where('subscriber_group_id', $legacy->getKey())->exists());
         $submission = Form::find('insight_subscribe')->querySubmissions()->first();
         $this->assertSame('NGA', $submission->data()->get('country'));
+        $this->assertSame('Dataphyte', $submission->data()->get('organisation'));
         $this->assertSame(1, Form::find('insight_subscribe')->querySubmissions()->count());
         Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
     }

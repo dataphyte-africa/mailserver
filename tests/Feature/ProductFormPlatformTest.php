@@ -66,7 +66,10 @@ class ProductFormPlatformTest extends TestCase
         $this->get(route('product-forms.public.show', ['form' => $form->slug]))
             ->assertOk()->assertSee('banner.jpg')
             ->assertSee('data-country-picker', false)
-            ->assertSee('data-country-search', false);
+            ->assertSee('data-country-search', false)
+            ->assertDontSee('Hosted URL:')
+            ->assertDontSee('Schema endpoint:')
+            ->assertDontSee('Submit endpoint:');
 
         $endpoint = route('product-forms.public.submit', ['form' => $form->slug]);
         $this->postJson($endpoint, ['email' => 'person@example.test', 'country' => 'XXX', 'preferences' => [$subGroup->getKey()]])
@@ -158,6 +161,47 @@ class ProductFormPlatformTest extends TestCase
         Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
 
         $this->assertTrue($subscriber->subGroups()->where('slug', 'rating-new')->exists());
+    }
+
+    public function test_subscription_submissions_have_no_review_flow_even_with_a_legacy_review_flag(): void
+    {
+        Mail::fake();
+        $product = $this->createProduct();
+        $group = SubscriberGroup::factory()->create([
+            'organisation_id' => $product->organisation_id,
+            'product_id' => $product->getKey(),
+            'collection_handle' => $product->primary_collection_handle,
+            'is_public_preference' => true,
+        ]);
+        $preference = SubscriberSubGroup::factory()->create(['subscriber_group_id' => $group->getKey()]);
+        $form = app(ProductFormService::class)->create($product, [
+            'name' => 'Immediate Signup', 'slug' => 'immediate-signup',
+            'template_family' => 'subscription_basic',
+            'field_definitions' => $this->fieldDefinitions(),
+            'audience_group_id' => $group->getKey(),
+            'audience_sub_group_id' => $preference->getKey(),
+        ]);
+        $form->forceFill(['requires_review' => true])->save();
+
+        $this->postJson(route('product-forms.public.submit', ['form' => $form->slug]), [
+            'full_name' => 'New Subscriber', 'email' => 'immediate@example.test', 'location' => 'lagos',
+        ])->assertCreated();
+
+        $submission = ProductFormSubmission::query()->where('product_form_id', $form->getKey())->sole();
+        $this->assertSame('submitted', $submission->status);
+        $subscriber = Subscriber::query()->where('email', 'immediate@example.test')->firstOrFail();
+        $this->assertTrue($subscriber->subGroups()->where('slug', 'rating-new')->exists());
+
+        $this->withoutMiddleware(CountUsers::class);
+        $user = StatamicUser::findByEmail('admin@mailserver.test');
+        $this->assertNotNull($user);
+        $this->scopeStatamicUserToProduct($user, $product);
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'))
+            ->get(cp_route('subscription-forms.submissions.index', $form))
+            ->assertOk()->assertDontSee('>Review<', false)->assertDontSee('name="status"', false);
+
+        $this->expectException(ValidationException::class);
+        app(ProductFormService::class)->transitionSubmission($form, $submission, 'approved');
     }
 
     public function test_hosted_subscription_rejects_suppressed_address_without_storing_a_submission(): void
@@ -476,7 +520,7 @@ class ProductFormPlatformTest extends TestCase
 
         $verifiedResponse->assertOk()
             ->assertViewHas('hostedPageUrl', 'https://join.policy.example.test/forms/policy-point-intake')
-            ->assertViewHas('submitUrl', 'https://join.policy.example.test/forms/policy-point-intake');
+            ->assertViewHas('submitUrl', 'https://join.policy.example.test/forms/policy-point-intake/submit');
 
         $fallbackProduct = $this->createProduct([
             'slug' => 'field-monitor',
@@ -500,7 +544,7 @@ class ProductFormPlatformTest extends TestCase
 
         $fallbackResponse->assertOk()
             ->assertViewHas('hostedPageUrl', 'https://mailserver.test/forms/field-monitor-intake')
-            ->assertViewHas('submitUrl', 'https://mailserver.test/forms/field-monitor-intake');
+            ->assertViewHas('submitUrl', 'https://mailserver.test/forms/field-monitor-intake/submit');
     }
 
     public function test_organisation_newsletter_domain_drives_forms_and_inherited_origins(): void
@@ -531,7 +575,7 @@ class ProductFormPlatformTest extends TestCase
         ]);
 
         $this->assertSame('https://nl.dataphyte.org/forms/osun-observer-application', $service->hostedPageUrl($form));
-        $this->assertSame('https://nl.dataphyte.org/forms/osun-observer-application', $service->submitUrl($form));
+        $this->assertSame('https://nl.dataphyte.org/forms/osun-observer-application/submit', $service->submitUrl($form));
         $this->assertContains('https://dataphyte.org', $service->allowedOrigins($form));
         $this->assertContains('https://www.dataphyte.org', $service->allowedOrigins($form));
         $this->assertContains('https://nl.dataphyte.org', $service->allowedOrigins($form));
@@ -628,6 +672,38 @@ class ProductFormPlatformTest extends TestCase
         $this->assertSame(1, ProductFormSubmission::query()->count());
     }
 
+    public function test_website_integration_has_a_distinct_cors_enabled_endpoint_and_legacy_post_still_works(): void
+    {
+        config()->set('cors.allowed_origins', ['https://dataphyte.co.test']);
+        $product = $this->createProduct();
+        $form = app(ProductFormService::class)->create($product, [
+            'name' => 'Website Signup',
+            'slug' => 'website-signup',
+            'template_family' => 'data_collection_basic',
+            'field_definitions' => $this->fieldDefinitions(),
+            'allowed_origins' => ['https://dataphyte.co.test'],
+        ]);
+
+        $page = route('product-forms.public.show', ['form' => $form->slug]);
+        $submit = route('product-forms.public.submit', ['form' => $form->slug]);
+        $legacy = route('product-forms.public.legacy-submit', ['form' => $form->slug]);
+
+        $this->assertSame($page.'/submit', $submit);
+        $this->assertSame($page, $legacy);
+        $this->get($page)->assertOk()->assertSee('action="'.app(ProductFormService::class)->submitUrl($form).'"', false);
+        $this->options($submit, [], [
+            'Origin' => 'https://dataphyte.co.test',
+            'Access-Control-Request-Method' => 'POST',
+        ])->assertHeader('Access-Control-Allow-Origin', 'https://dataphyte.co.test');
+
+        $payload = ['full_name' => 'Ada Example', 'email' => 'ada@example.test', 'location' => 'lagos'];
+        $this->withHeader('Origin', 'https://dataphyte.co.test')->postJson($submit, $payload)
+            ->assertCreated()->assertHeader('Access-Control-Allow-Origin', 'https://dataphyte.co.test');
+        $this->withHeader('Origin', 'https://dataphyte.co.test')->postJson($legacy, $payload)
+            ->assertCreated();
+        $this->assertDatabaseCount('product_form_submissions', 2);
+    }
+
     public function test_public_schema_endpoint_exposes_embed_contract(): void
     {
         $product = $this->createProduct([
@@ -652,7 +728,7 @@ class ProductFormPlatformTest extends TestCase
             ->assertJsonPath('slug', 'community-survey')
             ->assertJsonPath('mode', 'data_collection')
             ->assertJsonPath('form_scope', 'product')
-            ->assertJsonPath('submit_url', 'https://join.policy.example.test/forms/community-survey')
+            ->assertJsonPath('submit_url', 'https://join.policy.example.test/forms/community-survey/submit')
             ->assertJsonPath('fields.0.handle', 'full_name')
             ->assertJsonPath('allowed_origins.1', 'https://widgets.example.test');
     }
@@ -886,6 +962,13 @@ class ProductFormPlatformTest extends TestCase
         $this->assertSame('Hello there', $form->settings['welcome_subject']);
         $this->assertSame('Thanks for joining.', $form->settings['welcome_body']);
         $this->assertTrue($form->settings['show_banner']);
+
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'))
+            ->get(cp_route('subscription-forms.index'))
+            ->assertOk()
+            ->assertSee('Website integration endpoint (POST)')
+            ->assertSee(app(ProductFormService::class)->submitUrl($form))
+            ->assertSee(app(ProductFormService::class)->schemaUrl($form));
     }
 
     public function test_subscription_workspace_create_has_no_product_choice_and_rejects_product_scope(): void

@@ -37,6 +37,7 @@ class ProductFormController
         $legacyForms = StatamicForm::all()
             ->filter(fn ($form) => $legacyService->isNewsletterForm($form)
                 && ($legacyService->submissionMode($form) === 'subscription') === $subscriptionWorkspace
+                && ! ($subscriptionWorkspace && $this->hasHostedSuccessor($form->handle(), $legacyService->collectionHandle($form)))
                 && ($isSuper || in_array($legacyService->collectionHandle($form), $organisationHandles, true)))
             ->map(fn ($form): array => [
                 'name' => Organisation::query()
@@ -278,6 +279,7 @@ class ProductFormController
             'update_body' => ['nullable', 'string', 'max:5000'],
             'show_banner' => ['nullable', 'boolean'],
             'include_country' => ['nullable', 'boolean'],
+            'include_organisation' => ['nullable', 'boolean'],
             'include_profession' => ['nullable', 'boolean'],
             'include_gender' => ['nullable', 'boolean'],
             'field_definitions_json' => ['required', 'string'],
@@ -298,6 +300,7 @@ class ProductFormController
             $data['custom_extension_key'] = null;
             $optionalFields = [
                 'country' => ['label' => 'Country', 'type' => 'country'],
+                'organisation' => ['label' => 'Organisation', 'type' => 'text'],
                 'profession' => ['label' => 'Profession', 'type' => 'text'],
                 'gender' => ['label' => 'Gender', 'type' => 'select', 'options' => [
                     ['label' => 'Male', 'value' => 'male'],
@@ -313,6 +316,13 @@ class ProductFormController
                 if ($request->boolean('include_'.$handle)) {
                     $data['field_definitions'][] = ['handle' => $handle, 'required' => false, ...$definition];
                 }
+            }
+            $consentIndex = array_search('consent', array_column($data['field_definitions'], 'handle'), true);
+            if ($consentIndex !== false) {
+                $consent = $data['field_definitions'][$consentIndex];
+                unset($data['field_definitions'][$consentIndex]);
+                $data['field_definitions'] = array_values($data['field_definitions']);
+                $data['field_definitions'][] = $consent;
             }
         }
         $data['settings'] = array_merge($form?->settings ?? [], [
@@ -341,7 +351,7 @@ class ProductFormController
             $data['audience_sub_group_id'] = null;
         }
 
-        unset($data['field_definitions_json'], $data['allowed_origins_text'], $data['welcome_subject'], $data['welcome_body'], $data['resubscribe_subject'], $data['resubscribe_body'], $data['send_update_email'], $data['update_subject'], $data['update_body'], $data['show_banner'], $data['include_country'], $data['include_profession'], $data['include_gender'], $data['accepting_submissions'], $data['closes_at']);
+        unset($data['field_definitions_json'], $data['allowed_origins_text'], $data['welcome_subject'], $data['welcome_body'], $data['resubscribe_subject'], $data['resubscribe_body'], $data['send_update_email'], $data['update_subject'], $data['update_body'], $data['show_banner'], $data['include_country'], $data['include_organisation'], $data['include_profession'], $data['include_gender'], $data['accepting_submissions'], $data['closes_at']);
 
         return $data;
     }
@@ -400,8 +410,31 @@ class ProductFormController
             ->get();
     }
 
+    private function hasHostedSuccessor(string $handle, ?string $collection): bool
+    {
+        $slug = match ([$handle, $collection]) {
+            ['insight_subscribe', 'insight_newsletters'] => 'insight-subscribe',
+            ['policy_point_subscribe', 'policy_point_newsletters'] => 'policy-point-subscribe',
+            default => null,
+        };
+
+        return $slug !== null && ProductForm::query()->where('slug', $slug)->where('mode', 'subscription')
+            ->where('status', 'published')
+            ->whereHas('organisation', fn ($query) => $query->where('primary_collection_handle', $collection))
+            ->exists();
+    }
+
     private function defaultFieldDefinitionsJson(bool $subscriptionWorkspace = false): string
     {
+        if ($subscriptionWorkspace) {
+            return json_encode([
+                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => true],
+                ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => true],
+                ['handle' => 'email', 'label' => 'Email address', 'type' => 'email', 'required' => true],
+                ['handle' => 'consent', 'label' => 'I agree to receive newsletters and product updates from the organisation for the products I select.', 'type' => 'checkbox', 'required' => true],
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '[]';
+        }
+
         $fields = [
             [
                 'handle' => 'email',

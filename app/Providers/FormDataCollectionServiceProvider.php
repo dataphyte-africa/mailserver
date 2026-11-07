@@ -77,6 +77,7 @@ class FormDataCollectionServiceProvider extends ServiceProvider
         Statamic::pushCpRoutes(function (): void {
             \Route::prefix('focal-point-applications')->name('focal-point-applications.')->group(function (): void {
                 \Route::get('/', [CpFocalPointApplicationController::class, 'index'])->name('index');
+                \Route::post('/sync-email-statuses', [CpFocalPointApplicationController::class, 'syncEmailStatuses'])->name('sync-email-statuses');
                 \Route::get('/export/csv', [CpFocalPointApplicationController::class, 'export'])->name('export');
                 \Route::get('/{applicationId}', [CpFocalPointApplicationController::class, 'show'])->whereNumber('applicationId')->name('show');
             });
@@ -131,53 +132,25 @@ class FormDataCollectionServiceProvider extends ServiceProvider
         \Route::prefix('forms')->name('product-forms.public.')->group(function (): void {
             \Route::get('/{form}', [ProductFormPageController::class, 'show'])->name('show');
             \Route::get('/{form}/schema', [ProductFormPageController::class, 'schema'])->name('schema');
-            \Route::post('/{form}', [PublicProductFormSubmissionController::class, 'store'])
+            \Route::post('/{form}/submit', [PublicProductFormSubmissionController::class, 'store'])
                 ->withoutMiddleware([VerifyCsrfToken::class])
                 ->middleware('throttle:10,1')
                 ->name('submit');
+            \Route::post('/{form}', [PublicProductFormSubmissionController::class, 'store'])
+                ->withoutMiddleware([VerifyCsrfToken::class])
+                ->middleware('throttle:10,1')
+                ->name('legacy-submit');
         });
     }
 
     protected function registerCpScripts(): void
     {
         Statamic::inlineScript(<<<'JS'
-(function () {
-    function syncOperatorProducts(form) {
-        var selected = new Set(Array.from(form.querySelectorAll('input[name="organisation_ids[]"]:checked'), function (input) {
-            return input.value;
-        }));
-        var inherited = false;
-
-        form.querySelectorAll('[data-products-for-organisation]').forEach(function (group) {
-            var included = selected.has(group.dataset.productsForOrganisation);
-            group.hidden = included;
-            group.querySelectorAll('input[name="product_ids[]"]').forEach(function (input) {
-                if (included) input.checked = false;
-                input.disabled = included;
-            });
-            inherited = inherited || included;
-        });
-
-        var message = form.querySelector('.operator-scopes-inherited');
-        if (message) message.hidden = !inherited;
+document.addEventListener('change', function (event) {
+    if (event.target.matches('[data-operator-user-select]')) {
+        event.target.form.requestSubmit();
     }
-
-    function bootOperatorProducts() {
-        document.querySelectorAll('form.operator-scopes-card').forEach(syncOperatorProducts);
-    }
-
-    document.addEventListener('change', function (event) {
-        if (!event.target.matches('form.operator-scopes-card input[name="organisation_ids[]"]')) return;
-        syncOperatorProducts(event.target.closest('form.operator-scopes-card'));
-    });
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootOperatorProducts);
-    } else {
-        bootOperatorProducts();
-    }
-    document.addEventListener('statamic:navigated', bootOperatorProducts);
-})();
+});
 JS);
         Statamic::inlineScript('window.productBannerDefaultEndpoint = '.json_encode(url('/'.trim(config('statamic.cp.route', 'cp'), '/').'/product-banners/default')).';');
         Statamic::inlineScript('window.productBannerUploadEndpoint = '.json_encode(url('/'.trim(config('statamic.cp.route', 'cp'), '/').'/product-banners/one-time-upload')).';');
@@ -376,10 +349,10 @@ JS);
                 image.alt = 'Hero image for ' + data.product;
                 if (!image.src || (!override && !data.url)) image.hidden = true;
                 var label = document.createElement('label');
-                label.textContent = 'Upload a one-time replacement for this newsletter';
+                label.textContent = 'Upload a one-time replacement (PNG, JPG, WebP or GIF, up to 150 KB)';
                 var upload = document.createElement('input');
                 upload.type = 'file';
-                upload.accept = 'image/png,image/jpeg,image/webp';
+                upload.accept = 'image/png,image/jpeg,image/webp,image/gif';
                 upload.dataset.heroOverrideUpload = '1';
                 label.appendChild(upload);
                 var status = document.createElement('small');
@@ -389,8 +362,8 @@ JS);
                 upload.addEventListener('change', function () {
                     if (!upload.files.length) return;
                     var file = upload.files[0];
-                    if (file.size > 4 * 1024 * 1024) {
-                        status.textContent = 'Choose an image under 4 MB.';
+                    if (file.size > 150 * 1024) {
+                        status.textContent = 'Choose an image up to 150 KB.';
                         return;
                     }
                     var form = new FormData();

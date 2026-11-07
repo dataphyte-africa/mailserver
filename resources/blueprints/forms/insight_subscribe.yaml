@@ -34,6 +34,11 @@ tabs:
             handle: profession
           -
             field:
+              type: text
+              display: Organisation
+            handle: organisation
+          -
+            field:
               type: select
               display: Gender
               options:
@@ -61,3 +66,9 @@ tabs:
                   value: 'Data Dive'
               multiple: true
             handle: preference
+          -
+            field:
+              type: toggle
+              display: 'I agree to receive newsletters and product updates from Dataphyte Insight for the products I select.'
+              validate: accepted
+            handle: consent

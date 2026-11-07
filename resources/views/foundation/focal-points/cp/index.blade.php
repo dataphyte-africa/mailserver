@@ -5,8 +5,20 @@
     @include('forms.cp._styles')
     <div class="form-platform-header">
         <div><h1 class="form-platform-title">State Coordinator Applications</h1><p class="form-platform-description">2027 election observation · {{ $applications->total() }} submissions</p></div>
-        <a class="form-platform-button-primary" href="{{ cp_route('focal-point-applications.export') }}">Export CSV</a>
+        <div style="display:flex;gap:10px;align-items:center">
+            <form method="POST" action="{{ cp_route('focal-point-applications.sync-email-statuses') }}">
+                @csrf
+                <button class="form-platform-button" type="submit">Refresh email statuses</button>
+            </form>
+            <a class="form-platform-button-primary" href="{{ cp_route('focal-point-applications.export') }}">Export CSV</a>
+        </div>
     </div>
+    @if(session('success'))
+        <div class="form-platform-alert form-platform-alert-success" role="status">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="form-platform-alert form-platform-alert-warning" role="alert">{{ session('error') }}</div>
+    @endif
     <div class="form-platform-card" style="overflow-x:auto">
         <table style="width:100%;min-width:760px;border-collapse:collapse;text-align:left">
             <thead>

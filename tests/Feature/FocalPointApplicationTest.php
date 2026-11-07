@@ -8,6 +8,7 @@ use App\Mail\FocalPointApplicationVerificationMail;
 use App\Models\FocalPointApplication;
 use App\Models\FocalPointApplicationDraft;
 use App\Services\Foundation\FocalPointApplicationContent;
+use App\Services\Foundation\FocalPointApplicationEmailBackfillService;
 use App\Services\Foundation\FocalPointApplicationService;
 use App\Services\Foundation\GoogleDriveApplicationStorage;
 use Carbon\CarbonImmutable;
@@ -148,7 +149,7 @@ class FocalPointApplicationTest extends TestCase
             $admin = StatamicUser::findByEmail('admin@mailserver.test');
             $this->assertNotNull($admin);
             $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
-            $this->get(cp_route('focal-point-applications.index'))->assertOk()->assertSee('Ada Observer')->assertSee('Email status')->assertSee('Pending')->assertDontSee('Review status');
+            $this->get(cp_route('focal-point-applications.index'))->assertOk()->assertSee('Ada Observer')->assertSee('Email status')->assertSee('Pending')->assertSee('Refresh email statuses')->assertDontSee('Review status');
             $this->get(cp_route('focal-point-applications.show', $application))->assertOk()->assertSee('View CV')->assertSee('Email status')->assertSee('Application details')->assertSee('How would you coordinate observers in your state if selected as a coordinator?')->assertDontSee('Recruitment Plan')->assertDontSee('Review status');
             $csv = $this->get(cp_route('focal-point-applications.export'))->assertOk()->streamedContent();
             $this->assertStringContainsString('https://drive.google.com/file/d/cv-id/view', $csv);
@@ -159,6 +160,28 @@ class FocalPointApplicationTest extends TestCase
         } finally {
             $operator->delete();
         }
+    }
+
+    public function test_super_admin_can_refresh_email_statuses_before_exporting(): void
+    {
+        $this->withoutMiddleware(CountUsers::class);
+        $this->withoutMiddleware(Authorize::class);
+        $admin = StatamicUser::findByEmail('admin@mailserver.test');
+        $this->assertNotNull($admin);
+        $this->actingAs($admin, config('statamic.users.guards.cp', 'web'));
+
+        $backfill = Mockery::mock(FocalPointApplicationEmailBackfillService::class);
+        $backfill->shouldReceive('sync')->once()->andReturn([
+            'ok' => true,
+            'updated' => 3,
+            'scanned' => 10,
+            'complete' => true,
+        ]);
+        $this->app->instance(FocalPointApplicationEmailBackfillService::class, $backfill);
+
+        $this->post(cp_route('focal-point-applications.sync-email-statuses'))
+            ->assertRedirect(cp_route('focal-point-applications.index'))
+            ->assertSessionHas('success', 'Email statuses refreshed: 3 application(s) updated from Elastic Email events.');
     }
 
     public function test_delivery_and_open_webhooks_update_only_the_matching_application(): void

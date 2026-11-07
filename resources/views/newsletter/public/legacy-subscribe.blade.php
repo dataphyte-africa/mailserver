@@ -87,6 +87,14 @@
                         </select>
                         @if(isset($errors) && $errors->has('gender')) <p class="error notice">{{ $errors->first('gender') }}</p> @endif
                     </div>
+                @elseif($field['handle'] === 'consent' && $form->handle() === 'insight_subscribe')
+                    <fieldset>
+                        <label>
+                            <input type="checkbox" name="consent" value="1" @checked((bool) old('consent')) required>
+                            {{ $field['display'] }} *
+                        </label>
+                        @if(isset($errors) && $errors->has('consent')) <p class="error notice">{{ $errors->first('consent') }}</p> @endif
+                    </fieldset>
                 @else
                     <div class="field">
                         <label for="field-{{ $field['handle'] }}">{{ $field['display'] }}</label>
