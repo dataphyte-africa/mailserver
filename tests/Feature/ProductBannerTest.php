@@ -39,6 +39,17 @@ class ProductBannerTest extends TestCase
             'banner' => UploadedFile::fake()->image('banner.png'),
         ])->assertRedirect();
         Storage::disk('public')->assertExists($product->fresh()->banner_path);
+
+        $this->put(cp_route('product-banners.update', $product), [
+            'banner' => UploadedFile::fake()->image('animated.gif'),
+        ])->assertRedirect();
+        $this->assertStringEndsWith('.gif', $product->fresh()->banner_path);
+        Storage::disk('public')->assertExists($product->fresh()->banner_path);
+        $savedBannerPath = $product->fresh()->banner_path;
+        $this->put(cp_route('product-banners.update', $product), [
+            'banner' => UploadedFile::fake()->image('too-large.gif')->size(151),
+        ])->assertSessionHasErrors('banner');
+        $this->assertSame($savedBannerPath, $product->fresh()->banner_path);
         $this->getJson(cp_route('product-banners.default', [
             'collection' => 'insight_newsletters', 'blueprint' => 'marina_maitama',
         ]))->assertOk()->assertJsonPath('source', 'product');
@@ -48,6 +59,16 @@ class ProductBannerTest extends TestCase
             'banner' => UploadedFile::fake()->image('issue.png'),
         ])->assertOk()->json('url');
         $this->assertStringContainsString('/product-branding/'.$product->id.'/newsletter-overrides/', $override);
+
+        $gifOverride = $this->postJson(cp_route('product-banners.upload-override'), [
+            'collection' => 'insight_newsletters', 'blueprint' => 'marina_maitama',
+            'banner' => UploadedFile::fake()->image('issue.gif'),
+        ])->assertOk()->json('url');
+        $this->assertStringEndsWith('.gif', $gifOverride);
+        $this->postJson(cp_route('product-banners.upload-override'), [
+            'collection' => 'insight_newsletters', 'blueprint' => 'marina_maitama',
+            'banner' => UploadedFile::fake()->image('too-large-issue.gif')->size(151),
+        ])->assertUnprocessable()->assertJsonValidationErrors('banner');
 
         $this->put(cp_route('product-banners.update', $product), ['remove_banner' => true])->assertRedirect();
         $this->assertNull($product->fresh()->banner_path);

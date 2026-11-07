@@ -184,7 +184,8 @@ class OrganisationEmailBrandingTest extends TestCase
             'slug' => 'bytes-issue', 'date' => '2026-10-22', 'published' => true,
             'data' => [
                 'title' => 'Behind the Bytes', 'subject' => 'Behind the Bytes',
-                'template' => 'emails.foundation.activities', 'content' => '<p>Foundation news</p>',
+                'template' => 'emails.foundation.activities',
+                'content' => '<h3>Dear reader</h3><p>Foundation news</p><h3><strong>Read the update</strong></h3>',
                 'hero_image_override_url' => 'https://example.org/bytes.png',
                 'hero_image_link_url' => 'https://example.org/story',
                 'cta_text' => 'Read more', 'cta_url' => 'https://example.org/more',
@@ -203,9 +204,15 @@ class OrganisationEmailBrandingTest extends TestCase
         $this->assertSame('Behind the Bytes', $content->with['productName']);
         $this->assertSame('https://example.org/bytes.png', $content->with['heroImageUrl']);
         $this->assertSame('https://example.org/story', $content->with['heroImageLinkUrl']);
-        $this->assertStringContainsString('View in browser', $mail->render());
-        $this->assertStringContainsString('Past newsletters', $mail->render());
-        $this->assertStringContainsString('Read more', $mail->render());
+        $html = $mail->render();
+        $this->assertStringContainsString('View in browser', $html);
+        $this->assertStringContainsString('Past newsletters', $html);
+        $this->assertStringContainsString('Read more', $html);
+        $this->assertStringNotContainsString('font-size:27px', $html);
+        $this->assertStringNotContainsString('BEHIND THE BYTES', $html);
+        $this->assertStringContainsString('padding:22px 40px 0;font-family:', $html);
+        $this->assertMatchesRegularExpression('/<h3[^>]*font-size:16px[^>]*font-weight:600/s', $html);
+        $this->assertMatchesRegularExpression('/<strong[^>]*font-weight:600/s', $html);
         $this->get(route('newsletter.archive.index', [$organisation, 'foundation_newsletters', $product]))
             ->assertOk()->assertSee(route('newsletter.archive.show', $campaign), false);
         $this->get(route('newsletter.archive.show', $campaign))->assertOk();

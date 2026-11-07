@@ -13,14 +13,21 @@
                     <h2 id="engagement-rules-title" class="newsletter-engagement-title">How ratings work</h2>
                     <p class="newsletter-engagement-copy">The score uses the 10 most recent campaign sends. A click earns 5 points, an open earns 2, and a failed or bounced send loses 2. A delivered email with no recorded open or click earns 0. A click takes precedence over an open on the same send.</p>
                 </div>
-                <form method="GET" action="{{ cp_route('newsletter.engagement.index') }}" class="newsletter-engagement-organisation">
-                    <label for="organisation_id">Organisation</label>
-                    <select id="organisation_id" name="organisation_id" class="newsletter-group-form-control" onchange="this.form.submit()">
-                        @foreach($organisations as $option)
-                            <option value="{{ $option->id }}" @selected($option->id === $organisation->id)>{{ $option->name }}</option>
-                        @endforeach
-                    </select>
-                </form>
+                @if($organisations->count() === 1)
+                    <div class="newsletter-engagement-organisation">
+                        <span class="newsletter-engagement-organisation-label">Organisation</span>
+                        <strong>{{ $organisation->name }}</strong>
+                    </div>
+                @else
+                    <form method="GET" action="{{ cp_route('newsletter.engagement.index') }}" class="newsletter-engagement-organisation">
+                        <label for="organisation_id">Organisation</label>
+                        <select id="organisation_id" name="organisation_id" class="newsletter-group-form-control" onchange="this.form.submit()">
+                            @foreach($organisations as $option)
+                                <option value="{{ $option->id }}" @selected($option->id === $organisation->id)>{{ $option->name }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                @endif
             </div>
             <div class="newsletter-engagement-table-wrap">
                 <table class="newsletter-engagement-table">

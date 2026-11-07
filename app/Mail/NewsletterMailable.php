@@ -186,12 +186,8 @@ class NewsletterMailable extends Mailable
                 'testEmail'          => $this->testEmail,
                 'browserUrl'         => $this->publicArchive || ! $organisation ? null : ($this->testEmail
                     ? $this->testUrl('newsletter.test.preview')
-                    : route('newsletter.archive.show', $this->campaign)),
-                'archiveUrl'         => ! $organisation ? null : route('newsletter.archive.index', [
-                    'organisation' => $this->campaign->organisation_id,
-                    'collection' => $collection,
-                    'product' => $this->campaign->product_id,
-                ]),
+                    : $this->publicUrls()->browserViewUrl($this->campaign)),
+                'archiveUrl'         => ! $organisation ? null : $this->publicUrls()->archiveUrl($this->campaign),
                 'newsletterSettings' => $settings,
                 'ctaText'            => $entry?->get('cta_text') ?? null,
                 'ctaUrl'             => app(NewsletterBanner::class)->linkUrl($entry?->get('cta_url')),

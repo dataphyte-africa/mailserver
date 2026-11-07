@@ -30,8 +30,8 @@
             @else
                 <p class="product-banner-empty">No product or organisation banner is configured.</p>
             @endif
-            <label>Replace product banner <small>PNG, JPG or WebP, up to 4 MB</small>
-                <input name="banner" type="file" accept="image/png,image/jpeg,image/webp">
+            <label>Replace product banner <small>PNG, JPG, WebP or GIF, up to 150 KB</small>
+                <input name="banner" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
             </label>
             @if($product->banner_path)
                 <label class="product-banner-remove"><input name="remove_banner" type="checkbox" value="1"> Remove product banner and use the organisation default</label>

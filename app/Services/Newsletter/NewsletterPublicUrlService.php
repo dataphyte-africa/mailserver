@@ -44,6 +44,38 @@ class NewsletterPublicUrlService
         return $request->hasValidSignature() || $request->hasValidSignature(false);
     }
 
+    public function browserViewUrl(Campaign $campaign): string
+    {
+        return $this->campaignUrl($campaign, route('newsletter.archive.show', $campaign, false));
+    }
+
+    public function archiveUrl(Campaign $campaign): string
+    {
+        $path = route('newsletter.archive.index', [
+            'organisation' => $campaign->organisation_id,
+            'collection' => $campaign->collection,
+            'product' => $campaign->product_id,
+        ], false);
+
+        return $this->campaignUrl($campaign, $path);
+    }
+
+    private function campaignUrl(Campaign $campaign, string $path): string
+    {
+        if ($campaign->product_id) {
+            return $this->productUrls->campaignLink((string) $campaign->product_id, $path);
+        }
+
+        if ($campaign->organisation_id) {
+            $domain = $this->domains->resolveOrganisationDomain((string) $campaign->organisation_id, 'campaign_link');
+            if ($domain) {
+                return config('platform.domain.platform_scheme', 'https').'://'.$domain.$path;
+            }
+        }
+
+        return url($path);
+    }
+
     private function signedProductUrl(string $routeName, Subscriber $subscriber, ?string $collectionHandle, Campaign|Organisation|string|int|null $productContext, ?int $privateGroupId = null): string
     {
         if ($productContext instanceof Campaign && $productContext->audience_scope === 'organisation_private') {

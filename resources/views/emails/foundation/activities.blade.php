@@ -14,7 +14,7 @@
     @php
         $brandColor = $headerColor ?? ($newsletterSettings['foundation_brand_color'] ?? '#1b4332');
         $displayDate = $sentDate ?? now()->format('F j, Y');
-        $issueContent = app(\App\Services\Newsletter\FoundationEmailContentFormatter::class)->format($content ?? '');
+        $issueContent = app(\App\Services\Newsletter\FoundationEmailContentFormatter::class)->format($content ?? '', compactHeadings: true);
 
         try {
             $displayDate = \Illuminate\Support\Carbon::parse($displayDate)->format('l, F j, Y');
@@ -35,25 +35,13 @@
     @endif
 
     <tr>
-        <td class="content-padding" style="padding:22px 40px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:{{ $brandColor }};">
-            {{ $productName ?? 'Behind the Bytes' }}
+        <td class="content-padding" style="padding:22px 40px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;color:#7b8794;">
+            {{ $displayDate }}
         </td>
     </tr>
 
     <tr>
-        <td class="content-padding" style="padding:14px 40px 0;font-family:Georgia,'Times New Roman',serif;font-size:27px;font-weight:700;line-height:1.25;color:#172033;">
-            {{ $subject }}
-        </td>
-    </tr>
-
-    <tr>
-        <td class="content-padding" style="padding:20px 40px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#7b8794;">
-            {{ $displayDate }}@if(!empty($author)) &middot; {{ $author }}@endif
-        </td>
-    </tr>
-
-    <tr>
-        <td class="content-padding" style="padding:24px 40px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.75;color:#333333;">
+        <td class="content-padding" style="padding:20px 40px 24px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.75;color:#333333;">
             {!! $issueContent !!}
         </td>
     </tr>

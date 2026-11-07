@@ -98,7 +98,7 @@ class SubscriberController extends Controller
             $query->orderBy($sortable[$sort] ?? 'created_at', $direction);
         }
 
-        $subscribers = $query->paginate(50)->withQueryString();
+        $subscribers = $query->paginate(20)->withQueryString();
         if (! $scope->isSuper($request->user())) {
             foreach ($subscribers as $item) {
                 $item->setAttribute('engagement_rating', null);

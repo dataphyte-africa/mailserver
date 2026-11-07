@@ -51,6 +51,58 @@ class NewsletterArchiveTest extends TestCase
         $this->assertStringContainsString('Past newsletters', $mail->render());
     }
 
+    public function test_email_archive_links_follow_verified_organisation_and_product_domains(): void
+    {
+        config()->set('platform.domain.platform_scheme', 'https');
+        config()->set('platform.domain.platform_domain', 'mailserver.test');
+
+        [$organisation, $product, $entry] = $this->fixtures();
+        $campaign = $this->campaign($organisation, $product, $entry, 'sent');
+        $subscriber = Subscriber::factory()->create();
+
+        $organisation->forceFill([
+            'newsletter_domain' => 'nl.dataphyte.org',
+            'newsletter_domain_status' => 'pending_verification',
+        ])->save();
+        $links = (new NewsletterMailable($campaign, $subscriber, 'pending'))->content()->with;
+        $this->assertSame('https://mailserver.test/newsletter-archive/issues/'.$campaign->id, $links['browserUrl']);
+        $this->assertSame('https://mailserver.test/newsletter-archive/'.$organisation->id.'/insight_newsletters/'.$product->id, $links['archiveUrl']);
+
+        $organisation->update(['newsletter_domain_status' => 'verified']);
+        $links = (new NewsletterMailable($campaign, $subscriber, 'verified'))->content()->with;
+        $this->assertSame('https://nl.dataphyte.org/newsletter-archive/issues/'.$campaign->id, $links['browserUrl']);
+        $this->assertSame('https://nl.dataphyte.org/newsletter-archive/'.$organisation->id.'/insight_newsletters/'.$product->id, $links['archiveUrl']);
+        $this->get($links['archiveUrl'])->assertOk()->assertSee($links['browserUrl'], false);
+        $this->get($links['browserUrl'])->assertOk();
+
+        $product->forceFill([
+            'public_domain' => 'updates.example.test',
+            'domain_status' => 'verified',
+            'domain_verified_at' => now(),
+        ])->save();
+        $links = (new NewsletterMailable($campaign, $subscriber, 'product'))->content()->with;
+        $this->assertSame('https://updates.example.test/newsletter-archive/issues/'.$campaign->id, $links['browserUrl']);
+        $this->assertSame('https://updates.example.test/newsletter-archive/'.$organisation->id.'/insight_newsletters/'.$product->id, $links['archiveUrl']);
+    }
+
+    public function test_private_organisation_archive_links_use_verified_organisation_domain(): void
+    {
+        config()->set('platform.domain.platform_scheme', 'https');
+        config()->set('platform.domain.platform_domain', 'mailserver.test');
+
+        [$organisation, $product, $entry] = $this->fixtures();
+        $campaign = $this->campaign($organisation, $product, $entry, 'sent');
+        $campaign->update(['product_id' => null]);
+        $organisation->forceFill([
+            'newsletter_domain' => 'nl.dataphyte.org',
+            'newsletter_domain_status' => 'verified',
+        ])->save();
+
+        $links = (new NewsletterMailable($campaign->fresh(), Subscriber::factory()->create(), 'private'))->content()->with;
+        $this->assertSame('https://nl.dataphyte.org/newsletter-archive/issues/'.$campaign->id, $links['browserUrl']);
+        $this->assertSame('https://nl.dataphyte.org/newsletter-archive/'.$organisation->id.'/insight_newsletters', $links['archiveUrl']);
+    }
+
     public function test_browser_link_works_during_delivery_only_after_a_successful_send(): void
     {
         [$organisation, $product, $entry] = $this->fixtures();

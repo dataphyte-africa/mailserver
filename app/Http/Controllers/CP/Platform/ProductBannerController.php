@@ -29,7 +29,7 @@ class ProductBannerController
     {
         $this->authorizeProduct($request, $product);
         $validated = $request->validate([
-            'banner' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
+            'banner' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,gif', 'max:150'],
             'remove_banner' => ['nullable', 'boolean'],
         ]);
 
@@ -72,7 +72,7 @@ class ProductBannerController
         $input = $request->validate([
             'collection' => ['required', 'string', 'max:100'],
             'blueprint' => ['required', 'string', 'max:100'],
-            'banner' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
+            'banner' => ['required', 'image', 'mimes:png,jpg,jpeg,webp,gif', 'max:150'],
         ]);
         $product = $entryProduct->find($input['collection'], $input['blueprint']);
         abort_unless($product && in_array((int) $product->id, $this->scope->productIds($request->user()), true), 403);

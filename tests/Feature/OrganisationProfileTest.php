@@ -65,6 +65,26 @@ class OrganisationProfileTest extends TestCase
             Storage::disk('public')->assertExists($owned->fresh()->logo_path);
             $this->assertTrue($ownedGroup->fresh()->is_public_preference);
             $this->assertFalse($foreignGroup->fresh()->is_public_preference);
+
+            $this->put(cp_route('organisation-profiles.update', $owned), [
+                'name' => 'Dataphyte Insight',
+                'logo' => UploadedFile::fake()->image('animated-logo.gif'),
+                'banner' => UploadedFile::fake()->image('animated-banner.gif'),
+                'public_group_ids' => [$ownedGroup->id],
+            ])->assertRedirect();
+            $this->assertStringEndsWith('.gif', $owned->fresh()->logo_path);
+            $this->assertStringEndsWith('.gif', $owned->fresh()->banner_path);
+            Storage::disk('public')->assertExists($owned->fresh()->logo_path);
+            Storage::disk('public')->assertExists($owned->fresh()->banner_path);
+            $savedLogoPath = $owned->fresh()->logo_path;
+            $savedBannerPath = $owned->fresh()->banner_path;
+            $this->put(cp_route('organisation-profiles.update', $owned), [
+                'name' => 'Dataphyte Insight',
+                'logo' => UploadedFile::fake()->image('large-logo.gif')->size(151),
+                'banner' => UploadedFile::fake()->image('large-banner.gif')->size(151),
+            ])->assertSessionHasErrors(['logo', 'banner']);
+            $this->assertSame($savedLogoPath, $owned->fresh()->logo_path);
+            $this->assertSame($savedBannerPath, $owned->fresh()->banner_path);
         } finally {
             $user->delete();
         }

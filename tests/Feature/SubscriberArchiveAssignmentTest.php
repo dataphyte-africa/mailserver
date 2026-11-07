@@ -123,6 +123,18 @@ class SubscriberArchiveAssignmentTest extends TestCase
         $this->assertArrayHasKey('pending', $response->getData()['statuses']);
     }
 
+    public function test_index_paginates_subscribers_twenty_per_page(): void
+    {
+        Subscriber::factory()->count(21)->create();
+
+        $subscribers = (new SubscriberController)->index($this->request('GET'))->getData()['subscribers'];
+
+        $this->assertSame(20, $subscribers->perPage());
+        $this->assertCount(20, $subscribers->items());
+        $this->assertSame(21, $subscribers->total());
+        $this->assertSame(2, $subscribers->lastPage());
+    }
+
     public function test_index_filters_by_audience_and_its_own_rating_without_listing_legacy_preferences(): void
     {
         $first = $this->createSubGroup(['name' => 'Regular']);

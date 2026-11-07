@@ -18,7 +18,7 @@ class OrganisationProfileController
     public function index(Request $request): View
     {
         $organisations = Organisation::query()
-            ->whereKey($this->scope->organisationIds($request->user()))
+            ->whereKey($this->scope->delegatedOrganisationIds($request->user()))
             ->where('status', 'active')
             ->with(['subscriberGroups' => fn ($query) => $query
                 ->whereNull('archived_at')
@@ -38,9 +38,9 @@ class OrganisationProfileController
     {
         abort_unless(
             $organisation->status === 'active'
-                && in_array((int) $organisation->getKey(), $this->scope->organisationIds($request->user()), true),
+                && in_array((int) $organisation->getKey(), $this->scope->delegatedOrganisationIds($request->user()), true),
             403,
-            'Organisation is outside your active scope.'
+            'Organisation is outside your delegated scope.'
         );
 
         $validated = $request->validate([
@@ -58,8 +58,8 @@ class OrganisationProfileController
             'brand_primary_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'brand_secondary_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'unsubscribe_message' => ['nullable', 'string', 'max:2000'],
-            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
-            'banner' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,gif', 'max:150'],
+            'banner' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,gif', 'max:150'],
             'public_group_ids' => ['nullable', 'array'],
             'public_group_ids.*' => ['integer', 'distinct'],
         ]);
