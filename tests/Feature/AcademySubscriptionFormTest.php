@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Models\Organisation;
 use App\Models\Product;
 use App\Models\ProductForm;
+use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
-use App\Models\Subscriber;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -51,6 +51,7 @@ class AcademySubscriptionFormTest extends TestCase
         $this->assertDatabaseCount('product_forms', 1);
         $this->get(route('product-forms.public.show', ['form' => 'academy-subscribe']))
             ->assertOk()->assertViewIs('forms.public.foundation-subscription')
+            ->assertSee('<body class="subscription-theme">', false)
             ->assertSee('Keep learning with Dataphyte Academy')
             ->assertSee('DataLab')
             ->assertSee('Academy Update')

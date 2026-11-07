@@ -217,6 +217,10 @@ class SubscriptionFormService
             ? array_keys($this->insightPreferenceTargets($form)) : null;
         $fields = $form->fields()->map(function (Field $field) use ($form, $availableInsightSlugs): array {
             $serialized = $this->serializeField($field);
+            if ($this->submissionMode($form) === 'subscription'
+                && in_array($field->handle(), ['first_name', 'last_name', 'firstname', 'lastname'], true)) {
+                $serialized['required'] = false;
+            }
             if ($availableInsightSlugs !== null && $field->handle() === $this->preferenceFieldHandle($form)) {
                 $serialized['options'] = array_values(array_filter($serialized['options'],
                     fn (array $option): bool => in_array($option['value'], $availableInsightSlugs, true)));

@@ -60,8 +60,8 @@ class ProvisionInsightSubscriptionForm extends Command
             'description' => 'Choose the Insight newsletters and analysis you want to receive.',
             'success_message' => 'Thank you for subscribing to Dataphyte Insight.',
             'field_definitions' => [
-                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => true],
-                ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => true],
+                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => false],
+                ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => false],
                 ['handle' => 'email', 'label' => 'Email address', 'type' => 'email', 'required' => true],
                 ['handle' => 'country', 'label' => 'Country', 'type' => 'country', 'required' => false],
                 ['handle' => 'organisation', 'label' => 'Organisation', 'type' => 'text', 'required' => false],

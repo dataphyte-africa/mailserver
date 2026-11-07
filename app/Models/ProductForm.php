@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,6 +42,25 @@ class ProductForm extends Model
         'settings' => 'array',
         'requires_review' => 'boolean',
     ];
+
+    protected function fieldDefinitions(): Attribute
+    {
+        return Attribute::make(get: function ($value): array {
+            $fields = is_array($value) ? $value : (json_decode((string) $value, true) ?: []);
+
+            if ($this->mode !== 'subscription') {
+                return $fields;
+            }
+
+            return array_map(static function (array $field): array {
+                if (in_array($field['handle'] ?? null, ['first_name', 'last_name', 'firstname', 'lastname'], true)) {
+                    $field['required'] = false;
+                }
+
+                return $field;
+            }, $fields);
+        });
+    }
 
     public function organisation(): BelongsTo
     {

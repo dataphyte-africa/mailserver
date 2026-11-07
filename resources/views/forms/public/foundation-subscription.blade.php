@@ -21,6 +21,9 @@
         .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 15px; margin: 21px 3px 9px; }
         .section-heading h2 { margin: 0; font-size: 15px; font-weight: 700; }
         .section-heading small { color: #59647a; font-size: 12px; }
+        .preference-actions { display: flex; align-items: center; gap: 12px; }
+        .preference-select-all { border: 0; background: none; color: #235d8f; font: 700 12px "Avenir Next", "Trebuchet MS", sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+        .preference-select-all:focus-visible { outline: 2px solid #3886ae; outline-offset: 3px; }
         .required { color: #bb323b; }
         .preferences { border: 0; margin: 0; padding: 0; display: grid; gap: 12px; min-width: 0; }
         .preference { display: block; position: relative; cursor: pointer; }
@@ -41,6 +44,7 @@
         .preference input:checked + .preference-content .preference-mark { background: var(--teal); color: white; font-size: 15px; }
         .preference input:checked + .preference-content .preference-mark::before { content: "✓"; }
         .details { margin-top: 18px; padding: 26px 24px 28px; }
+        .signup-email { margin-top: 18px; padding: 22px 24px; background: #fff; border-radius: 13px; }
         .details-title { margin: 0 0 21px; font-size: 17px; letter-spacing: -.02em; }
         .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
         .field { min-width: 0; }
@@ -62,12 +66,36 @@
         .success { background: #e6f7ed; border: 1px solid #8bc8a5; color: #145c38; border-radius: 8px; padding: 14px 16px; margin: 0 0 16px; }
         .empty { color: var(--muted); background: #fff; border-radius: 9px; padding: 20px; }
         footer { width: min(100% - 32px, 590px); margin: 0 auto 28px; display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; font-size: 12px; color: #758099; }
+        .subscription-theme { --ink: #102e50; --muted: #526a80; --line: #cbdfe9; --field: #f0f8fb; --mint: #d9f2f0; --teal: #08736f; --page: #edf6fa; background: radial-gradient(circle at 12% 10%, #d9eef8 0, transparent 34%), radial-gradient(circle at 92% 58%, #d8f1ed 0, transparent 35%), #edf6fa; }
+        .subscription-theme .topbar { background: #fff; border-bottom: 3px solid #3184ab; box-shadow: 0 3px 22px rgba(31, 91, 126, .08); }
+        .subscription-theme main { margin-top: 30px; }
+        .subscription-theme .intro { padding: 30px 28px 27px; color: #fff; background: linear-gradient(125deg, #123c67 0%, #246e9b 60%, #318b9c 100%); box-shadow: 0 18px 38px rgba(18, 60, 103, .17); }
+        .subscription-theme .intro::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, transparent 0 44px, rgba(255,255,255,.055) 44px 45px); pointer-events: none; }
+        .subscription-theme .intro::after { width: 210px; height: 210px; top: -95px; right: -70px; background: rgba(194, 238, 240, .14); border: 1px solid rgba(255,255,255,.18); }
+        .subscription-theme .intro h1 { max-width: 440px; font-size: clamp(29px, 5vw, 36px); }
+        .subscription-theme .intro p { color: #e4f3f8; }
+        .subscription-theme .intro-note { background: rgba(255,255,255,.13); color: #fff; border: 1px solid rgba(255,255,255,.23); letter-spacing: 0; }
+        .subscription-theme .signup-email, .subscription-theme .details { border: 1px solid #d8e8ee; box-shadow: 0 10px 30px rgba(25, 85, 115, .075); }
+        .subscription-theme .signup-email { border-top: 4px solid #3170a9; }
+        .subscription-theme .section-heading h2 { color: #123c67; }
+        .subscription-theme .preference-select-all, .subscription-theme .privacy-note a, .subscription-theme footer a { color: #176890; }
+        .subscription-theme .preference-content { border-color: #cfe2e9; box-shadow: 0 7px 20px rgba(25, 85, 115, .065); }
+        .subscription-theme .preference:hover .preference-content { border-color: #388caf; }
+        .subscription-theme .preference input:checked + .preference-content { background: linear-gradient(110deg, #e1f7f3, #e7f5fc); border-color: #69b5b1; box-shadow: inset 4px 0 0 #08736f, 0 8px 22px rgba(8, 115, 111, .11); }
+        .subscription-theme .preference-icon { background: #e4f0f8; color: #3170a9; }
+        .subscription-theme .preference input:checked + .preference-content .preference-icon { background: #c9ebe8; color: #08736f; }
+        .subscription-theme .preference-mark { background: #e4f0f8; color: #3170a9; }
+        .subscription-theme .field input:not([type="checkbox"]), .subscription-theme .field textarea, .subscription-theme .field select { border-color: #cbdfe9; }
+        .subscription-theme .submit { background: linear-gradient(100deg, #123c67, #246e9b); box-shadow: 0 8px 18px rgba(18, 60, 103, .18); }
+        .subscription-theme .submit:hover { background: linear-gradient(100deg, #0d3054, #1c5d85); }
+        .subscription-theme footer { color: #57768a; }
         @media (max-width: 560px) { .topbar { min-height: 54px; padding-block: 6px; } .brand img { max-height: 40px; } main { width: min(100% - 24px, 590px); margin-top: 16px; } .intro, .details { padding: 21px 18px; } .preference-content { grid-template-columns: 39px minmax(0, 1fr) 26px; gap: 9px; padding: 15px 12px; } .preference-icon { width: 36px; height: 36px; } .fields { grid-template-columns: 1fr; gap: 15px; } .field--wide { grid-column: auto; } .section-heading { margin-inline: 1px; } }
+        @media (max-width: 560px) { .subscription-theme main { margin-top: 16px; } .subscription-theme .intro { padding: 25px 20px; } }
         @media (prefers-reduced-motion: reduce) { .preference-content { transition: none; } }
     </style>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" media="print" onload="this.media='all'">
 </head>
-<body>
+<body class="subscription-theme">
     @php
         $identity = $form->organisation;
         $identityImage = $identity?->banner_path ?: $identity?->logo_path;
@@ -89,6 +117,9 @@
         @if(session('product_form_success'))
             <div class="success" role="status">{{ session('product_form_success') }}</div>
         @endif
+        @if(session('subscription_profile_saved'))
+            <div class="success" role="status">{{ session('subscription_profile_saved') }}</div>
+        @endif
 
         <div class="intro">
             <h1>{{ $isAcademy ? ($form->headline ?: 'Keep learning with Dataphyte Academy') : ($isInsight ? ($form->headline ?: 'Explore the stories behind the data') : ($isPolicyPoint ? ($form->headline ?: 'Stay informed with Policy Point') : ($form->headline === 'Subscribe to Dataphyte Foundation' ? 'Stay Ahead with Rigorous Insights' : ($form->headline ?: 'Stay Ahead with Rigorous Insights')))) }}</h1>
@@ -98,11 +129,20 @@
 
         <form method="POST" action="{{ $submitUrl }}">
             @csrf
+            @php $emailField = collect($form->field_definitions ?? [])->firstWhere('handle', 'email'); @endphp
+            @if($emailField)
+                <div class="signup-email field">
+                    <label for="field-email">{{ $emailField['label'] }} <span class="required">*</span></label>
+                    <input id="field-email" type="email" name="email" value="{{ old('email') }}" autocomplete="email" placeholder="jane.doe@example.org" required>
+                    <small class="field-help">We send updates only for the newsletters you choose.</small>
+                    @error('email')<span class="error" role="alert">{{ $message }}</span>@enderror
+                </div>
+            @endif
             <div class="section-heading">
                 <h2 id="newsletter-choices">{{ $isPolicyPoint ? 'Delivery frequency' : 'Select Newsletters' }} <span class="required">*</span></h2>
-                <small>{{ $isPolicyPoint ? 'Choose one' : 'Choose at least one' }}</small>
+                <span class="preference-actions"><small>{{ $isPolicyPoint ? 'Choose one' : 'Choose at least one' }}</small>@if($publicPreferences->sum(fn ($group) => $group->subGroups->count() === 1 ? 1 : 0) > 1)@include('forms.public._preference-select-all')@endif</span>
             </div>
-            <fieldset class="preferences" aria-labelledby="newsletter-choices">
+            <fieldset class="preferences" aria-labelledby="newsletter-choices" data-preference-choices>
                 <input type="hidden" name="preferences_present" value="1">
                 @forelse($publicPreferences as $group)
                     @foreach($group->subGroups as $subGroup)
@@ -149,41 +189,7 @@
             </fieldset>
             @if(isset($errors) && $errors->has('preferences'))<span class="error" role="alert">{{ $errors->first('preferences') }}</span>@endif
 
-            <section class="details" aria-labelledby="details-heading">
-                <h2 class="details-title" id="details-heading">Your details</h2>
-                <div class="fields">
-                    @foreach($form->field_definitions ?? [] as $field)
-                        @continue($field['type'] === 'checkbox')
-                        <div class="field {{ in_array($field['handle'], ['first_name', 'last_name'], true) ? '' : 'field--wide' }}">
-                            @if($field['type'] === 'country')
-                                @include('forms.public.country-picker', [
-                                    'fieldId' => 'field-'.$field['handle'], 'fieldName' => $field['handle'],
-                                    'label' => $field['label'], 'required' => $field['required'],
-                                    'options' => \Illuminate\Support\Facades\DB::table('countries')->orderBy('name')->get()->map(fn ($country): array => ['value' => $country->code, 'label' => $country->name]),
-                                    'selected' => old($field['handle']),
-                                ])
-                            @else
-                                <label for="field-{{ $field['handle'] }}">{{ $field['label'] }} @if($field['required'])<span class="required">*</span>@endif</label>
-                                @if($field['type'] === 'textarea')
-                                    <textarea id="field-{{ $field['handle'] }}" name="{{ $field['handle'] }}" @required($field['required'])>{{ old($field['handle']) }}</textarea>
-                                @elseif($field['type'] === 'select')
-                                    <select id="field-{{ $field['handle'] }}" name="{{ $field['handle'] }}" @required($field['required'])>
-                                        <option value="">Select an option</option>
-                                        @foreach($field['options'] ?? [] as $option)
-                                            <option value="{{ $option['value'] }}" @selected(old($field['handle']) === $option['value'])>{{ $option['label'] }}</option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <input id="field-{{ $field['handle'] }}" type="{{ $field['type'] === 'email' ? 'email' : 'text' }}" name="{{ $field['handle'] }}" value="{{ old($field['handle']) }}" @required($field['required']) @if($field['handle'] === 'first_name') autocomplete="given-name" placeholder="e.g. Jane" @elseif($field['handle'] === 'last_name') autocomplete="family-name" placeholder="e.g. Doe" @elseif($field['handle'] === 'email') autocomplete="email" placeholder="jane.doe@example.org" @endif>
-                                @endif
-                            @endif
-                            @if($field['handle'] === 'email')<small class="field-help">We send updates only for the newsletters you choose.</small>@endif
-                            @if($field['help_text'])<small class="field-help">{{ $field['help_text'] }}</small>@endif
-                            @if(isset($errors) && $errors->has($field['handle']))<span class="error" role="alert">{{ $errors->first($field['handle']) }}</span>@endif
-                        </div>
-                    @endforeach
-                </div>
-
+            <section class="details">
                 @foreach($form->field_definitions ?? [] as $field)
                     @if($field['type'] === 'checkbox')
                         <label class="consent" for="field-{{ $field['handle'] }}">
@@ -202,5 +208,6 @@
     </main>
 
     <footer><span>&copy; {{ now()->year }} {{ $identity?->name ?? 'Dataphyte Foundation' }}</span></footer>
+    @include('forms.public._subscription-profile-modal')
 </body>
 </html>

@@ -22,6 +22,8 @@
         .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 15px; margin: 21px 3px 9px; }
         .section-heading h2 { margin: 0; font-size: 15px; }
         .section-heading small { color: var(--muted); font-size: 12px; }
+        .preference-select-all { margin-left: 10px; padding: 0; border: 0; background: none; color: var(--accent); font: 700 12px "Avenir Next", "Trebuchet MS", sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+        .preference-select-all:focus-visible { outline: 2px solid #3886ae; outline-offset: 3px; }
         .required { color: #bb323b; }
         .preferences { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
         .preference { position: relative; display: block; cursor: pointer; }
@@ -82,8 +84,8 @@
         <form method="post" action="{{ $submitEndpoint }}">
             @csrf
             @php $preferenceField = collect($schema['fields'])->firstWhere('handle', $schema['preference_field']); @endphp
-            <div class="section-heading"><h2 id="newsletter-choices">Select Newsletters <span class="required">*</span></h2><small>Choose at least one</small></div>
-            <fieldset class="preferences" aria-labelledby="newsletter-choices">
+            <div class="section-heading"><h2 id="newsletter-choices">Select Newsletters <span class="required">*</span></h2><span><small>Choose at least one</small> @if(count($preferenceField['options'] ?? []) > 1)@include('forms.public._preference-select-all')@endif</span></div>
+            <fieldset class="preferences" aria-labelledby="newsletter-choices" data-preference-choices>
                 @forelse($preferenceField['options'] ?? [] as $option)
                     <label class="preference">
                         <input type="checkbox" name="{{ $schema['preference_field'] }}[]" value="{{ $option['value'] }}" aria-label="Subscribe to receive {{ $option['label'] }}" @checked(in_array($option['value'], (array) old($schema['preference_field'], []), true))>

@@ -29,6 +29,22 @@ use Tests\TestCase;
 
 class ProductFormPlatformTest extends TestCase
 {
+    public function test_generic_subscription_form_renders_consent_once(): void
+    {
+        $product = $this->createProduct();
+        $form = app(ProductFormService::class)->create($product, [
+            'name' => 'Generic signup', 'slug' => 'generic-signup-consent',
+            'template_family' => 'subscription_basic',
+            'field_definitions' => [
+                ['handle' => 'email', 'label' => 'Email', 'type' => 'email', 'required' => true],
+                ['handle' => 'consent', 'label' => 'I agree to receive updates', 'type' => 'checkbox', 'required' => true],
+            ],
+        ]);
+
+        $response = $this->get(route('product-forms.public.show', ['form' => $form->slug]))->assertOk();
+        $this->assertSame(1, substr_count($response->getContent(), 'name="consent"'));
+    }
+
     public function test_subscription_profile_fields_use_shared_countries_and_custom_welcome_copy(): void
     {
         Mail::fake();
@@ -65,8 +81,7 @@ class ProductFormPlatformTest extends TestCase
         $this->assertStringContainsString('banner.jpg', $schema['banner_url']);
         $this->get(route('product-forms.public.show', ['form' => $form->slug]))
             ->assertOk()->assertSee('banner.jpg')
-            ->assertSee('data-country-picker', false)
-            ->assertSee('data-country-search', false)
+            ->assertDontSee('data-country-picker', false)
             ->assertDontSee('Hosted URL:')
             ->assertDontSee('Schema endpoint:')
             ->assertDontSee('Submit endpoint:');

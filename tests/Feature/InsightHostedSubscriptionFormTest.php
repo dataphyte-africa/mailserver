@@ -42,8 +42,10 @@ class InsightHostedSubscriptionFormTest extends TestCase
 
         $this->get(route('product-forms.public.show', ['form' => $form->slug]))
             ->assertOk()->assertViewIs('forms.public.foundation-subscription')
+            ->assertSee('<body class="subscription-theme">', false)
             ->assertSee('Explore the stories behind the data')
             ->assertSee('Data Dive')->assertSee('Pocket Science')
+            ->assertSee('data-select-all-preferences', false)
             ->assertDontSee('Foundation Update')->assertDontSee('Internal');
         $this->getJson(route('product-forms.public.schema', ['form' => $form->slug]))
             ->assertOk()->assertJsonPath('endpoint', app(ProductFormService::class)->submitUrl($form))

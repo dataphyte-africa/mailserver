@@ -40,6 +40,21 @@ class SubscriptionFormController extends Controller
         $input = $this->forms->prepareSubmissionPayload($resolved, $request->all(), $request);
 
         $fields = $resolved->blueprint()->fields()->addValues($input);
+        if ($this->forms->submissionMode($resolved) === 'subscription') {
+            foreach (['first_name', 'last_name', 'firstname', 'lastname'] as $handle) {
+                $field = $fields->get($handle);
+                if (! $field) {
+                    continue;
+                }
+
+                $config = $field->config();
+                $rules = $config['validate'] ?? [];
+                $rules = is_array($rules) ? $rules : explode('|', (string) $rules);
+                $config['validate'] = array_values(array_filter($rules, fn ($rule) => $rule !== 'required'));
+                $config['required'] = false;
+                $field->setConfig($config);
+            }
+        }
         $fields->validate();
 
         $payload = $fields->process()->values()->all();

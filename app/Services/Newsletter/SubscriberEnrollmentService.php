@@ -68,8 +68,8 @@ class SubscriberEnrollmentService
                 unset($existingMetadata['newsletter_form']);
             }
             $subscriber->fill([
-                'first_name' => $names['first_name'] ?? null,
-                'last_name' => $names['last_name'] ?? null,
+                'first_name' => ($names['first_name'] ?? null) ?: $previousFirstName,
+                'last_name' => ($names['last_name'] ?? null) ?: $previousLastName,
                 'status' => $targetStatus,
                 'confirmed_at' => $subscriber->confirmed_at,
                 'unsubscribed_at' => null,

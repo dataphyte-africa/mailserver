@@ -14,7 +14,7 @@ use App\Http\Controllers\Public\ProductFormPageController;
 use App\Http\Controllers\Public\ProductFormSubmissionController as PublicProductFormSubmissionController;
 use App\Http\Middleware\EnforceCpOwnership;
 use App\Services\Platform\CpOperatorScope;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\ServiceProvider;
 use Statamic\Facades\CP\Nav;
 use Statamic\Facades\User;
@@ -129,15 +129,17 @@ class FormDataCollectionServiceProvider extends ServiceProvider
             });
         });
 
-        \Route::prefix('forms')->name('product-forms.public.')->group(function (): void {
+        \Route::prefix('forms')->name('product-forms.public.')->middleware('web')->group(function (): void {
             \Route::get('/{form}', [ProductFormPageController::class, 'show'])->name('show');
+            \Route::post('/{form}/profile', [PublicProductFormSubmissionController::class, 'completeProfile'])
+                ->middleware('throttle:10,1')->name('profile');
             \Route::get('/{form}/schema', [ProductFormPageController::class, 'schema'])->name('schema');
             \Route::post('/{form}/submit', [PublicProductFormSubmissionController::class, 'store'])
-                ->withoutMiddleware([VerifyCsrfToken::class])
+                ->withoutMiddleware([ValidateCsrfToken::class])
                 ->middleware('throttle:10,1')
                 ->name('submit');
             \Route::post('/{form}', [PublicProductFormSubmissionController::class, 'store'])
-                ->withoutMiddleware([VerifyCsrfToken::class])
+                ->withoutMiddleware([ValidateCsrfToken::class])
                 ->middleware('throttle:10,1')
                 ->name('legacy-submit');
         });

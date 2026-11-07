@@ -49,6 +49,7 @@ class FoundationSubscriptionFormTest extends TestCase
             ->assertSee('name="consent"', false)
             ->assertSee('Subscribe to receive Foundation Update')
             ->assertSee('Subscribe to receive Policy Point')
+            ->assertSee('data-select-all-preferences', false)
             ->assertSee('Subscribe to Newsletters')
             ->assertDontSee('policy-point-newsletters-policy-point');
 
@@ -73,6 +74,7 @@ class FoundationSubscriptionFormTest extends TestCase
         $this->assertDatabaseCount('product_form_submissions', 0);
 
         Mail::fake();
+        $this->withMiddleware();
         $response = $this->postJson(route('product-forms.public.submit', ['form' => 'foundation-subscribe']), [
             ...$payload,
             'country' => 'NGA', 'organisation' => 'Dataphyte', 'profession' => 'Researcher',
@@ -86,6 +88,64 @@ class FoundationSubscriptionFormTest extends TestCase
             ->where('organisation_id', $other->id))->exists());
         $this->assertSame('Dataphyte', ProductFormSubmission::query()
             ->findOrFail($response->json('submission_id'))->payload['organisation']);
+
+        $storedFields = $form->field_definitions;
+        $storedFields[0]['required'] = true;
+        $storedFields[1]['required'] = true;
+        $form->update(['field_definitions' => $storedFields]);
+        $this->assertTrue(json_decode($form->getRawOriginal('field_definitions'), true)[0]['required']);
+        $schema = $this->getJson(route('product-forms.public.schema', ['form' => 'foundation-subscribe']))
+            ->assertOk()->json();
+        $this->assertFalse(collect($schema['fields'])->firstWhere('handle', 'first_name')['required']);
+        $this->assertFalse(collect($schema['fields'])->firstWhere('handle', 'last_name')['required']);
+        $page = $this->get(route('product-forms.public.show', ['form' => 'foundation-subscribe']))->assertOk();
+        $page->assertDontSee('name="first_name"', false)
+            ->assertSee('name="email"', false);
+
+        $this->postJson(route('product-forms.public.submit', ['form' => 'foundation-subscribe']), [
+            'email' => 'nameless@example.test', 'preferences' => [$preference->id], 'consent' => '1',
+        ])->assertCreated()->assertJsonPath('subscription_status', 'subscribed');
+        $this->assertNull(Subscriber::query()->where('email', 'nameless@example.test')->sole()->first_name);
+
+        $this->postJson(route('product-forms.public.submit', ['form' => 'foundation-subscribe']), [
+            'email' => 'ada@example.test', 'preferences' => [$preference->id], 'consent' => '1',
+        ])->assertCreated();
+        $this->assertSame('Ada', $subscriber->fresh()->first_name);
+        $this->assertSame('Example', $subscriber->last_name);
+
+        $this->post(route('product-forms.public.submit', ['form' => 'foundation-subscribe']), [
+            'email' => 'browser@example.test', 'preferences' => [$preference->id], 'consent' => '1',
+        ])->assertRedirect();
+        $submissionCount = ProductFormSubmission::query()->count();
+        $modal = $this->get(route('product-forms.public.show', ['form' => 'foundation-subscribe']))->assertOk();
+        $modal->assertSee('role="dialog"', false)
+            ->assertSee('Thank you for subscribing to Dataphyte Foundation updates.')
+            ->assertSee('name="first_name"', false)
+            ->assertSee('Save details')->assertSee('Skip for now');
+
+        $this->post(route('product-forms.public.profile', ['form' => 'foundation-subscribe']), [
+            'action' => 'save', 'first_name' => 'Bola', 'last_name' => 'Reader',
+            'country' => 'NGA', 'profession' => 'Analyst',
+        ])->assertRedirect();
+        $this->assertSame($submissionCount, ProductFormSubmission::query()->count());
+        $browserSubscriber = Subscriber::query()->where('email', 'browser@example.test')->sole();
+        $this->assertSame('Bola', $browserSubscriber->first_name);
+        $this->assertSame('Reader', $browserSubscriber->last_name);
+        $this->assertSame('Analyst', $browserSubscriber->metadata['reader_profiles'][$foundation->id]['profession']);
+        $this->assertSame('NGA', ProductFormSubmission::query()->latest('id')->firstOrFail()->payload['country']);
+        $this->get(route('product-forms.public.show', ['form' => 'foundation-subscribe']))
+            ->assertOk()->assertDontSee('role="dialog"', false);
+        $this->post(route('product-forms.public.profile', ['form' => 'foundation-subscribe']), [
+            'action' => 'save', 'first_name' => 'Changed',
+        ])->assertForbidden();
+
+        $this->post(route('product-forms.public.submit', ['form' => 'foundation-subscribe']), [
+            'email' => 'skip@example.test', 'preferences' => [$preference->id], 'consent' => '1',
+        ])->assertRedirect();
+        $this->post(route('product-forms.public.profile', ['form' => 'foundation-subscribe']), [
+            'action' => 'skip',
+        ])->assertRedirect();
+        $this->assertNull(Subscriber::query()->where('email', 'skip@example.test')->sole()->first_name);
     }
 
     private function makePublicAudience(Organisation $organisation, string $name, string $productSlug, string $groupSlug): void

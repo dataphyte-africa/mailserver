@@ -49,6 +49,8 @@ class ProductFormPageController
 
         return view($view, [
             'form' => $resolved->loadMissing(['product.organisation']),
+            'profilePending' => $resolved->mode === 'subscription'
+                && (int) (request()->session()->get('subscription_profile_completion.form_id') ?? 0) === (int) $resolved->getKey(),
             'hostedPageUrl' => $this->forms->hostedPageUrl($resolved),
             'schemaUrl' => $this->forms->schemaUrl($resolved),
             'submitUrl' => $this->forms->submitUrl($resolved),

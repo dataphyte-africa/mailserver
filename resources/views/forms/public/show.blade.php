@@ -17,6 +17,7 @@
         .field { margin-bottom: 20px; }
         .preferences { border: 1px solid #cdd5e1; border-radius: 12px; padding: 20px; margin: 0 0 24px; }
         .preferences legend { font-weight: 700; padding: 0 8px; }
+        .preference-select-all { border: 0; background: none; color: #0f4c81; padding: 4px 0; border-radius: 0; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
         .preference-group { padding: 12px 0; border-top: 1px solid #e2e8f0; }
         .preference-group:first-of-type { border-top: 0; }
         .preference-group h2 { font-size: 1rem; margin: 0 0 8px; }
@@ -38,6 +39,9 @@
             @if(session('product_form_success'))
                 <div class="success">{{ session('product_form_success') }}</div>
             @endif
+            @if(session('subscription_profile_saved'))
+                <div class="success" role="status">{{ session('subscription_profile_saved') }}</div>
+            @endif
 
             <h1>{{ $form->headline ?: $form->name }}</h1>
             @if($form->description)
@@ -47,7 +51,7 @@
             <form method="POST" action="{{ $submitUrl }}">
                 @csrf
                 @foreach($form->field_definitions ?? [] as $field)
-                    @continue($form->mode === 'subscription' && $field['type'] === 'checkbox')
+                    @continue($form->mode === 'subscription' && ($field['type'] === 'checkbox' || ($field['handle'] !== 'email' && ! $field['required'])))
                     <div class="field">
                         @if(!in_array($field['type'], ['country', 'checkbox'], true))
                             <label for="field-{{ $field['handle'] }}">
@@ -92,8 +96,9 @@
                 @endforeach
 
                 @if($form->mode === 'subscription')
-                    <fieldset class="preferences">
+                    <fieldset class="preferences" data-preference-choices>
                         <legend>Newsletters to receive *</legend>
+                        @if($publicPreferences->sum(fn ($group) => $group->subGroups->count() === 1 ? 1 : 0) > 1)@include('forms.public._preference-select-all')@endif
                         <input type="hidden" name="preferences_present" value="1">
                         @forelse($publicPreferences as $group)
                             <div class="preference-group">
@@ -139,5 +144,6 @@
 
         </div>
     </div>
+    @include('forms.public._subscription-profile-modal')
 </body>
 </html>

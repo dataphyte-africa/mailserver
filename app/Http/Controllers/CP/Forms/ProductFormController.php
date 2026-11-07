@@ -428,8 +428,8 @@ class ProductFormController
     {
         if ($subscriptionWorkspace) {
             return json_encode([
-                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => true],
-                ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => true],
+                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => false],
+                ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => false],
                 ['handle' => 'email', 'label' => 'Email address', 'type' => 'email', 'required' => true],
                 ['handle' => 'consent', 'label' => 'I agree to receive newsletters and product updates from the organisation for the products I select.', 'type' => 'checkbox', 'required' => true],
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '[]';

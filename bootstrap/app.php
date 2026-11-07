@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'subscribe/*',
+            'forms/*/submit',
             'webhooks/elastic-email',
             'api/webhooks/elastic-email',
         ]);

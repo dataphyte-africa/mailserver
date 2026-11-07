@@ -27,7 +27,7 @@ class SubscriptionFormControllerTest extends TestCase
         ]);
         Blueprint::make('insight_subscribe')->setNamespace('forms')->setContents([
             'sections' => ['main' => ['fields' => [
-                ['handle' => 'firstname', 'field' => ['type' => 'text', 'display' => 'Firstname']],
+                ['handle' => 'firstname', 'field' => ['type' => 'text', 'display' => 'Firstname', 'validate' => 'required']],
                 ['handle' => 'email', 'field' => ['type' => 'text', 'display' => 'Email', 'validate' => 'required|email']],
                 ['handle' => 'country', 'field' => ['type' => 'text', 'display' => 'Country']],
                 ['handle' => 'profession', 'field' => ['type' => 'text', 'display' => 'Profession']],
@@ -69,6 +69,7 @@ class SubscriptionFormControllerTest extends TestCase
 
         $schema = $this->getJson(route('newsletter.forms.schema', ['form' => 'insight']))->assertOk()->json();
         $this->assertNull($schema['group']);
+        $this->assertFalse(collect($schema['fields'])->firstWhere('handle', 'firstname')['required']);
         $choices = collect($schema['fields'])->firstWhere('handle', 'preference')['options'];
         $this->assertSame(['data-dive'], array_column($choices, 'value'));
         $this->assertContains(['value' => 'NGA', 'label' => 'Nigeria'], collect($schema['fields'])->firstWhere('handle', 'country')['options']);
@@ -101,11 +102,15 @@ class SubscriptionFormControllerTest extends TestCase
         $this->assertTrue($subscriber->subGroups()->where('slug', 'rating-new')->exists());
         $this->assertTrue($subscriber->subGroups()->whereKey($subGroup->getKey())->exists());
         $this->assertFalse($subscriber->subGroups()->where('subscriber_group_id', $legacy->getKey())->exists());
+        $this->postJson(route('newsletter.forms.submit', ['form' => 'insight']), [
+            'email' => 'nameless-insight@example.test', 'preference' => ['data-dive'], 'consent' => '1',
+        ])->assertOk()->assertJsonPath('status', 'subscribed');
+        $this->assertNull(Subscriber::query()->where('email', 'nameless-insight@example.test')->sole()->first_name);
         $submission = Form::find('insight_subscribe')->querySubmissions()->first();
         $this->assertSame('NGA', $submission->data()->get('country'));
         $this->assertSame('Dataphyte', $submission->data()->get('organisation'));
-        $this->assertSame(1, Form::find('insight_subscribe')->querySubmissions()->count());
-        Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
+        $this->assertSame(2, Form::find('insight_subscribe')->querySubmissions()->count());
+        Mail::assertQueued(SubscriptionConfirmationMail::class, 2);
     }
 
     public function test_legacy_subscription_has_shareable_public_page_and_browser_submission(): void

@@ -62,8 +62,8 @@ class ProvisionAcademySubscriptionForm extends Command
             }
 
             $fields = [
-                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => true],
-                ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => true],
+                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => false],
+                ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => false],
                 ['handle' => 'email', 'label' => 'Email address', 'type' => 'email', 'required' => true],
                 ['handle' => 'country', 'label' => 'Country', 'type' => 'country', 'required' => false],
                 ['handle' => 'organisation', 'label' => 'Organisation', 'type' => 'text', 'required' => false],

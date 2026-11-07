@@ -86,8 +86,8 @@ class ProvisionPolicyPointSubscriptionForm extends Command
                 'description' => 'Choose how often you want to receive Policy Point analysis and updates.',
                 'success_message' => 'Thank you for subscribing to Policy Point.',
                 'field_definitions' => [
-                    ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => true],
-                    ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => true],
+                    ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => false],
+                    ['handle' => 'last_name', 'label' => 'Last name', 'type' => 'text', 'required' => false],
                     ['handle' => 'email', 'label' => 'Email address', 'type' => 'email', 'required' => true],
                     ['handle' => 'country', 'label' => 'Country', 'type' => 'country', 'required' => false],
                     ['handle' => 'organisation', 'label' => 'Organisation', 'type' => 'text', 'required' => false],

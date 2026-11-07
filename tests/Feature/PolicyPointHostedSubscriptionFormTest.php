@@ -76,8 +76,10 @@ class PolicyPointHostedSubscriptionFormTest extends TestCase
         $this->assertSame([$group->id], $form->settings['public_preference_group_ids']);
         $this->get(route('product-forms.public.show', ['form' => $form->slug]))
             ->assertOk()->assertViewIs('forms.public.foundation-subscription')
+            ->assertSee('<body class="subscription-theme">', false)
             ->assertSee('Stay informed with Policy Point')->assertSee('Delivery frequency')
-            ->assertSee('type="radio"', false)->assertSee('Regular')->assertSee('Monthly');
+            ->assertSee('type="radio"', false)->assertSee('Regular')->assertSee('Monthly')
+            ->assertDontSee('data-select-all-preferences', false);
         $this->getJson(route('product-forms.public.schema', ['form' => $form->slug]))
             ->assertOk()->assertJsonPath('endpoint', app(ProductFormService::class)->submitUrl($form))
             ->assertJsonCount(1, 'preferences')->assertJsonCount(2, 'preferences.0.sub_groups');
