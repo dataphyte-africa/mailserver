@@ -1,0 +1,174 @@
+title: 'Policy Point'
+tabs:
+  main:
+    display: Content
+    sections:
+      -
+        fields:
+          -
+            handle: subject
+            field:
+              type: text
+              display: 'Subject Line'
+              listable: true
+              validate: required
+          -
+            handle: preheader
+            field:
+              type: text
+              display: Preheader
+          -
+            handle: hero_image
+            field:
+              type: assets
+              display: 'Hero Image'
+              container: assets
+              max_files: 1
+              allow_uploads: true
+          -
+            handle: hero_image_override_url
+            field:
+              type: text
+              display: 'One-time Hero Image URL'
+              instructions: 'Upload a replacement above, or enter an HTTPS image URL for this issue only.'
+          -
+            handle: hero_image_link_url
+            field:
+              type: text
+              display: 'Hero Image Link URL'
+              instructions: 'Optional HTTPS link used when the hero image is clicked.'
+          -
+            handle: content
+            field:
+              type: bard
+              display: Content
+              validate: required
+              save_html: true
+              buttons:
+                - h2
+                - h3
+                - bold
+                - italic
+                - underline
+                - unorderedlist
+                - orderedlist
+                - quote
+                - anchor
+                - image
+          -
+            handle: rss_feed_url
+            field:
+              type: text
+              display: 'RSS Feed URL'
+              instructions: 'Optional feed for curated Policy Point stories.'
+          -
+            handle: rss_item_limit
+            field:
+              type: integer
+              display: 'RSS Item Limit'
+              default: 6
+          -
+            handle: refresh_rss_items
+            field:
+              type: toggle
+              display: 'Refresh RSS Stories On Save'
+              default: false
+          -
+            handle: rss_items
+            field:
+              type: replicator
+              display: 'RSS Stories'
+              collapse: true
+              previews: true
+              sets:
+                story:
+                  display: Story
+                  fields:
+                    -
+                      handle: is_lead
+                      field:
+                        type: toggle
+                        display: 'Lead Story'
+                    -
+                      handle: title
+                      field:
+                        type: text
+                        display: Title
+                    -
+                      handle: url
+                      field:
+                        type: text
+                        display: URL
+                    -
+                      handle: image_url
+                      field:
+                        type: text
+                        display: 'Image URL'
+                    -
+                      handle: excerpt
+                      field:
+                        type: textarea
+                        display: Excerpt
+                    -
+                      handle: author
+                      field:
+                        type: text
+                        display: Author
+                    -
+                      handle: published_label
+                      field:
+                        type: text
+                        display: 'Published Label'
+                    -
+                      handle: primary_taxonomy_title
+                      field:
+                        type: text
+                        display: Category
+          -
+            handle: cta_text
+            field:
+              type: text
+              display: 'CTA Text'
+          -
+            handle: cta_url
+            field:
+              type: text
+              display: 'CTA URL'
+              input_type: url
+          -
+            handle: template
+            field:
+              type: text
+              display: 'Email Template'
+              default: emails.foundation.policy-point
+              visibility: hidden
+  sidebar:
+    display: Settings
+    sections:
+      -
+        fields:
+          -
+            handle: audiences
+            field:
+              type: terms
+              mode: select
+              display: 'Send To (Audiences)'
+              taxonomies:
+                - newsletter_audiences
+          -
+            handle: send_to_all
+            field:
+              type: toggle
+              display: 'Send to All'
+              default: false
+          -
+            handle: author
+            field:
+              type: text
+              display: 'Author / Byline'
+          -
+            handle: reply_to
+            field:
+              type: text
+              display: 'Reply-To (override)'
+              input_type: email
