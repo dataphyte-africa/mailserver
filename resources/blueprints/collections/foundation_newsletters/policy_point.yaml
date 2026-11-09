@@ -41,6 +41,7 @@ tabs:
             handle: content
             field:
               type: bard
+              container: assets
               display: Content
               validate: required
               save_html: true

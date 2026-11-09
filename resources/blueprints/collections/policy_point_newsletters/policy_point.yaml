@@ -52,6 +52,7 @@ tabs:
           -
             field:
               type: bard
+              container: assets
               width: 100
               buttons:
                 - h2
