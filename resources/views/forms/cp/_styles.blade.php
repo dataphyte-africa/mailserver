@@ -246,6 +246,19 @@
         padding: .25rem .625rem;
     }
 
+    .form-platform-status-badge {
+        align-items: center;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        border-radius: 999px;
+        color: #065f46;
+        display: inline-flex;
+        font-size: .8125rem;
+        font-weight: 700;
+        gap: .35rem;
+        padding: .25rem .65rem;
+    }
+
     .form-platform-error-title {
         font-weight: 600;
         margin: 0;

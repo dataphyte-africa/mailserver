@@ -45,7 +45,11 @@
                         <p class="form-platform-meta">
                             Collection: {{ $organisation->primary_collection_handle ?: 'not linked' }}
                             &middot;
-                            Status: {{ str_replace('_', ' ', $organisation->newsletter_domain_status ?: 'unconfigured') }}
+                            @if($organisation->newsletter_domain_status === 'verified')
+                                <span class="form-platform-status-badge" aria-label="DNS verified">&#10003; DNS verified</span>
+                            @else
+                                DNS status: {{ str_replace('_', ' ', $organisation->newsletter_domain_status ?: 'unconfigured') }}
+                            @endif
                         </p>
                     </div>
                     <form method="POST" action="{{ cp_route('organisation-domains.verify', $organisation) }}">
@@ -53,6 +57,14 @@
                         <button type="submit" class="form-platform-button">Verify DNS</button>
                     </form>
                 </div>
+
+                @if($organisation->newsletter_domain_status === 'verified' && $organisation->newsletter_domain)
+                    <div class="form-platform-alert form-platform-alert-warning" role="status">
+                        DNS verification confirms the record only. Before sharing public links, add
+                        <strong>{{ $organisation->newsletter_domain }}</strong> to this application in Cloudways Domain Management,
+                        provision HTTPS for it, and confirm the hosted form opens on that hostname.
+                    </div>
+                @endif
 
                 <form method="POST" action="{{ cp_route('organisation-domains.update', $organisation) }}" class="form-platform-stack">
                     @csrf

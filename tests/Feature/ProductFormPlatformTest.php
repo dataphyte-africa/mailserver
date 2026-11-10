@@ -631,6 +631,15 @@ class ProductFormPlatformTest extends TestCase
         $this->assertSame('nl.dataphyte.org', $product->organisation->newsletter_domain);
         $this->assertSame('pending_verification', $product->organisation->newsletter_domain_status);
 
+        $product->organisation->forceFill(['newsletter_domain_status' => 'verified'])->save();
+
+        $this->actingAs($user, config('statamic.users.guards.cp', 'web'))
+            ->get(cp_route('organisation-domains.index'))
+            ->assertOk()
+            ->assertSee('DNS verified')
+            ->assertSee('Cloudways Domain Management')
+            ->assertSee('nl.dataphyte.org');
+
         /** @var OrganisationNewsletterDomainService $domains */
         $domains = app(OrganisationNewsletterDomainService::class);
 
