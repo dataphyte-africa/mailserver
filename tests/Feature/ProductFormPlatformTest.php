@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Contracts\Authorization\StatamicUserIdentityBridgeInterface;
 use App\Mail\SubscriptionConfirmationMail;
+use App\Mail\SubscriptionManagementLinkMail;
 use App\Models\Organisation;
 use App\Models\Product;
 use App\Models\ProductForm;
@@ -49,6 +50,8 @@ class ProductFormPlatformTest extends TestCase
     {
         Mail::fake();
         $product = $this->createProduct([], ['banner_path' => 'organisations/banner.jpg']);
+        $product->organisation->update(['primary_collection_handle' => 'insight_newsletters']);
+        $product->update(['primary_collection_handle' => 'insight_newsletters']);
         $group = SubscriberGroup::factory()->create([
             'organisation_id' => $product->organisation_id,
             'product_id' => $product->getKey(),
@@ -103,10 +106,83 @@ class ProductFormPlatformTest extends TestCase
 
         $this->postJson($endpoint, [
             'email' => 'person@example.test', 'preferences' => [$secondSubGroup->getKey()],
-        ])->assertCreated()->assertJsonPath('subscription_status', 'subscription_updated');
-        Mail::assertQueued(SubscriptionConfirmationMail::class, fn (SubscriptionConfirmationMail $mail): bool => $mail->status === 'subscription_updated'
-            && $mail->mailConfig['subject'] === 'Insight choices updated'
-            && $mail->mailConfig['body'] === 'Your choices were saved.');
+        ])->assertOk()->assertJsonPath('status', 'management_link_sent');
+        $this->assertTrue($subscriber->fresh()->subGroups()->whereKey($subGroup->getKey())->exists());
+        $this->assertFalse($subscriber->fresh()->subGroups()->whereKey($secondSubGroup->getKey())->exists());
+        Mail::assertQueued(SubscriptionManagementLinkMail::class, fn ($mail) => $mail->hasTo('person@example.test'));
+
+        $this->post($endpoint, ['email' => 'person@example.test', 'action' => 'manage_existing'])
+            ->assertRedirect()->assertSessionHas('product_form_success');
+        $this->assertDatabaseCount('product_form_submissions', 1);
+        Mail::assertQueued(SubscriptionManagementLinkMail::class, 2);
+
+        $url = app(NewsletterPublicUrlService::class)->preferencesUrl(
+            $subscriber, $product->organisation->primary_collection_handle, $product->organisation,
+        );
+        $this->get($url)->assertOk()->assertSee('Reader details')->assertSee('person@example.test');
+        $updateUrl = app(NewsletterPublicUrlService::class)->preferencesUpdateUrl(
+            $subscriber, $product->organisation->primary_collection_handle, $product->organisation,
+        );
+        $this->post($updateUrl, [
+            'audience_groups' => [$group->getKey()],
+            'first_name' => 'Updated', 'country' => 'NGA', 'profession' => 'Researcher',
+        ])->assertOk();
+        $this->assertSame('Updated', $subscriber->fresh()->first_name);
+        $this->assertSame('NGA', $subscriber->fresh()->metadata['reader_profiles'][$product->organisation_id]['country']);
+    }
+
+    public function test_new_subscriber_can_add_recommended_newsletter_from_profile_modal(): void
+    {
+        Mail::fake();
+        $first = $this->createProduct([
+            'name' => 'Behind the Bytes', 'slug' => 'behind-the-bytes',
+            'primary_collection_handle' => 'foundation_newsletters',
+        ], [
+            'name' => 'Dataphyte Foundation', 'primary_collection_handle' => 'foundation_newsletters',
+        ]);
+        $second = Product::query()->create([
+            'organisation_id' => $first->organisation_id,
+            'name' => 'Policy Point', 'slug' => 'foundation-policy-point',
+            'status' => 'active', 'product_type' => 'newsletter',
+            'primary_collection_handle' => 'foundation_newsletters',
+        ]);
+        $groups = collect([$first, $second])->map(function (Product $product): SubscriberGroup {
+            return SubscriberGroup::factory()->create([
+                'organisation_id' => $product->organisation_id,
+                'product_id' => $product->getKey(),
+                'collection_handle' => 'foundation_newsletters',
+                'is_public_preference' => true,
+            ]);
+        });
+        $choices = $groups->map(fn (SubscriberGroup $group) => SubscriberSubGroup::factory()->create([
+            'subscriber_group_id' => $group->getKey(), 'purpose' => 'preference',
+        ]));
+        $form = app(ProductFormService::class)->createForOrganisation($first->organisation, [
+            'name' => 'Foundation Subscription', 'slug' => 'foundation-subscribe',
+            'template_family' => 'subscription_basic',
+            'field_definitions' => [
+                ['handle' => 'email', 'label' => 'Email address', 'type' => 'email', 'required' => true],
+                ['handle' => 'first_name', 'label' => 'First name', 'type' => 'text', 'required' => false],
+            ],
+            'public_preference_group_ids' => $groups->pluck('id')->all(),
+        ]);
+        $page = route('product-forms.public.show', ['form' => $form->slug]);
+        $this->post(route('product-forms.public.submit', ['form' => $form->slug]), [
+            'email' => 'new-reader@example.test',
+            'preferences' => [$choices[0]->getKey()],
+        ])->assertRedirect();
+        $this->get($page)->assertOk()
+            ->assertSee('Thank you for joining Behind the Bytes.')
+            ->assertSee('Also subscribe to Policy Point');
+
+        $this->post(route('product-forms.public.profile', ['form' => $form->slug]), [
+            'action' => 'save', 'first_name' => 'Jane',
+            'recommended_preferences' => [$choices[1]->getKey()],
+        ])->assertRedirect();
+        $subscriber = Subscriber::query()->where('email', 'new-reader@example.test')->firstOrFail();
+        $this->assertSame('Jane', $subscriber->first_name);
+        $this->assertEqualsCanonicalizing($choices->pluck('id')->all(), $subscriber->subGroups()
+            ->where('purpose', 'preference')->pluck('subscriber_sub_groups.id')->all());
     }
 
     protected function setUp(): void
@@ -172,8 +248,9 @@ class ProductFormPlatformTest extends TestCase
 
         $this->postJson($endpoint, [
             'full_name' => 'Signup Person', 'email' => 'signup@example.test', 'location' => 'lagos',
-        ])->assertCreated()->assertJsonPath('subscription_status', 'already_subscribed');
+        ])->assertOk()->assertJsonPath('status', 'management_link_sent');
         Mail::assertQueued(SubscriptionConfirmationMail::class, 1);
+        Mail::assertQueued(SubscriptionManagementLinkMail::class, 1);
 
         $this->assertTrue($subscriber->subGroups()->where('slug', 'rating-new')->exists());
     }
@@ -430,10 +507,10 @@ class ProductFormPlatformTest extends TestCase
             ->assertDontSee('product=', false);
 
         $this->postJson($endpoint, $base + ['preferences' => [$choices[$second->getKey()]->getKey()]])
-            ->assertCreated()->assertJsonPath('subscription_status', 'subscription_updated');
+            ->assertOk()->assertJsonPath('status', 'management_link_sent');
         $this->assertSame('active', $subscriber->fresh()->status);
         $this->assertEqualsCanonicalizing(
-            [$choices[$second->getKey()]->getKey()],
+            $selected,
             $subscriber->fresh()->subGroups()->where('purpose', 'preference')->pluck('subscriber_sub_groups.id')->all(),
         );
 

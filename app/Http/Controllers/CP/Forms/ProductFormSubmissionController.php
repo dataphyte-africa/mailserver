@@ -24,8 +24,14 @@ class ProductFormSubmissionController
         abort_if(! $this->products->canAccessForm($request->user(), $productForm), 403, 'Hosted form is outside your active form scope.');
 
         $submissions = $this->forms->submissions($productForm);
+        $preferenceLabels = $productForm->mode === 'subscription'
+            ? $this->forms->selectedPreferenceLabels($submissions->items()) : [];
 
-        return view('forms.cp.submissions', ['form' => $productForm, 'submissions' => $submissions]);
+        return view('forms.cp.submissions', [
+            'form' => $productForm,
+            'submissions' => $submissions,
+            'preferenceLabels' => $preferenceLabels,
+        ]);
     }
 
     public function export(Request $request, ProductForm $productForm): Response

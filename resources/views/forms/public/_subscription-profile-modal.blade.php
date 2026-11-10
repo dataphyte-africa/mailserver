@@ -1,4 +1,10 @@
 @if($profilePending)
+    @php
+        $selectedPreferenceIds = array_map('intval', session('subscription_profile_completion.selected_preference_ids', []));
+        $joinedGroups = $publicPreferences->filter(fn ($group) => $group->subGroups->pluck('id')->intersect($selectedPreferenceIds)->isNotEmpty());
+        $recommendedGroups = $publicPreferences->filter(fn ($group) => $group->subGroups->count() === 1 && $group->subGroups->pluck('id')->intersect($selectedPreferenceIds)->isEmpty());
+        $joinedNames = $joinedGroups->map(fn ($group) => $group->product?->name ?? $group->name)->values();
+    @endphp
     <style>
         .profile-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(9, 30, 65, .65); }
         .profile-dialog { width: min(100%, 590px); max-height: min(90vh, 850px); overflow-y: auto; padding: 28px; border-radius: 14px; background: #fff; color: #091e41; box-shadow: 0 20px 70px rgba(9, 30, 65, .25); }
@@ -16,14 +22,35 @@
         .profile-dialog__save { background: #071f47; color: #fff; }
         .profile-dialog__skip { background: #eef2ff; color: #091e41; }
         .profile-dialog__footnote { margin-top: 17px !important; margin-bottom: 0 !important; font-size: 12px; }
+        .profile-dialog__eyebrow { margin: 0 0 12px !important; color: #08736f !important; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .profile-dialog__recommendations { margin: 22px 0; padding: 17px; border: 1px solid #b8d9e8; border-radius: 9px; background: #f1f8fc; }
+        .profile-dialog__recommendations h3 { margin: 0 0 9px; font-size: 15px; }
+        .profile-dialog__recommendation { display: flex; align-items: start; gap: 10px; padding: 10px 0; cursor: pointer; }
+        .profile-dialog__recommendation input { margin-top: 4px; accent-color: #08736f; }
+        .profile-dialog__recommendation strong, .profile-dialog__recommendation small { display: block; }
+        .profile-dialog__recommendation small { margin-top: 3px; color: #536078; }
+        .profile-dialog__profile-heading { margin: 22px 0 14px; font-size: 15px; }
         @media (max-width: 560px) { .profile-dialog { padding: 22px 18px; } .profile-dialog__fields { grid-template-columns: 1fr; } .profile-dialog__field--wide { grid-column: auto; } }
     </style>
     <div class="profile-overlay">
         <section class="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-heading" aria-describedby="profile-dialog-description">
-            <h2 id="profile-dialog-heading">Thank you for subscribing to {{ $form->organisation?->name }} updates.</h2>
-            <p id="profile-dialog-description">Complete your reader profile. These fields are optional.</p>
+            <p class="profile-dialog__eyebrow">Subscription confirmed</p>
+            <h2 id="profile-dialog-heading">Thank you for joining {{ $joinedNames->count() === 1 ? $joinedNames->first() : $form->organisation?->name.' updates' }}.</h2>
+            <p id="profile-dialog-description">You are now subscribed{{ $joinedNames->count() > 1 ? ' to '.$joinedNames->join(', ', ' and ') : '' }}. You can adjust your choices anytime.</p>
             <form method="POST" action="{{ route('product-forms.public.profile', ['form' => $form->slug], false) }}">
                 @csrf
+                @if($recommendedGroups->isNotEmpty())
+                    <div class="profile-dialog__recommendations">
+                        <h3>Also recommended</h3>
+                        @foreach($recommendedGroups as $group)
+                            <label class="profile-dialog__recommendation">
+                                <input type="checkbox" name="recommended_preferences[]" value="{{ $group->subGroups->first()->getKey() }}">
+                                <span><strong>Also subscribe to {{ $group->product?->name ?? $group->name }}</strong><small>{{ $group->description ?: 'Get updates from this newsletter too.' }}</small></span>
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+                <h3 class="profile-dialog__profile-heading">Complete your reader profile <small>(optional)</small></h3>
                 <div class="profile-dialog__fields">
                     @foreach($form->field_definitions ?? [] as $field)
                         @continue($field['handle'] === 'email' || $field['type'] === 'checkbox' || $field['required'])

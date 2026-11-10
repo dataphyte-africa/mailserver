@@ -92,6 +92,9 @@
                         @if(isset($errors) && $errors->has($field['handle']))
                             <div class="help" style="color: #b91c1c;">{{ $errors->first($field['handle']) }}</div>
                         @endif
+                        @if($form->mode === 'subscription' && $field['handle'] === 'email')
+                            <button type="submit" name="action" value="manage_existing" formnovalidate style="padding:0;border:0;background:none;color:#0f4c81;text-decoration:underline">Already subscribed? Email me my preferences</button>
+                        @endif
                     </div>
                 @endforeach
 

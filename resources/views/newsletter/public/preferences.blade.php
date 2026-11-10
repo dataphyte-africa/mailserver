@@ -33,10 +33,18 @@
                 <fieldset class="preference-group">
                     <legend>{{ $group->product?->name ?? $group->name }}</legend>
                     @if($group->description)<p>{{ $group->description }}</p>@endif
-                    <label class="preference-choice">
-                        <input type="checkbox" name="audience_groups[]" value="{{ $group->id }}" @checked($group->subGroups->pluck('id')->intersect($activeSubGroupIds)->isNotEmpty())>
-                        <span>Receive {{ $group->product?->name ?? $group->name }} emails</span>
-                    </label>
+                    @if($group->subGroups->count() > 1)
+                        <label class="preference-choice">
+                            <input type="radio" name="sub_groups[{{ $group->id }}]" value="" @checked($group->subGroups->pluck('id')->intersect($activeSubGroupIds)->isEmpty())>
+                            <span>Do not receive {{ $group->product?->name ?? $group->name }} emails</span>
+                        </label>
+                    @endif
+                    @foreach($group->subGroups as $subGroup)
+                        <label class="preference-choice">
+                            <input type="{{ $group->subGroups->count() > 1 ? 'radio' : 'checkbox' }}" name="{{ $group->subGroups->count() > 1 ? 'sub_groups['.$group->id.']' : 'sub_groups[]' }}" value="{{ $subGroup->id }}" @checked(in_array((int) $subGroup->id, $activeSubGroupIds, true))>
+                            <span>{{ $group->subGroups->count() > 1 ? $subGroup->name : 'Receive '.($group->product?->name ?? $group->name).' emails' }}</span>
+                        </label>
+                    @endforeach
                 </fieldset>
             @empty
                 <p class="preference-empty">There are no current or public newsletter choices for this organisation.</p>
@@ -49,6 +57,26 @@
                     <span>I do not want to receive any newsletters, promotional emails, or product updates from {{ $organisation->name }}.</span>
                 </label>
                 <p>Essential messages such as application receipts are unaffected.</p>
+            </fieldset>
+            <fieldset class="preference-group reader-profile">
+                <legend>Reader details</legend>
+                <p>Optional. Update the details associated with this email address.</p>
+                <label>First name <input type="text" name="first_name" value="{{ old('first_name', $subscriber->first_name) }}" autocomplete="given-name"></label>
+                <label>Last name <input type="text" name="last_name" value="{{ old('last_name', $subscriber->last_name) }}" autocomplete="family-name"></label>
+                <label>Country <select name="country">
+                    <option value="">Select a country</option>
+                    @foreach($countries as $country)
+                        <option value="{{ $country->code }}" @selected(old('country', $readerProfile['country'] ?? '') === $country->code)>{{ $country->name }}</option>
+                    @endforeach
+                </select></label>
+                <label>Organisation <input type="text" name="reader_organisation" value="{{ old('reader_organisation', $readerProfile['organisation'] ?? '') }}"></label>
+                <label>Profession <input type="text" name="profession" value="{{ old('profession', $readerProfile['profession'] ?? '') }}"></label>
+                <label>Gender <select name="gender">
+                    <option value="">Select an option</option>
+                    @foreach(['male' => 'Male', 'female' => 'Female', 'other' => 'Other'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('gender', $readerProfile['gender'] ?? '') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select></label>
             </fieldset>
             <button class="preference-submit" type="submit">Save my choices</button>
             @if($mode !== 'unsubscribe')<a class="preference-website" href="{{ $unsubscribeUrl }}">Manage or unsubscribe</a>@endif
@@ -66,6 +94,6 @@
         @endif
     </div>
 </main>
-<script>document.getElementById('uncheck-all').addEventListener('click',function(){document.querySelectorAll('#preference-form input[name="audience_groups[]"]').forEach(function(input){input.checked=false;});});</script>
+<script>document.getElementById('uncheck-all').addEventListener('click',function(){document.querySelectorAll('#preference-form input[name^="sub_groups"]').forEach(function(input){input.checked=false;});});</script>
 </body>
 </html>

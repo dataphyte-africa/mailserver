@@ -45,6 +45,7 @@
         .preference input:checked + .preference-content .preference-mark::before { content: "✓"; }
         .details { margin-top: 18px; padding: 26px 24px 28px; }
         .signup-email { margin-top: 18px; padding: 22px 24px; background: #fff; border-radius: 13px; }
+        .manage-existing { margin-top: 10px; padding: 0; border: 0; background: none; color: #176890; font: 700 13px "Avenir Next", "Trebuchet MS", sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
         .details-title { margin: 0 0 21px; font-size: 17px; letter-spacing: -.02em; }
         .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
         .field { min-width: 0; }
@@ -135,6 +136,7 @@
                     <label for="field-email">{{ $emailField['label'] }} <span class="required">*</span></label>
                     <input id="field-email" type="email" name="email" value="{{ old('email') }}" autocomplete="email" placeholder="jane.doe@example.org" required>
                     <small class="field-help">We send updates only for the newsletters you choose.</small>
+                    <button class="manage-existing" type="submit" name="action" value="manage_existing" formnovalidate>Already subscribed? Email me my preferences</button>
                     @error('email')<span class="error" role="alert">{{ $message }}</span>@enderror
                 </div>
             @endif

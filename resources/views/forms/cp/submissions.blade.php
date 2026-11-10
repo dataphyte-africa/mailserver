@@ -31,7 +31,14 @@
                     <th>Status</th>
                     <th>Submitted</th>
                     <th>Origin</th>
+                    @if($form->mode === 'subscription')
+                        <th>Email address</th>
+                        <th>Selected preferences</th>
+                    @endif
                     @foreach($form->field_definitions ?? [] as $field)
+                        @if($form->mode === 'subscription' && $field['handle'] === 'email')
+                            @continue
+                        @endif
                         <th>{{ $field['label'] }}</th>
                     @endforeach
                     @if($form->mode !== 'subscription')
@@ -46,7 +53,14 @@
                         <td>{{ $submission->status }}</td>
                         <td>{{ optional($submission->submitted_at)->format('Y-m-d H:i:s') }}</td>
                         <td>{{ $submission->submission_origin ?: 'Hosted / direct' }}</td>
+                        @if($form->mode === 'subscription')
+                            <td>{{ data_get($submission->payload, 'email') }}</td>
+                            <td>{{ ($preferenceLabels[$submission->id] ?? '') ?: '—' }}</td>
+                        @endif
                         @foreach($form->field_definitions ?? [] as $field)
+                            @if($form->mode === 'subscription' && $field['handle'] === 'email')
+                                @continue
+                            @endif
                             <td>{{ data_get($submission->payload, $field['handle']) }}</td>
                         @endforeach
                         @if($form->mode !== 'subscription')
@@ -67,7 +81,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ 4 + count($form->field_definitions ?? []) + (int) ($form->mode !== 'subscription') }}">
+                        <td colspan="{{ 5 + count($form->field_definitions ?? []) + (int) ($form->mode === 'subscription' && ! collect($form->field_definitions ?? [])->contains('handle', 'email')) }}">
                             No submissions stored yet.
                         </td>
                     </tr>

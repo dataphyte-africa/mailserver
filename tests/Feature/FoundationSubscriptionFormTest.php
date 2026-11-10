@@ -107,9 +107,11 @@ class FoundationSubscriptionFormTest extends TestCase
         ])->assertCreated()->assertJsonPath('subscription_status', 'subscribed');
         $this->assertNull(Subscriber::query()->where('email', 'nameless@example.test')->sole()->first_name);
 
+        $submissionCount = ProductFormSubmission::query()->count();
         $this->postJson(route('product-forms.public.submit', ['form' => 'foundation-subscribe']), [
-            'email' => 'ada@example.test', 'preferences' => [$preference->id], 'consent' => '1',
-        ])->assertCreated();
+            'email' => 'ADA@example.test', 'preferences' => [$preference->id], 'consent' => '1',
+        ])->assertOk()->assertJsonPath('status', 'management_link_sent');
+        $this->assertSame($submissionCount, ProductFormSubmission::query()->count());
         $this->assertSame('Ada', $subscriber->fresh()->first_name);
         $this->assertSame('Example', $subscriber->last_name);
 
@@ -119,7 +121,7 @@ class FoundationSubscriptionFormTest extends TestCase
         $submissionCount = ProductFormSubmission::query()->count();
         $modal = $this->get(route('product-forms.public.show', ['form' => 'foundation-subscribe']))->assertOk();
         $modal->assertSee('role="dialog"', false)
-            ->assertSee('Thank you for subscribing to Dataphyte Foundation updates.')
+            ->assertSee('Thank you for joining Foundation Update.')
             ->assertSee('name="first_name"', false)
             ->assertSee('Save details')->assertSee('Skip for now');
 
@@ -146,6 +148,46 @@ class FoundationSubscriptionFormTest extends TestCase
             'action' => 'skip',
         ])->assertRedirect();
         $this->assertNull(Subscriber::query()->where('email', 'skip@example.test')->sole()->first_name);
+    }
+
+    public function test_subscription_listing_and_csv_show_latest_email_once_with_selected_preferences(): void
+    {
+        $foundation = Organisation::query()->create([
+            'name' => 'Dataphyte Foundation', 'slug' => 'foundation-newsletters',
+            'status' => 'active', 'primary_collection_handle' => 'foundation_newsletters',
+        ]);
+        $this->makePublicAudience($foundation, 'Foundation Update', 'foundation-newsletters-weekly', 'foundation-update-subscribers');
+        $this->artisan('newsletter:provision-foundation-subscription-form --apply')->assertSuccessful();
+        $form = ProductForm::query()->where('slug', 'foundation-subscribe')->sole();
+        $preference = SubscriberSubGroup::query()->whereHas('group', fn ($query) => $query
+            ->where('slug', 'foundation-update-subscribers'))->sole();
+
+        $older = app(ProductFormService::class)->storeSubmission($form, [
+            'email' => 'Ada@Example.test', 'preferences' => [$preference->id], 'consent' => '1',
+        ], Request::create('/forms/foundation-subscribe/submit', 'POST'));
+        $repeat = app(ProductFormService::class)->storeSubmission($form, [
+            'email' => 'ada@example.test', 'preferences' => [$preference->id], 'consent' => '1',
+        ], Request::create('/forms/foundation-subscribe/submit', 'POST'));
+        $this->assertSame($older->id, $repeat->id);
+        $this->assertSame(1, ProductFormSubmission::query()->count());
+
+        $newer = $older->replicate();
+        $newer->payload = ['email' => 'ADA@example.test', 'preferences' => [$preference->id], 'consent' => '1'];
+        $newer->submitted_at = now()->addSecond();
+        $newer->save();
+
+        $service = app(ProductFormService::class);
+        $listing = $service->submissions($form);
+        $this->assertSame(1, $listing->total());
+        $this->assertSame($newer->id, $listing->items()[0]->id);
+        $this->assertSame('Foundation Update / Newsletter', $service->selectedPreferenceLabels($listing->items())[$newer->id]);
+        $this->assertSame(2, ProductFormSubmission::query()->count());
+
+        $csv = $service->csvContent($form);
+        $this->assertStringContainsString('selected_preferences', $csv);
+        $this->assertStringContainsString('Foundation Update / Newsletter', $csv);
+        $this->assertStringNotContainsString('ada@example.test', $csv);
+        $this->assertStringContainsString('ADA@example.test', $csv);
     }
 
     private function makePublicAudience(Organisation $organisation, string $name, string $productSlug, string $groupSlug): void

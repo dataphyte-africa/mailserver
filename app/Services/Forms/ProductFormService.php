@@ -334,10 +334,11 @@ class ProductFormService
                 'sub_group_id' => $form->audience_sub_group_id,
             ]);
             $validated['preferences'] = $this->subscriptions->validateSelection($form, $payload);
+            $validated['email'] = strtolower(trim($validated['email']));
         }
         $status = $form->mode !== 'subscription' && $form->requires_review ? 'pending_review' : 'submitted';
 
-        return ProductFormSubmission::query()->create([
+        $attributes = [
             'product_form_id' => $form->getKey(),
             'organisation_id' => $form->organisation_id,
             'product_id' => $form->mode === 'subscription' && $form->form_scope === 'organisation'
@@ -353,7 +354,28 @@ class ProductFormService
                 'form_scope' => $form->form_scope,
                 'requires_review' => $form->requires_review,
             ],
-        ]);
+        ];
+
+        if ($form->mode !== 'subscription') {
+            return ProductFormSubmission::query()->create($attributes);
+        }
+
+        return DB::transaction(function () use ($form, $validated, $attributes): ProductFormSubmission {
+            ProductForm::query()->whereKey($form->getKey())->lockForUpdate()->firstOrFail();
+            $existing = ProductFormSubmission::query()
+                ->where('product_form_id', $form->getKey())
+                ->whereRaw("LOWER(JSON_EXTRACT(payload, '$.email')) = LOWER(JSON_EXTRACT(?, '$'))", [json_encode($validated['email'])])
+                ->latest('id')
+                ->first();
+
+            if ($existing) {
+                $existing->update($attributes);
+
+                return $existing;
+            }
+
+            return ProductFormSubmission::query()->create($attributes);
+        });
     }
 
     /**
@@ -457,9 +479,34 @@ class ProductFormService
 
     public function submissions(ProductForm $form, int $perPage = 25): LengthAwarePaginator
     {
-        return $form->submissions()
+        return $this->listingSubmissions($form)
             ->latest('submitted_at')
             ->paginate($perPage);
+    }
+
+    public function selectedPreferenceLabels(iterable $submissions): array
+    {
+        $submissions = collect($submissions);
+        $ids = $submissions->flatMap(fn (ProductFormSubmission $submission): array => $submission->payload['preferences'] ?? [])
+            ->filter(fn ($id): bool => is_scalar($id) && ctype_digit((string) $id))
+            ->unique()->values()->all();
+        $subGroups = SubscriberSubGroup::query()->with('group.product')->whereKey($ids)->get()->keyBy('id');
+
+        return $submissions->mapWithKeys(function (ProductFormSubmission $submission) use ($subGroups): array {
+            $labels = collect($submission->payload['preferences'] ?? [])
+                ->map(function ($id) use ($subGroups): string {
+                    $subGroup = $subGroups->get($id);
+                    if (! $subGroup) {
+                        return 'Preference #'.$id;
+                    }
+
+                    $audience = $subGroup->group?->product?->name ?? $subGroup->group?->name ?? 'Audience';
+
+                    return $audience.' / '.$subGroup->name;
+                })->all();
+
+            return [$submission->getKey() => implode(', ', $labels)];
+        })->all();
     }
 
     public function csvContent(ProductForm $form): string
@@ -471,11 +518,16 @@ class ProductFormService
                 $form->field_definitions ?? [],
             ),
         );
+        if ($form->mode === 'subscription') {
+            $headers[] = 'selected_preferences';
+        }
 
         $stream = fopen('php://temp', 'r+');
         fputcsv($stream, $headers);
 
-        foreach ($form->submissions()->latest('submitted_at')->get() as $submission) {
+        $submissions = $this->listingSubmissions($form)->latest('submitted_at')->get();
+        $preferenceLabels = $form->mode === 'subscription' ? $this->selectedPreferenceLabels($submissions) : [];
+        foreach ($submissions as $submission) {
             $row = [
                 $submission->getKey(),
                 $submission->status,
@@ -486,6 +538,9 @@ class ProductFormService
             foreach ($form->field_definitions ?? [] as $field) {
                 $row[] = Arr::get($submission->payload ?? [], $field['handle'], '');
             }
+            if ($form->mode === 'subscription') {
+                $row[] = $preferenceLabels[$submission->getKey()] ?? '';
+            }
 
             fputcsv($stream, $row);
         }
@@ -495,6 +550,19 @@ class ProductFormService
         fclose($stream);
 
         return $content;
+    }
+
+    private function listingSubmissions(ProductForm $form)
+    {
+        $query = $form->submissions();
+        if ($form->mode !== 'subscription') {
+            return $query;
+        }
+
+        return $query->whereIn('id', ProductFormSubmission::query()
+            ->selectRaw('MAX(id)')
+            ->where('product_form_id', $form->getKey())
+            ->groupByRaw("LOWER(JSON_EXTRACT(payload, '$.email'))"));
     }
 
     /**

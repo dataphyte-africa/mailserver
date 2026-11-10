@@ -2,16 +2,21 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Mail\SubscriptionManagementLinkMail;
 use App\Models\ProductFormSubmission;
 use App\Models\Subscriber;
+use App\Models\SubscriberSubGroup;
 use App\Services\Forms\ApplicationWindow;
 use App\Services\Forms\ProductFormService;
 use App\Services\Forms\ProductFormSubscriptionService;
+use App\Services\Newsletter\GroupEngagementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProductFormSubmissionController
 {
@@ -28,6 +33,51 @@ class ProductFormSubmissionController
             (bool) ($resolved->settings['accepting_submissions'] ?? true),
             $resolved->settings['closes_at'] ?? null,
         ), 410, 'This application is closed.');
+
+        if ($resolved->mode === 'subscription') {
+            $this->forms->assertAllowedOrigin($resolved, $request);
+            $email = $request->validate(['email' => ['required', 'email', 'max:255']])['email'];
+            $subscriber = Subscriber::query()->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])->first();
+            if ($request->input('action') === 'manage_existing') {
+                $request->session()->forget('subscription_profile_completion');
+                if ($subscriber && ! in_array($subscriber->status, ['erased'], true)) {
+                    Mail::to($subscriber->email)->queue((new SubscriptionManagementLinkMail(
+                        $subscriber,
+                        $resolved->organisation,
+                    ))->afterCommit());
+                }
+
+                $message = 'If this email is registered, a link to manage its preferences and details is on the way.';
+                if ($request->expectsJson() || $request->wantsJson()) {
+                    return response()->json(['status' => 'management_link_requested', 'success_message' => $message]);
+                }
+
+                return redirect()->back()->with('product_form_success', $message);
+            }
+            if ($subscriber) {
+                $request->session()->forget('subscription_profile_completion');
+                $subscriptions->validateSelection($resolved, $request->all());
+                if (in_array($subscriber->status, ['erased', 'bounced', 'complained'], true)) {
+                    throw ValidationException::withMessages([
+                        'email' => ['This address cannot be subscribed through a public form.'],
+                    ]);
+                }
+                Mail::to($subscriber->email)->queue((new SubscriptionManagementLinkMail(
+                    $subscriber,
+                    $resolved->organisation,
+                ))->afterCommit());
+
+                if ($request->expectsJson() || $request->wantsJson()) {
+                    return response()->json([
+                        'status' => 'management_link_sent',
+                        'success_message' => 'This email is already registered. Check your inbox for a link to view or update your preferences and details.',
+                    ]);
+                }
+
+                return redirect()->back()->with('product_form_success',
+                    'This email is already registered. Check your inbox for a link to view or update your preferences and details.');
+            }
+        }
 
         [$submission, $subscription] = DB::transaction(function () use ($resolved, $request, $subscriptions): array {
             $submission = $this->forms->storeSubmission($resolved, $request->all(), $request);
@@ -48,9 +98,10 @@ class ProductFormSubmissionController
             ], 201);
         }
 
-        $offerProfile = $subscription && collect($resolved->field_definitions ?? [])
+        $offerProfile = $subscription && (collect($resolved->field_definitions ?? [])
             ->contains(fn (array $field): bool => $field['handle'] !== 'email'
-                && $field['type'] !== 'checkbox' && ! $field['required']);
+                && $field['type'] !== 'checkbox' && ! $field['required'])
+            || $subscriptions->approvedPreferences($resolved)->count() > 1);
         if ($subscription) {
             $request->session()->forget('subscription_profile_completion');
         }
@@ -59,6 +110,7 @@ class ProductFormSubmissionController
                 'form_id' => $resolved->getKey(),
                 'submission_id' => $submission->getKey(),
                 'subscriber_id' => $subscription['subscriber']->getKey(),
+                'selected_preference_ids' => $submission->payload['preferences'] ?? [],
             ]);
         }
 
@@ -67,13 +119,38 @@ class ProductFormSubmissionController
             ->with($offerProfile ? 'subscription_profile_started' : 'product_form_success', $resolved->success_message);
     }
 
-    public function completeProfile(string $form, Request $request): RedirectResponse
+    public function completeProfile(string $form, Request $request, ProductFormSubscriptionService $subscriptions, GroupEngagementService $engagement): RedirectResponse
     {
         $resolved = $this->forms->resolvePublishedForm($form);
         abort_unless($resolved?->isPublished() && $resolved->mode === 'subscription', 404);
 
         $pending = $request->session()->get('subscription_profile_completion');
         abort_unless(is_array($pending) && (int) ($pending['form_id'] ?? 0) === (int) $resolved->getKey(), 403);
+
+        $recommendedIds = array_map('intval', $request->validate([
+            'recommended_preferences' => ['sometimes', 'array'],
+            'recommended_preferences.*' => ['integer', 'distinct'],
+        ])['recommended_preferences'] ?? []);
+        $available = $subscriptions->approvedPreferences($resolved)->flatMap(
+            fn ($group) => $group->subGroups->modelKeys()
+        )->map(fn ($id) => (int) $id)->all();
+        $selected = array_map('intval', $pending['selected_preference_ids'] ?? []);
+        abort_if(array_diff($recommendedIds, array_diff($available, $selected)) !== [], 422);
+        $groupIds = SubscriberSubGroup::query()->whereKey(array_merge($selected, $recommendedIds))
+            ->pluck('subscriber_group_id');
+        abort_if($groupIds->unique()->count() !== $groupIds->count(), 422);
+
+        if ($recommendedIds !== []) {
+            $subscriber = Subscriber::query()->findOrFail($pending['subscriber_id']);
+            DB::transaction(function () use ($subscriber, $recommendedIds): void {
+                foreach ($recommendedIds as $id) {
+                    $subscriber->allSubGroups()->syncWithoutDetaching([$id => [
+                        'subscribed_at' => now(), 'unsubscribed_at' => null,
+                    ]]);
+                }
+            });
+            $engagement->syncForSubscriber($subscriber->fresh(), $groupIds->all());
+        }
 
         if ($request->input('action') === 'skip') {
             $request->session()->forget('subscription_profile_completion');

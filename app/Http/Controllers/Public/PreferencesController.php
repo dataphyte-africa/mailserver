@@ -8,11 +8,12 @@ use App\Models\Product;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
-use App\Services\Newsletter\NewsletterPublicUrlService;
 use App\Services\Newsletter\GroupEngagementService;
+use App\Services\Newsletter\NewsletterPublicUrlService;
 use App\Services\Newsletter\OrganisationMailOptOut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PreferencesController extends Controller
 {
@@ -61,6 +62,8 @@ class PreferencesController extends Controller
                 ? $urls->unsubscribeProcessUrl($subscriber, $organisation->primary_collection_handle, $productContext)
                 : $urls->preferencesUpdateUrl($subscriber, $organisation->primary_collection_handle, $productContext),
             'unsubscribeUrl' => $urls->unsubscribeUrl($subscriber, $organisation->primary_collection_handle, $productContext),
+            'countries' => DB::table('countries')->orderBy('name')->get(['code', 'name']),
+            'readerProfile' => $subscriber->metadata['reader_profiles'][$organisation->getKey()] ?? [],
         ]);
     }
 
@@ -93,17 +96,23 @@ class PreferencesController extends Controller
         }
         $validated = $request->validate([
             'sub_groups' => ['nullable', 'array'],
-            'sub_groups.*' => ['integer', 'distinct'],
+            'sub_groups.*' => ['nullable', 'integer', 'distinct'],
             'audience_groups' => ['nullable', 'array'],
             'audience_groups.*' => ['integer', 'distinct'],
             'organisation_opt_out' => ['nullable', 'boolean'],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
+            'country' => ['nullable', Rule::exists('countries', 'code')],
+            'reader_organisation' => ['nullable', 'string', 'max:255'],
+            'profession' => ['nullable', 'string', 'max:255'],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
         ]);
         $organisationOptedOut = (bool) ($validated['organisation_opt_out'] ?? false);
         $current = $this->activeIds($subscriber, $organisation);
         $published = $this->publishedIds($organisation);
         $selected = $organisationOptedOut ? [] : ($request->has('audience_groups')
             ? $this->selectedIdsForGroups($organisation, $current, $published, $validated['audience_groups'] ?? [])
-            : array_map('intval', $validated['sub_groups'] ?? []));
+            : array_map('intval', array_filter($validated['sub_groups'] ?? [], fn ($id) => filled($id))));
 
         abort_if(in_array($subscriber->status, ['erased', 'bounced', 'complained'], true)
             && array_diff($selected, $current) !== [], 422,
@@ -111,8 +120,11 @@ class PreferencesController extends Controller
 
         abort_if(array_diff($selected, array_unique(array_merge($current, $published))) !== [], 422,
             'One or more selected preferences are unavailable for this organisation.');
+        $selectedGroupIds = SubscriberSubGroup::query()->whereKey($selected)->pluck('subscriber_group_id');
+        abort_if($selectedGroupIds->unique()->count() !== $selectedGroupIds->count(), 422,
+            'Select only one preference within each audience.');
 
-        DB::transaction(function () use ($subscriber, $selected, $current, $organisation, $organisationOptedOut, $optOut): void {
+        DB::transaction(function () use ($subscriber, $selected, $current, $organisation, $organisationOptedOut, $optOut, $validated): void {
             $optOut->set((int) $organisation->getKey(), (int) $subscriber->getKey(), $organisationOptedOut);
             $remove = array_diff($current, $selected);
             if ($remove !== []) {
@@ -137,11 +149,25 @@ class PreferencesController extends Controller
             }
 
             $hasAnyMembership = $subscriber->subGroups()->where('purpose', 'preference')->exists();
+            $metadata = $subscriber->metadata ?? [];
+            $profile = $metadata['reader_profiles'][$organisation->getKey()] ?? [];
+            foreach (['country', 'profession', 'gender'] as $field) {
+                if (array_key_exists($field, $validated)) {
+                    $profile[$field] = $validated[$field];
+                }
+            }
+            if (array_key_exists('reader_organisation', $validated)) {
+                $profile['organisation'] = $validated['reader_organisation'];
+            }
+            $metadata['reader_profiles'][$organisation->getKey()] = $profile;
             $subscriber->update([
                 'status' => in_array($subscriber->status, ['erased', 'bounced', 'complained'], true)
                     ? $subscriber->status
                     : ($hasAnyMembership ? 'active' : 'unsubscribed'),
                 'unsubscribed_at' => $hasAnyMembership ? null : now(),
+                'first_name' => $validated['first_name'] ?? $subscriber->first_name,
+                'last_name' => $validated['last_name'] ?? $subscriber->last_name,
+                'metadata' => $metadata,
             ]);
         });
 

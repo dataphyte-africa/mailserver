@@ -9,6 +9,7 @@ use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberSubGroup;
 use App\Services\Forms\ProductFormService;
+use App\Services\Newsletter\NewsletterPublicUrlService;
 use Illuminate\Support\Facades\Mail;
 use Statamic\Facades\Form;
 use Tests\TestCase;
@@ -101,7 +102,15 @@ class PolicyPointHostedSubscriptionFormTest extends TestCase
         $this->assertFalse($new->allSubGroups()->whereKey($regular->id)->exists());
         $this->postJson(route('product-forms.public.submit', ['form' => $form->slug]), [
             ...$payload, 'email' => 'existing@example.test', 'preferences' => [$monthly->id],
-        ])->assertCreated()->assertJsonPath('subscription_status', 'subscription_updated');
+        ])->assertOk()->assertJsonPath('status', 'management_link_sent');
+        $this->assertFalse($subscriber->fresh()->subGroups()->whereKey($monthly->id)->exists());
+        $this->assertTrue($subscriber->fresh()->subGroups()->whereKey($regular->id)->exists());
+        $urls = app(NewsletterPublicUrlService::class);
+        $this->get($urls->preferencesUrl($subscriber, $organisation->primary_collection_handle, $organisation))
+            ->assertOk()->assertSee('value="'.$monthly->id.'"', false);
+        $this->post($urls->preferencesUpdateUrl($subscriber, $organisation->primary_collection_handle, $organisation), [
+            'sub_groups' => [$group->id => $monthly->id],
+        ])->assertOk();
         $this->assertTrue($subscriber->fresh()->subGroups()->whereKey($monthly->id)->exists());
         $this->assertFalse($subscriber->fresh()->subGroups()->whereKey($regular->id)->exists());
     }
