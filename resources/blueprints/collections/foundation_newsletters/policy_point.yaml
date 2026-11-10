@@ -22,7 +22,7 @@ tabs:
             field:
               type: assets
               display: 'Hero Image'
-              container: assets
+              container: newsletter_assets_foundation
               max_files: 1
               allow_uploads: true
           -
@@ -41,7 +41,7 @@ tabs:
             handle: content
             field:
               type: bard
-              container: assets
+              container: newsletter_assets_foundation
               display: Content
               validate: required
               save_html: true

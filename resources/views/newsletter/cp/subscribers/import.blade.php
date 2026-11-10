@@ -53,7 +53,7 @@ alex@example.com,,,activities</pre>
             <div>
                 <label class="publish-field-label">
                     Default Sub-groups
-                    <span class="text-gray-400 font-normal">(applied to all rows that have no sub_groups column)</span>
+                    <span class="text-gray-400 font-normal">(added to every valid row)</span>
                 </label>
                 <div class="space-y-3 mt-1">
                     @foreach($subGroups->groupBy('group.name') as $groupName => $subs)
@@ -75,6 +75,7 @@ alex@example.com,,,activities</pre>
             </div>
 
             <div class="pt-2">
+                <p class="text-sm text-gray-600 mb-3">The import runs in the background. You can watch progress after uploading; do not submit the same file again while it is processing.</p>
                 <button type="submit" class="btn-primary">Import</button>
             </div>
         </form>

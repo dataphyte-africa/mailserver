@@ -70,6 +70,39 @@ return [
             'report' => false,
         ],
 
+        'newsletter_assets_insight' => [
+            'driver' => 'local',
+            'root' => public_path('assets/newsletters/insight'),
+            'url' => '/assets/newsletters/insight',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+        'newsletter_assets_foundation' => [
+            'driver' => 'local',
+            'root' => public_path('assets/newsletters/foundation'),
+            'url' => '/assets/newsletters/foundation',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+        'newsletter_assets_academy' => [
+            'driver' => 'local',
+            'root' => public_path('assets/newsletters/academy'),
+            'url' => '/assets/newsletters/academy',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+        'newsletter_assets_policy_point' => [
+            'driver' => 'local',
+            'root' => public_path('assets/newsletters/policy-point'),
+            'url' => '/assets/newsletters/policy-point',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*

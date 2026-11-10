@@ -26,7 +26,7 @@ tabs:
               width: 100
               display: 'Hero Image'
               restrict: false
-              container: assets
+              container: newsletter_assets_foundation
               max_files: 1
               allow_uploads: true
             handle: hero_image
@@ -47,7 +47,7 @@ tabs:
           -
             field:
               type: bard
-              container: assets
+              container: newsletter_assets_foundation
               width: 100
               buttons:
                 - h2

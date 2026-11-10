@@ -332,6 +332,7 @@ class NewsletterServiceProvider extends ServiceProvider
                     // Import / Export
                     \Route::get('/import/form',   [\App\Http\Controllers\CP\Newsletter\ImportController::class, 'form'])->name('import.form');
                     \Route::post('/import',       [\App\Http\Controllers\CP\Newsletter\ImportController::class, 'import'])->name('import');
+                    \Route::get('/import/{importId}', [\App\Http\Controllers\CP\Newsletter\ImportController::class, 'status'])->name('import.status');
                     \Route::get('/export/csv',    [\App\Http\Controllers\CP\Newsletter\ImportController::class, 'export'])->name('export');
                 });
 

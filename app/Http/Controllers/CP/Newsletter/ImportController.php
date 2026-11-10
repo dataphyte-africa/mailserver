@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\CP\Newsletter;
 
 use App\Http\Controllers\Controller;
-use App\Models\Subscriber;
+use App\Jobs\Newsletter\ProcessSubscriberCsvImport;
 use App\Models\SubscriberSubGroup;
-use App\Services\Newsletter\SubscriberEngagementService;
 use App\Services\Newsletter\SubscriberAudienceFilter;
 use App\Services\Platform\CpOperatorScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -32,119 +31,61 @@ class ImportController extends Controller
         ]);
         $this->validateAssignableSubGroupIds((array) $request->input('default_sub_groups', []), 'default_sub_groups');
 
-        $file   = $request->file('csv_file');
-        $handle = fopen($file->getRealPath(), 'r');
-
-        // Read header row — normalise to snake_case and resolve aliases
-        $rawHeaders = array_map('trim', fgetcsv($handle));
-        $headers    = array_map([$this, 'normaliseHeader'], $rawHeaders);
-
-        $imported = 0;
-        $skipped  = 0;
-        $errors   = [];
-        $row      = 1;
-
-        // Resolve available sub-group slugs for mapping
-        $subGroupMap = $this->assignableSubGroups()->pluck('id', 'slug')->toArray();
-
-        while (($data = fgetcsv($handle)) !== false) {
-            $row++;
-
-            if (count($data) < 1 || empty(trim($data[0]))) {
-                continue;
-            }
-
-            $rowData = array_combine(
-                $headers,
-                array_pad($data, count($headers), null)
-            );
-
-            $email = strtolower(trim($rowData['email'] ?? ''));
-
-            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $errors[] = "Row {$row}: Invalid email — {$email}";
-                $skipped++;
-                continue;
-            }
-
-            // Resolve sub-groups from CSV column or fall back to defaults
-            $subGroupIds = [];
-
-            if (! empty($rowData['sub_groups'])) {
-                $slugs = array_map('trim', explode(',', $rowData['sub_groups']));
-                foreach ($slugs as $slug) {
-                    if (isset($subGroupMap[$slug])) {
-                        $subGroupIds[] = $subGroupMap[$slug];
-                    } else {
-                        $errors[] = "Row {$row}: Unknown or archived sub-group slug '{$slug}' — skipped for {$email}";
-                    }
-                }
-            }
-
-            // Merge with any defaults selected in the form
-            if ($request->filled('default_sub_groups')) {
-                $subGroupIds = array_unique(
-                    array_merge($subGroupIds, $request->default_sub_groups)
-                );
-            }
-
-            if (empty($subGroupIds)) {
-                $errors[] = "Row {$row}: No valid sub-groups for {$email} — skipped";
-                $skipped++;
-                continue;
-            }
-
-            try {
-                DB::transaction(function () use ($email, $rowData, $subGroupIds) {
-                    $subscriber = Subscriber::firstOrCreate(
-                        ['email' => $email],
-                        [
-                            'first_name'         => trim($rowData['first_name'] ?? ''),
-                            'last_name'          => trim($rowData['last_name'] ?? ''),
-                            'status'             => 'active',
-                            'confirmation_token' => Str::uuid()->toString(),
-                        ]
-                    );
-
-                    // Backfill token for existing subscribers that were imported without one
-                    if (! $subscriber->confirmation_token) {
-                        $subscriber->update(['confirmation_token' => Str::uuid()->toString()]);
-                    }
-
-                    // Only attach sub-groups not already attached
-                    $existing = $subscriber->allSubGroups()
-                        ->pluck('subscriber_sub_groups.id')
-                        ->toArray();
-
-                    $toAttach = array_diff($subGroupIds, $existing);
-
-                    if ($toAttach) {
-                        $subscriber->subGroups()->attach(
-                            $toAttach,
-                            ['subscribed_at' => now()]
-                        );
-                    }
-
-                    app(SubscriberEngagementService::class)->persist($subscriber);
-                    app(\App\Services\Newsletter\GroupEngagementService::class)->syncForSubscriber($subscriber);
-                });
-
-                $imported++;
-            } catch (\Exception $e) {
-                $errors[] = "Row {$row}: Failed to import {$email} — {$e->getMessage()}";
-                $skipped++;
-            }
+        $handle = fopen($request->file('csv_file')->getRealPath(), 'rb');
+        $rawHeaders = fgetcsv($handle);
+        if (! is_array($rawHeaders)) {
+            fclose($handle);
+            throw ValidationException::withMessages(['csv_file' => 'The CSV file is empty.']);
+        }
+        $headers = array_map([$this, 'normaliseHeader'], array_map('trim', $rawHeaders));
+        fclose($handle);
+        if (! in_array('email', $headers, true) || count($headers) !== count(array_unique($headers))) {
+            throw ValidationException::withMessages(['csv_file' => 'The CSV needs one email column and unique column names.']);
         }
 
+        $importId = (string) Str::uuid();
+        $path = $request->file('csv_file')->storeAs('newsletter-imports', "{$importId}.csv", 'local');
+        if ($path === false) {
+            throw ValidationException::withMessages(['csv_file' => 'The CSV file could not be stored for import.']);
+        }
+        Cache::put(ProcessSubscriberCsvImport::cacheKey($importId), [
+            'user_id' => (string) $request->user()->id(),
+            'status' => 'queued',
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'errors' => [],
+        ], now()->addDays(7));
+        $allowedIds = $this->assignableSubGroups()->modelKeys();
+        ProcessSubscriberCsvImport::dispatch(
+            $importId,
+            $path,
+            $headers,
+            $this->headerOffset($path),
+            array_map('intval', (array) $request->input('default_sub_groups', [])),
+            $allowedIds,
+        );
+
+        return redirect()->route('statamic.cp.newsletter.subscribers.import.status', $importId);
+    }
+
+    public function status(Request $request, string $importId)
+    {
+        $result = Cache::get(ProcessSubscriberCsvImport::cacheKey($importId));
+        abort_unless(is_array($result), 404);
+        abort_unless($result['user_id'] === (string) $request->user()->id(), 403);
+
+        return view('newsletter.cp.subscribers.import-status', compact('result', 'importId'));
+    }
+
+    private function headerOffset(string $path): int
+    {
+        $handle = fopen(\Illuminate\Support\Facades\Storage::disk('local')->path($path), 'rb');
+        fgetcsv($handle);
+        $offset = ftell($handle);
         fclose($handle);
 
-        return redirect()
-            ->route('statamic.cp.newsletter.subscribers.index')
-            ->with('import_result', [
-                'imported' => $imported,
-                'skipped'  => $skipped,
-                'errors'   => $errors,
-            ]);
+        return $offset;
     }
 
     public function export(Request $request)

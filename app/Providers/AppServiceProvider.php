@@ -39,6 +39,14 @@ class AppServiceProvider extends ServiceProvider
         Route::pushMiddlewareToGroup('statamic.cp.authenticated', \App\Http\Middleware\EnforceCpCollectionOwnership::class);
         Gate::policy(\Statamic\Contracts\Entries\Collection::class, \App\Policies\ScopedCollectionPolicy::class);
         Gate::policy(\Statamic\Contracts\Entries\Entry::class, \App\Policies\ScopedEntryPolicy::class);
+        $this->app->booted(function (): void {
+            Gate::policy(\Statamic\Contracts\Assets\AssetContainer::class, \App\Policies\ScopedAssetContainerPolicy::class);
+            Gate::policy(\Statamic\Contracts\Assets\Asset::class, \App\Policies\ScopedAssetPolicy::class);
+            Gate::policy(\Statamic\Assets\AssetContainer::class, \App\Policies\ScopedAssetContainerPolicy::class);
+            Gate::policy(\Statamic\Eloquent\Assets\AssetContainer::class, \App\Policies\ScopedAssetContainerPolicy::class);
+            Gate::policy(\Statamic\Assets\Asset::class, \App\Policies\ScopedAssetPolicy::class);
+            Gate::policy(\Statamic\Eloquent\Assets\Asset::class, \App\Policies\ScopedAssetPolicy::class);
+        });
 
         EntriesIndexQuery::hook('query', function ($payload, $next) {
             $scope = app(\App\Services\Platform\CpOperatorScope::class);

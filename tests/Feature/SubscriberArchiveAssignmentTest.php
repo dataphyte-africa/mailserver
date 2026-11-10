@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\CP\Newsletter\ImportController;
 use App\Http\Controllers\CP\Newsletter\SubscriberController;
+use App\Jobs\Newsletter\ProcessSubscriberCsvImport;
 use App\Models\Subscriber;
 use App\Models\SubscriberGroup;
 use App\Models\SubscriberGroupEngagement;
@@ -12,6 +13,10 @@ use App\Widgets\NewsletterWidget;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Exceptions\UrlGenerationException;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Statamic\Facades\User as StatamicUser;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
@@ -22,6 +27,7 @@ class SubscriberArchiveAssignmentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config()->set('queue.default', 'sync');
         $user = StatamicUser::findByEmail('admin@mailserver.test');
         $this->actingAs($user, config('statamic.users.guards.cp', 'web'));
         $this->app['request']->setUserResolver(fn () => $user);
@@ -297,6 +303,62 @@ class SubscriberArchiveAssignmentTest extends TestCase
         $this->assertDatabaseMissing('subscriber_sub_group', [
             'subscriber_sub_group_id' => $archived->id,
         ]);
+    }
+
+    public function test_import_upload_queues_bounded_jobs_and_reports_progress(): void
+    {
+        Storage::fake('local');
+        Queue::fake();
+        $subGroup = $this->createSubGroup();
+        $rows = array_map(fn ($index) => "reader{$index}@example.test", range(1, 51));
+        $file = $this->csvUpload("email\n".implode("\n", $rows)."\n");
+
+        $this->callImportIgnoringRedirect($this->request('POST', [
+            'default_sub_groups' => [$subGroup->id],
+        ], ['csv_file' => $file]));
+
+        $this->assertDatabaseMissing('subscribers', ['email' => $rows[0]]);
+        Queue::assertPushed(ProcessSubscriberCsvImport::class, 1);
+        $first = Queue::pushed(ProcessSubscriberCsvImport::class)->first();
+        $this->assertSame('default', $first->queue);
+        $this->assertSame('queued', Cache::get(ProcessSubscriberCsvImport::cacheKey($first->importId))['status']);
+
+        $first->handle(app(\App\Services\Newsletter\SubscriberEngagementService::class), app(\App\Services\Newsletter\GroupEngagementService::class));
+        $progress = Cache::get(ProcessSubscriberCsvImport::cacheKey($first->importId));
+        $this->assertSame(50, $progress['processed']);
+        $this->assertSame('processing', $progress['status']);
+        Queue::assertPushed(ProcessSubscriberCsvImport::class, 2);
+
+        $second = Queue::pushed(ProcessSubscriberCsvImport::class)->last();
+        $second->handle(app(\App\Services\Newsletter\SubscriberEngagementService::class), app(\App\Services\Newsletter\GroupEngagementService::class));
+        $progress = Cache::get(ProcessSubscriberCsvImport::cacheKey($first->importId));
+        $this->assertSame('complete', $progress['status']);
+        $this->assertSame(51, $progress['imported']);
+        $this->assertFalse(Storage::disk('local')->exists($first->path));
+        $this->assertDatabaseHas('subscribers', ['email' => $rows[50]]);
+    }
+
+    public function test_import_progress_is_only_visible_to_the_uploading_operator(): void
+    {
+        $importId = (string) Str::uuid();
+        $operator = auth()->user();
+        Cache::put(ProcessSubscriberCsvImport::cacheKey($importId), [
+            'user_id' => (string) $operator->id(),
+            'status' => 'queued',
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'errors' => [],
+        ]);
+
+        $view = (new ImportController)->status($this->request('GET'), $importId);
+        $this->assertSame('queued', $view->getData()['result']['status']);
+
+        $other = StatamicUser::make()->id((string) Str::uuid())->email('other-importer@example.test');
+        $request = $this->request('GET');
+        $request->setUserResolver(fn () => $other);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        (new ImportController)->status($request, $importId);
     }
 
     /**
