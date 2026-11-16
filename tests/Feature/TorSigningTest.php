@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Mail\TorCompletedMail;
 use App\Mail\TorInvitationMail;
+use App\Mail\TorSignerRegisterMail;
 use App\Models\Organisation;
 use App\Models\TorFlow;
 use App\Models\TorInvitation;
@@ -70,8 +71,10 @@ class TorSigningTest extends TestCase
         $this->assertStringContainsString('Download your original signed copy', (new TorCompletedMail($fresh->load('flow.organisation'), 'signer'))->render());
         $this->assertStringContainsString('Download the organisation copy', (new TorCompletedMail($fresh->load('flow.organisation'), 'organisation'))->render());
         $csv = app(TorSignerRegisterService::class)->csv($flow->fresh());
+        $this->assertStringContainsString('status,signed_at,unique_link,signer_copy_link,company_copy_link', $csv);
         $this->assertStringContainsString('Lagos,Coordinator,08000000000,signer@example.test', $csv);
         $this->assertStringContainsString(route('tor.public.download', $invitation->token), $csv);
+        $this->assertStringContainsString('Log in to download the signer register', (new TorSignerRegisterMail($flow->fresh('organisation'), false, 1))->render());
         $this->get(route('tor.public.show', $invitation->token))
             ->assertOk()
             ->assertSee('Download your signed TOR PDF')

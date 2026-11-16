@@ -94,6 +94,7 @@ class FormDataCollectionServiceProvider extends ServiceProvider
                 \Route::post('/{torFlow}/send', [TorFlowController::class, 'send'])->name('send');
                 \Route::post('/{torFlow}/close', [TorFlowController::class, 'close'])->name('close');
                 \Route::post('/{torFlow}/signer-register', [TorFlowController::class, 'sendRegister'])->name('signer-register');
+                \Route::get('/{torFlow}/signer-register/download', [TorFlowController::class, 'downloadRegister'])->name('signer-register.download');
             });
 
             \Route::prefix('focal-point-applications')->name('focal-point-applications.')->group(function (): void {

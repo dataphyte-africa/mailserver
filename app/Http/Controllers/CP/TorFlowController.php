@@ -218,12 +218,23 @@ class TorFlowController
         abort_if($final && $torFlow->status !== 'closed', 422, 'Close the TOR flow before sending the final register.');
         abort_if(($torFlow->internal_recipients ?? []) === [], 422, 'Add at least one internal notification recipient to send the signer register.');
 
-        $csv = $register->csv($torFlow);
+        $signerCount = $torFlow->invitations()->count();
         foreach ($torFlow->internal_recipients as $recipient) {
-            Mail::to($recipient)->send(new TorSignerRegisterMail($torFlow, $csv, $final));
+            Mail::to($recipient)->send(new TorSignerRegisterMail($torFlow, $final, $signerCount));
         }
 
         return back()->with('success', ($final ? 'Final updated' : 'Initial').' signer register sent to '.count($torFlow->internal_recipients).' company recipient(s).');
+    }
+
+    public function downloadRegister(Request $request, TorFlow $torFlow, TorSignerRegisterService $register)
+    {
+        $this->allow($request, $torFlow);
+        $final = $torFlow->status === 'closed';
+
+        return response($register->csv($torFlow), 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$register->filename($torFlow, $final).'"',
+        ]);
     }
 
     private function allow(Request $request, TorFlow $flow): void

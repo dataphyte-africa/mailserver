@@ -10,7 +10,7 @@ class TorSignerRegisterService
     public function csv(TorFlow $flow): string
     {
         $stream = fopen('php://temp', 'r+');
-        fputcsv($stream, ['full_name', 'state', 'position', 'phone_number', 'email', 'unique_link', 'signer_copy_link', 'company_copy_link']);
+        fputcsv($stream, ['full_name', 'state', 'position', 'phone_number', 'email', 'status', 'signed_at', 'unique_link', 'signer_copy_link', 'company_copy_link'], ',', '"', '\\');
 
         $flow->invitations()->orderBy('email')->get()->each(function (TorInvitation $invitation) use ($stream): void {
             $signedCopy = $invitation->isComplete() && $invitation->signed_pdf_path
@@ -23,10 +23,12 @@ class TorSignerRegisterService
                 $this->csvValue($invitation->position),
                 $this->csvValue($invitation->phone_number),
                 $this->csvValue($invitation->email),
+                $this->csvValue($invitation->status),
+                $invitation->signed_at?->toIso8601String() ?? '',
                 route('tor.public.show', $invitation->token),
                 $signedCopy,
                 $signedCopy,
-            ]);
+            ], ',', '"', '\\');
         });
 
         rewind($stream);
