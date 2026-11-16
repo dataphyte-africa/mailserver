@@ -2,17 +2,20 @@
 
 use App\Http\Controllers\Public\ElectionLocationController;
 use App\Http\Controllers\Public\FocalPointApplicationController;
+use App\Http\Controllers\Public\NewsletterArchiveController;
 use App\Http\Controllers\Public\ObserverApplicationPageController;
 use App\Http\Controllers\Public\ObserverViolationReportController;
 use App\Http\Controllers\Public\ObserverViolationTestPageController;
 use App\Http\Controllers\Public\OsunPollingUnitController;
 use App\Http\Controllers\Public\PreferencesController;
-use App\Http\Controllers\Public\NewsletterArchiveController;
 use App\Http\Controllers\Public\SubscriptionFormController;
 use App\Http\Controllers\Public\TorSigningController;
 use App\Http\Controllers\Public\UnsubscribeController;
 use App\Http\Controllers\Public\WebhookController;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
+use Statamic\Contracts\Auth\UserRepository;
+use Statamic\Facades\GlobalSet;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,23 +35,23 @@ Route::prefix('tor')->name('tor.public.')->group(function () {
 
 Route::get('/', function () {
     // If already authenticated in Statamic CP, send straight to CP
-    if (app(\Statamic\Contracts\Auth\UserRepository::class)->current()) {
+    if (app(UserRepository::class)->current()) {
         return redirect('/cp');
     }
 
     // Fetch site logo from the newsletter_settings GlobalSet (editor-controlled)
     $siteLogo = null;
     try {
-        $gs = \Statamic\Facades\GlobalSet::findByHandle('newsletter_settings');
+        $gs = GlobalSet::findByHandle('newsletter_settings');
         if ($gs) {
             $raw = $gs->inDefaultSite()?->data()?->get('site_logo');
             if ($raw) {
                 $siteLogo = is_string($raw)
-                    ? asset('storage/' . ltrim($raw, '/'))
+                    ? asset('storage/'.ltrim($raw, '/'))
                     : (method_exists($raw, 'url') ? $raw->url() : null);
             }
         }
-    } catch (\Throwable) {
+    } catch (Throwable) {
         // GlobalSet not yet scaffolded — silent fallback
     }
 
@@ -139,7 +142,7 @@ Route::get('/subscribe/{form}/locations/lgas/{lga}/wards', [ElectionLocationCont
     ->name('newsletter.forms.locations.wards');
 
 Route::post('/subscribe/{form}', [SubscriptionFormController::class, 'submit'])
-    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->withoutMiddleware([VerifyCsrfToken::class])
     ->middleware('throttle:10,1')
     ->name('newsletter.forms.submit');
 
@@ -155,7 +158,7 @@ Route::prefix('observer-violations')->name('observer-violations.')->group(functi
         ->middleware('throttle:60,1')->name('locations.polling-units');
 
     Route::post('/reports', [ObserverViolationReportController::class, 'store'])
-        ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+        ->withoutMiddleware([VerifyCsrfToken::class])
         ->middleware('throttle:10,1')->name('reports.store');
 });
 
@@ -165,7 +168,7 @@ Route::prefix('observer-violations')->name('observer-violations.')->group(functi
 // Keep the legacy /api path alive because earlier docs pointed there.
 foreach (['/webhooks/elastic-email', '/api/webhooks/elastic-email'] as $path) {
     $route = Route::match(['get', 'post'], $path, [WebhookController::class, 'receive'])
-        ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+        ->withoutMiddleware([VerifyCsrfToken::class]);
 
     if ($path === '/webhooks/elastic-email') {
         $route->name('newsletter.webhook.elastic-email');

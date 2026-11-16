@@ -40,7 +40,13 @@ class OrganisationPreferenceTest extends TestCase
 
         $response = $this->get($urls->unsubscribeUrl($subscriber, 'insight_newsletters'));
         $response->assertOk()->assertSee('Data Dive')->assertSee('Marina')
-            ->assertDontSee('Weekly')->assertSee('Uncheck all');
+            ->assertDontSee('Weekly')->assertSee('Select all')->assertSee('Uncheck all')
+            ->assertSee('When you save, you will stop all updates and newsletter content from Insight')
+            ->assertDontSee('Stop all non-essential emails');
+        $this->get($urls->unsubscribeUrl($subscriber, 'foundation_newsletters', $foundation))
+            ->assertOk()
+            ->assertSee('When you save, you will stop all updates and newsletter content from Foundation')
+            ->assertDontSee('When you save, you will stop all updates and newsletter content from Insight');
 
         $this->post($urls->unsubscribeProcessUrl($subscriber, 'insight_newsletters'), [
             'sub_groups' => [$marina->id],
@@ -67,9 +73,10 @@ class OrganisationPreferenceTest extends TestCase
         $subscriber->allSubGroups()->attach($choice->id, ['subscribed_at' => now()]);
         $url = app(NewsletterPublicUrlService::class)->unsubscribeProcessUrl($subscriber, 'insight_newsletters');
 
-        $this->post($url, [])->assertOk()->assertSee('no remaining public product subscriptions');
+        $this->post($url, [])->assertOk()->assertSee('You have stopped non-essential emails');
 
         $this->assertSame('unsubscribed', $subscriber->fresh()->status);
+        $this->assertTrue(app(OrganisationMailOptOut::class)->has($choice->group->organisation_id, $subscriber->id));
         $this->assertFalse($subscriber->subGroups()->where('purpose', 'preference')->exists());
         $this->assertTrue($subscriber->subGroups()->where('slug', 'rating-unsubscribed')->exists());
     }
@@ -160,7 +167,7 @@ class OrganisationPreferenceTest extends TestCase
         $this->assertTrue($subscriber->subGroups()->whereKey($productChoice->id)->exists());
     }
 
-    public function test_product_choices_and_organisation_opt_out_are_separate(): void
+    public function test_clearing_all_product_choices_blocks_private_mail_and_reselecting_resumes_it(): void
     {
         [$organisation, $productChoice] = $this->audience('Insight', 'insight_newsletters', 'Data Dive', true);
         $privateGroup = SubscriberGroup::factory()->create([
@@ -182,9 +189,6 @@ class OrganisationPreferenceTest extends TestCase
         $this->post($url, [])->assertOk();
         $this->assertFalse($subscriber->subGroups()->whereKey($productChoice->id)->exists());
         $this->assertTrue($subscriber->subGroups()->whereKey($privateChoice->id)->exists());
-        $this->assertFalse(app(OrganisationMailOptOut::class)->has($organisation->id, $subscriber->id));
-
-        $this->post($url, ['organisation_opt_out' => '1'])->assertOk();
         $this->assertTrue(app(OrganisationMailOptOut::class)->has($organisation->id, $subscriber->id));
         $this->assertSame('unsubscribed', $subscriber->groupEngagements()->where('subscriber_group_id', $privateGroup->id)->value('rating'));
         $this->assertTrue($subscriber->subGroups()->whereKey($privateChoice->id)->exists());
@@ -200,7 +204,7 @@ class OrganisationPreferenceTest extends TestCase
         $this->assertFalse($resolver->includesSubscriber($campaign->load('audiences.targetable'), $subscriber->fresh()));
         $this->assertCount(0, $resolver->resolve($campaign));
 
-        $this->post($url, [])->assertOk();
+        $this->post($url, ['sub_groups' => [$productChoice->id]])->assertOk();
         $this->assertFalse(app(OrganisationMailOptOut::class)->has($organisation->id, $subscriber->id));
         $this->assertSame('new', $subscriber->groupEngagements()->where('subscriber_group_id', $privateGroup->id)->value('rating'));
     }

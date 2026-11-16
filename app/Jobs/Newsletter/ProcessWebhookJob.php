@@ -8,13 +8,16 @@ use App\Models\Subscriber;
 use App\Models\WebhookLog;
 use App\Services\Foundation\FocalPointApplicationEmailTracking;
 use App\Services\Newsletter\ApplicationSubmissionTrackingService;
+use App\Services\Newsletter\GroupEngagementService;
+use App\Services\Newsletter\PendingSubscriberLifecycleService;
 use App\Services\Newsletter\SubscriberEngagementService;
+use App\Services\Tor\TorSigningService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -37,7 +40,8 @@ class ProcessWebhookJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries   = 3;
+    public int $tries = 3;
+
     public int $timeout = 30;
 
     /**
@@ -46,33 +50,33 @@ class ProcessWebhookJob implements ShouldQueue
      */
     private const EVENT_MAP = [
         // Delivery
-        'delivery'         => 'delivered',
-        'delivered'        => 'delivered',
+        'delivery' => 'delivered',
+        'delivered' => 'delivered',
         // Open
-        'open'             => 'opened',
-        'opened'           => 'opened',
+        'open' => 'opened',
+        'opened' => 'opened',
         // Click
-        'click'            => 'clicked',
-        'clicked'          => 'clicked',
-        'linkclicked'      => 'clicked',
+        'click' => 'clicked',
+        'clicked' => 'clicked',
+        'linkclicked' => 'clicked',
         // Unsubscribe
-        'unsubscribe'      => 'unsubscribed',
-        'unsubscribed'     => 'unsubscribed',
+        'unsubscribe' => 'unsubscribed',
+        'unsubscribed' => 'unsubscribed',
         // Complaint / Abuse
-        'complaint'        => 'complained',
-        'abuse'            => 'complained',
-        'abusereport'      => 'complained',
-        'spamreport'       => 'complained',
+        'complaint' => 'complained',
+        'abuse' => 'complained',
+        'abusereport' => 'complained',
+        'spamreport' => 'complained',
         // Hard bounce
-        'bouncedhard'      => 'bounced',
-        'bounce'           => 'bounced',
-        'bounced'          => 'bounced',
-        'hardbouncedmail'  => 'bounced',
+        'bouncedhard' => 'bounced',
+        'bounce' => 'bounced',
+        'bounced' => 'bounced',
+        'hardbouncedmail' => 'bounced',
         // Soft bounce / errors
-        'bouncedsoft'      => 'failed',
-        'error'            => 'failed',
-        'failed'           => 'failed',
-        'sendingfailed'    => 'failed',
+        'bouncedsoft' => 'failed',
+        'error' => 'failed',
+        'failed' => 'failed',
+        'sendingfailed' => 'failed',
     ];
 
     public function __construct(public readonly int $webhookLogId) {}
@@ -85,6 +89,7 @@ class ProcessWebhookJob implements ShouldQueue
 
         if (! $log) {
             Log::warning("ProcessWebhookJob: WebhookLog {$this->webhookLogId} not found");
+
             return;
         }
 
@@ -106,10 +111,15 @@ class ProcessWebhookJob implements ShouldQueue
 
         if (! $event) {
             Log::debug("ProcessWebhookJob: unknown event '{$log->event_type}' — skipping");
+
             return;
         }
 
         if (app(FocalPointApplicationEmailTracking::class)->apply($log, $event)) {
+            return;
+        }
+
+        if (app(TorSigningService::class)->applyWebhookEvent($log, $event)) {
             return;
         }
 
@@ -126,26 +136,28 @@ class ProcessWebhookJob implements ShouldQueue
 
                 // We may receive events for emails sent outside this system — ignore
                 Log::debug("ProcessWebhookJob: no CampaignSend or application submission for tx={$log->transaction_id} email={$log->to_email}");
+
                 return;
             }
 
             app(ApplicationSubmissionTrackingService::class)->applyWebhookEvent($submission, $log, $event);
+
             return;
         }
 
         match ($event) {
-            'delivered'  => $this->handleDelivered($send, $log),
-            'opened'     => $this->handleOpened($send, $log),
-            'clicked'    => $this->handleClicked($send, $log),
+            'delivered' => $this->handleDelivered($send, $log),
+            'opened' => $this->handleOpened($send, $log),
+            'clicked' => $this->handleClicked($send, $log),
             'unsubscribed','complained' => $this->handleSuppression($send, $log, $event),
-            'bounced'    => $this->handleBounce($send, $log, hard: true),
-            'failed'     => $this->handleBounce($send, $log, hard: false),
-            default      => null,
+            'bounced' => $this->handleBounce($send, $log, hard: true),
+            'failed' => $this->handleBounce($send, $log, hard: false),
+            default => null,
         };
 
         if ($send->subscriber) {
             $subscriber = app(SubscriberEngagementService::class)->persist($send->subscriber);
-            app(\App\Services\Newsletter\GroupEngagementService::class)->syncForSubscriber($subscriber);
+            app(GroupEngagementService::class)->syncForSubscriber($subscriber);
         }
     }
 
@@ -205,7 +217,7 @@ class ProcessWebhookJob implements ShouldQueue
     private function handleClicked(CampaignSend $send, WebhookLog $log): void
     {
         $clickedAt = $this->eventDate($log);
-        $url       = $this->extractField($log->payload, ['target', 'Target', 'link', 'Link', 'clickedlink', 'ClickedLink', 'url', 'URL']);
+        $url = $this->extractField($log->payload, ['target', 'Target', 'link', 'Link', 'clickedlink', 'ClickedLink', 'url', 'URL']);
 
         $updates = [
             'bounce_reason' => null,
@@ -238,10 +250,10 @@ class ProcessWebhookJob implements ShouldQueue
         if ($url && $clickedAt) {
             CampaignLinkClick::create([
                 'campaign_send_id' => $send->id,
-                'url'              => $url,
-                'clicked_at'       => $clickedAt,
-                'ip_address'       => $this->extractField($log->payload, ['ipaddress', 'IPAddress', 'ip', 'ip_address']),
-                'user_agent'       => $this->extractField($log->payload, ['useragent', 'UserAgent', 'user_agent']),
+                'url' => $url,
+                'clicked_at' => $clickedAt,
+                'ip_address' => $this->extractField($log->payload, ['ipaddress', 'IPAddress', 'ip', 'ip_address']),
+                'user_agent' => $this->extractField($log->payload, ['useragent', 'UserAgent', 'user_agent']),
             ]);
         }
     }
@@ -277,8 +289,8 @@ class ProcessWebhookJob implements ShouldQueue
 
         if ($hard) {
             $updates = [
-                'status'       => 'bounced',
-                'bounce_reason'=> $reason,
+                'status' => 'bounced',
+                'bounce_reason' => $reason,
             ];
             $eventDate = $this->eventDate($log);
             $this->markSyncedIfApplicable($updates, $log);
@@ -297,8 +309,8 @@ class ProcessWebhookJob implements ShouldQueue
             }
         } else {
             $updates = [
-                'status'       => 'failed',
-                'bounce_reason'=> $reason,
+                'status' => 'failed',
+                'bounce_reason' => $reason,
             ];
             $eventDate = $this->eventDate($log);
             $this->markSyncedIfApplicable($updates, $log);
@@ -322,7 +334,9 @@ class ProcessWebhookJob implements ShouldQueue
         $sendId = $this->extractField($log->payload, ['send_id']);
         if ($sendId) {
             $send = CampaignSend::with('subscriber')->find((int) $sendId);
-            if ($send) return $send;
+            if ($send) {
+                return $send;
+            }
         }
 
         // Priority 2: Elastic Email's own TransactionID stored at send time.
@@ -331,7 +345,9 @@ class ProcessWebhookJob implements ShouldQueue
                 ->with('subscriber')
                 ->first();
 
-            if ($send) return $send;
+            if ($send) {
+                return $send;
+            }
         }
 
         // Fallback: most recent send to this email in a sending/sent campaign.
@@ -377,7 +393,7 @@ class ProcessWebhookJob implements ShouldQueue
         }
 
         $eventDate = $this->eventDate($log) ?? now();
-        $pendingLifecycles = app(\App\Services\Newsletter\PendingSubscriberLifecycleService::class);
+        $pendingLifecycles = app(PendingSubscriberLifecycleService::class);
         $pendingLifecycles->syncState($subscriber, $eventDate);
 
         match ($event) {
@@ -401,22 +417,26 @@ class ProcessWebhookJob implements ShouldQueue
         };
 
         $subscriber = app(SubscriberEngagementService::class)->persist($subscriber->fresh());
-        app(\App\Services\Newsletter\GroupEngagementService::class)->syncForSubscriber($subscriber);
+        app(GroupEngagementService::class)->syncForSubscriber($subscriber);
 
         return true;
     }
 
     public static function normaliseEventType(?string $rawEvent): ?string
     {
-        if (! $rawEvent) return null;
+        if (! $rawEvent) {
+            return null;
+        }
         $key = strtolower(preg_replace('/[\s_\-]/', '', $rawEvent));
+
         return self::EVENT_MAP[$key] ?? null;
     }
 
-    private function eventDate(WebhookLog $log): ?\Carbon\Carbon
+    private function eventDate(WebhookLog $log): ?Carbon
     {
         $raw = $this->extractField($log->payload, ['date', 'Date', 'timestamp', 'Timestamp', 'eventdate', 'EventDate']);
-        return $raw ? \Carbon\Carbon::parse($raw) : null;
+
+        return $raw ? Carbon::parse($raw) : null;
     }
 
     private function markSyncedIfApplicable(array &$updates, WebhookLog $log): void
@@ -433,6 +453,7 @@ class ProcessWebhookJob implements ShouldQueue
                 return (string) $payload[$key];
             }
         }
+
         return null;
     }
 }

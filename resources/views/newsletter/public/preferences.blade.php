@@ -28,9 +28,15 @@
 
         <form id="preference-form" method="post" action="{{ $formUrl }}">
             @csrf
-            <div class="preference-toolbar"><h2>Product newsletters</h2><button type="button" id="uncheck-all">Uncheck all products</button></div>
+            <div class="preference-toolbar">
+                <h2>Product newsletters</h2>
+                <div>
+                    <button type="button" id="select-all">Select all</button>
+                    <button type="button" id="uncheck-all">Uncheck all products</button>
+                </div>
+            </div>
             @forelse($groups as $group)
-                <fieldset class="preference-group">
+                <fieldset class="preference-group" data-product-choice>
                     <legend>{{ $group->product?->name ?? $group->name }}</legend>
                     @if($group->description)<p>{{ $group->description }}</p>@endif
                     @if($group->subGroups->count() > 1)
@@ -49,15 +55,9 @@
             @empty
                 <p class="preference-empty">There are no current or public newsletter choices for this organisation.</p>
             @endforelse
-            <p class="preference-note">Unchecking every product choice stops public product newsletters. It does not change private audiences.</p>
-            <fieldset class="preference-group">
-                <legend>Stop all non-essential emails</legend>
-                <label class="preference-choice">
-                    <input type="checkbox" name="organisation_opt_out" value="1" @checked($organisationOptedOut)>
-                    <span>I do not want to receive any newsletters, promotional emails, or product updates from {{ $organisation->name }}.</span>
-                </label>
-                <p>Essential messages such as application receipts are unaffected.</p>
-            </fieldset>
+            <p id="all-unchecked-message" class="preference-callout" role="status" aria-live="polite" @if($activeSubGroupIds !== []) hidden @endif>
+                When you save, you will stop all updates and newsletter content from {{ $organisation->name }}, including private audience mail. Essential messages such as application receipts may still be sent.
+            </p>
             <fieldset class="preference-group reader-profile">
                 <legend>Reader details</legend>
                 <p>Optional. Update the details associated with this email address.</p>
@@ -94,6 +94,34 @@
         @endif
     </div>
 </main>
-<script>document.getElementById('uncheck-all').addEventListener('click',function(){document.querySelectorAll('#preference-form input[name^="sub_groups"]').forEach(function(input){input.checked=false;});});</script>
+<script>
+    const form = document.getElementById('preference-form');
+    const emptyMessage = document.getElementById('all-unchecked-message');
+    function updateEmptyMessage() {
+        emptyMessage.hidden = !!form.querySelector('[data-product-choice] input[name^="sub_groups"]:checked:not([value=""])');
+    }
+    document.getElementById('select-all').addEventListener('click', function () {
+        document.querySelectorAll('[data-product-choice]').forEach(function (group) {
+            const choices = Array.from(group.querySelectorAll('input[name^="sub_groups"]')).filter(function (input) {
+                return input.value !== '';
+            });
+            if (choices.length && !choices.some(function (input) { return input.checked; })) {
+                choices[0].checked = true;
+            }
+        });
+        updateEmptyMessage();
+    });
+    document.getElementById('uncheck-all').addEventListener('click', function () {
+        document.querySelectorAll('[data-product-choice] input[name^="sub_groups"]').forEach(function (input) {
+            input.checked = false;
+        });
+        updateEmptyMessage();
+    });
+    form.addEventListener('change', function (event) {
+        if (event.target.matches('[data-product-choice] input[name^="sub_groups"]')) {
+            updateEmptyMessage();
+        }
+    });
+</script>
 </body>
 </html>

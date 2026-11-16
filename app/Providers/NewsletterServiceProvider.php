@@ -275,12 +275,12 @@ class NewsletterServiceProvider extends ServiceProvider
             $nav->content('Campaigns')
                 ->section('Newsletter')
                 ->url(cp_route('newsletter.campaigns.index'))
-                ->icon('send-email');
+                ->icon('mail-send-email-attachment-document');
 
             $nav->content('Analytics')
                 ->section('Newsletter')
                 ->url(cp_route('newsletter.analytics.index'))
-                ->icon('charts');
+                ->icon('chart-monitoring-indicator');
 
             $nav->content('Subscribers')
                 ->section('Newsletter')
@@ -290,12 +290,12 @@ class NewsletterServiceProvider extends ServiceProvider
             $nav->content('Groups')
                 ->section('Newsletter')
                 ->url(cp_route('newsletter.groups.index'))
-                ->icon('tags');
+                ->icon('groups');
 
             $nav->content('Engagement Ratings')
                 ->section('Newsletter')
                 ->url(cp_route('newsletter.engagement.index'))
-                ->icon('charts');
+                ->icon('charts-donut-graph');
         });
     }
 

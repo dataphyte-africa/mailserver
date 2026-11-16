@@ -56,7 +56,6 @@ class PreferencesController extends Controller
             'organisation' => $organisation,
             'groups' => $this->visibleGroups($organisation, $activeIds),
             'activeSubGroupIds' => $activeIds,
-            'organisationOptedOut' => app(OrganisationMailOptOut::class)->has((int) $organisation->getKey(), (int) $subscriber->getKey()),
             'mode' => $mode,
             'formUrl' => $mode === 'unsubscribe'
                 ? $urls->unsubscribeProcessUrl($subscriber, $organisation->primary_collection_handle, $productContext)
@@ -107,12 +106,15 @@ class PreferencesController extends Controller
             'profession' => ['nullable', 'string', 'max:255'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
         ]);
-        $organisationOptedOut = (bool) ($validated['organisation_opt_out'] ?? false);
         $current = $this->activeIds($subscriber, $organisation);
         $published = $this->publishedIds($organisation);
-        $selected = $organisationOptedOut ? [] : ($request->has('audience_groups')
+        $selected = $request->has('audience_groups')
             ? $this->selectedIdsForGroups($organisation, $current, $published, $validated['audience_groups'] ?? [])
-            : array_map('intval', array_filter($validated['sub_groups'] ?? [], fn ($id) => filled($id))));
+            : array_map('intval', array_filter($validated['sub_groups'] ?? [], fn ($id) => filled($id)));
+        $organisationOptedOut = (bool) ($validated['organisation_opt_out'] ?? false) || $selected === [];
+        if ($organisationOptedOut) {
+            $selected = [];
+        }
 
         abort_if(in_array($subscriber->status, ['erased', 'bounced', 'complained'], true)
             && array_diff($selected, $current) !== [], 422,
