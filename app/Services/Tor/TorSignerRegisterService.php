@@ -7,6 +7,8 @@ use App\Models\TorInvitation;
 
 class TorSignerRegisterService
 {
+    public function __construct(private readonly TorPublicUrlService $urls) {}
+
     public function csv(TorFlow $flow): string
     {
         $stream = fopen('php://temp', 'r+');
@@ -14,7 +16,7 @@ class TorSignerRegisterService
 
         $flow->invitations()->orderBy('email')->get()->each(function (TorInvitation $invitation) use ($stream): void {
             $signedCopy = $invitation->isComplete() && $invitation->signed_pdf_path
-                ? route('tor.public.download', $invitation->token)
+                ? $this->urls->signedCopyUrl($invitation)
                 : '';
 
             fputcsv($stream, [
@@ -25,7 +27,7 @@ class TorSignerRegisterService
                 $this->csvValue($invitation->email),
                 $this->csvValue($invitation->status),
                 $invitation->signed_at?->toIso8601String() ?? '',
-                route('tor.public.show', $invitation->token),
+                $this->urls->signingUrl($invitation),
                 $signedCopy,
                 $signedCopy,
             ], ',', '"', '\\');

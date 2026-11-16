@@ -1,6 +1,5 @@
 @php
     $isSignerCopy = $copyType === 'signer';
-    $downloadUrl = route('tor.public.download', $invitation->token);
 @endphp
 @component('emails.tor.layout', ['organisation' => $invitation->flow->organisation])
     @if($isSignerCopy)

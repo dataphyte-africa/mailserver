@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\TorInvitation;
+use App\Services\Tor\TorPublicUrlService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -32,7 +33,10 @@ class TorCompletedMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'emails.tor.completed', with: ['copyType' => $this->copyType]);
+        return new Content(view: 'emails.tor.completed', with: [
+            'copyType' => $this->copyType,
+            'downloadUrl' => app(TorPublicUrlService::class)->signedCopyUrl($this->invitation),
+        ]);
     }
 
     public function attachments(): array

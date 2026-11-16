@@ -61,7 +61,7 @@ class TorSigningController extends Controller
         $data['signer_field_values'] = $this->validateSignerFields($request, $invitation);
         $signing->complete($invitation, $data, $request->file('signature_upload'), (string) $request->ip());
 
-        return redirect()->route('tor.public.show', $token)->with('success', 'Your TOR has been signed and emailed.');
+        return redirect()->to(route('tor.public.show', $token, false))->with('success', 'Your TOR has been signed and emailed.');
     }
 
     public function download(string $token)
@@ -69,13 +69,13 @@ class TorSigningController extends Controller
         $invitation = TorInvitation::query()->where('token', $token)->firstOrFail();
         if (! $invitation->isComplete()) {
             return redirect()
-                ->route('tor.public.show', $token)
+                ->to(route('tor.public.show', $token, false))
                 ->withErrors(['download' => 'This Terms of Reference has not been completed yet. Complete signing before downloading the record.']);
         }
 
         if (! $invitation->signed_pdf_path || ! Storage::disk('local')->exists($invitation->signed_pdf_path)) {
             return redirect()
-                ->route('tor.public.show', $token)
+                ->to(route('tor.public.show', $token, false))
                 ->withErrors(['download' => 'Your signing record is complete, but its PDF is temporarily unavailable. Please contact the organisation.']);
         }
 

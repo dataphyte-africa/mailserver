@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\TorInvitation;
+use App\Services\Tor\TorPublicUrlService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -26,7 +27,9 @@ class TorInvitationMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'emails.tor.invitation');
+        return new Content(view: 'emails.tor.invitation', with: [
+            'signingUrl' => app(TorPublicUrlService::class)->signingUrl($this->invitation),
+        ]);
     }
 
     public function headers(): Headers

@@ -9,6 +9,7 @@ use App\Models\Organisation;
 use App\Models\TorFlow;
 use App\Models\TorInvitation;
 use App\Services\Tor\TorSignerRegisterService;
+use App\Services\Tor\TorPublicUrlService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -79,6 +80,12 @@ class TorSigningTest extends TestCase
             ->assertOk()
             ->assertSee('Download your signed TOR PDF')
             ->assertDontSee('Complete signing');
+
+        $organisation->update(['newsletter_domain' => 'nl.example.test', 'newsletter_domain_status' => 'verified']);
+        $this->assertSame(
+            'https://nl.example.test/tor/sign/'.$invitation->token,
+            app(TorPublicUrlService::class)->signingUrl($invitation->fresh(['flow.organisation'])),
+        );
 
         $mailFailureInvitation = TorInvitation::query()->create([
             'tor_flow_id' => $flow->id,
