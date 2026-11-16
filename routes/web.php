@@ -9,6 +9,7 @@ use App\Http\Controllers\Public\OsunPollingUnitController;
 use App\Http\Controllers\Public\PreferencesController;
 use App\Http\Controllers\Public\NewsletterArchiveController;
 use App\Http\Controllers\Public\SubscriptionFormController;
+use App\Http\Controllers\Public\TorSigningController;
 use App\Http\Controllers\Public\UnsubscribeController;
 use App\Http\Controllers\Public\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,14 @@ use Illuminate\Support\Facades\Route;
 */
 Route::redirect('/login', '/');
 Route::redirect('/cp/auth/login', '/');
+
+Route::prefix('tor')->name('tor.public.')->group(function () {
+    Route::get('/{torFlow}/access', [TorSigningController::class, 'access'])->whereNumber('torFlow')->name('access');
+    Route::post('/{torFlow}/access', [TorSigningController::class, 'requestAccess'])->whereNumber('torFlow')->middleware('throttle:5,10')->name('access.request');
+    Route::get('/sign/{token}', [TorSigningController::class, 'show'])->middleware('throttle:60,1')->name('show');
+    Route::post('/sign/{token}', [TorSigningController::class, 'sign'])->middleware('throttle:10,1')->name('sign');
+    Route::get('/sign/{token}/download', [TorSigningController::class, 'download'])->middleware('throttle:30,1')->name('download');
+});
 
 Route::get('/', function () {
     // If already authenticated in Statamic CP, send straight to CP

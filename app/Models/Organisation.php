@@ -81,4 +81,9 @@ class Organisation extends Model
     {
         return $this->hasMany(OrganisationUserScope::class);
     }
+
+    public function torFlows(): HasMany
+    {
+        return $this->hasMany(TorFlow::class);
+    }
 }

@@ -10,6 +10,7 @@ use App\Http\Controllers\CP\Platform\OperatorScopeController;
 use App\Http\Controllers\CP\Platform\OrganisationDomainController;
 use App\Http\Controllers\CP\Platform\OrganisationProfileController;
 use App\Http\Controllers\CP\Platform\ProductBannerController;
+use App\Http\Controllers\CP\TorFlowController;
 use App\Http\Controllers\Public\ProductFormPageController;
 use App\Http\Controllers\Public\ProductFormSubmissionController as PublicProductFormSubmissionController;
 use App\Http\Middleware\EnforceCpOwnership;
@@ -35,13 +36,20 @@ class FormDataCollectionServiceProvider extends ServiceProvider
             $nav->content('Subscription Forms')
                 ->section('Newsletter')
                 ->url(cp_route('subscription-forms.index'))
-                ->icon('form');
+                ->icon('forms');
 
             if (User::current()?->isSuper()) {
                 $nav->content('Application Forms')
                     ->section('Forms')
                     ->url(cp_route('product-forms.index'))
-                    ->icon('form');
+                    ->icon('forms');
+            }
+
+            if (app(CpOperatorScope::class)->organisationIds(User::current()) !== []) {
+                $nav->content('TOR Signing')
+                    ->section('Forms')
+                    ->url(cp_route('tor-flows.index'))
+                    ->icon('document-certificate');
             }
 
             $nav->content('Organisation Domains')
@@ -75,6 +83,19 @@ class FormDataCollectionServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         Statamic::pushCpRoutes(function (): void {
+            \Route::prefix('tor-flows')->name('tor-flows.')->middleware(EnforceCpOwnership::class)->group(function (): void {
+                \Route::get('/', [TorFlowController::class, 'index'])->name('index');
+                \Route::get('/create', [TorFlowController::class, 'create'])->name('create');
+                \Route::post('/', [TorFlowController::class, 'store'])->name('store');
+                \Route::get('/{torFlow}/edit', [TorFlowController::class, 'edit'])->name('edit');
+                \Route::patch('/{torFlow}', [TorFlowController::class, 'update'])->name('update');
+                \Route::get('/{torFlow}', [TorFlowController::class, 'show'])->name('show');
+                \Route::post('/{torFlow}/import', [TorFlowController::class, 'import'])->name('import');
+                \Route::post('/{torFlow}/send', [TorFlowController::class, 'send'])->name('send');
+                \Route::post('/{torFlow}/close', [TorFlowController::class, 'close'])->name('close');
+                \Route::post('/{torFlow}/signer-register', [TorFlowController::class, 'sendRegister'])->name('signer-register');
+            });
+
             \Route::prefix('focal-point-applications')->name('focal-point-applications.')->group(function (): void {
                 \Route::get('/', [CpFocalPointApplicationController::class, 'index'])->name('index');
                 \Route::post('/sync-email-statuses', [CpFocalPointApplicationController::class, 'syncEmailStatuses'])->name('sync-email-statuses');
