@@ -72,7 +72,7 @@ class TorSigningController extends Controller
         $invitation = TorInvitation::query()->where('token', $token)->firstOrFail();
         abort_if($invitation->isComplete() || $invitation->status === 'revoked' || ! $invitation->flow->acceptsSignatures(), 403);
 
-        return ['data' => $paystack->banks()];
+        return ['data' => $paystack->banks(), 'meta' => ['test_mode' => $paystack->isTestMode()]];
     }
 
     public function resolveBankAccount(string $token, Request $request, PaystackAccountService $paystack): array

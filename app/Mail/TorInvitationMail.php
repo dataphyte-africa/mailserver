@@ -34,6 +34,9 @@ class TorInvitationMail extends Mailable
 
     public function headers(): Headers
     {
-        return new Headers(text: ['X-TOR-Invitation-ID' => (string) $this->invitation->id]);
+        return new Headers(text: [
+            'X-TOR-Invitation-ID' => (string) $this->invitation->id,
+            'X-ElasticEmail-Track-Clicks' => 'false',
+        ]);
     }
 }

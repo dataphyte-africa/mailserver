@@ -45,10 +45,18 @@ class PaystackAccountService
         $nameCharacters = preg_replace('/[^\p{L}\p{N}]/u', '', $accountName) ?? '';
 
         if (! $response->successful() || ! $response->json('status') || mb_strlen($nameCharacters) < 3) {
-            throw ValidationException::withMessages(['bank_account' => 'We could not retrieve a complete account name. Check the selected bank and 10-digit account number, then try again.']);
+            $message = trim((string) $response->json('message'));
+            $fallback = 'We could not retrieve a complete account name. Check the selected bank and 10-digit account number, then try again.';
+
+            throw ValidationException::withMessages(['bank_account' => $message !== '' ? $message : $fallback]);
         }
 
         return ['account_name' => $accountName];
+    }
+
+    public function isTestMode(): bool
+    {
+        return str_starts_with((string) config('services.paystack.secret_key'), 'sk_test_');
     }
 
     private function client()

@@ -2,6 +2,7 @@
 
 namespace App\Mail\Transport;
 
+use App\Services\Mail\FirstPartyClickTrackingService;
 use ElasticEmail\Api\EmailsApi;
 use ElasticEmail\Configuration;
 use ElasticEmail\Model\EmailContent;
@@ -53,6 +54,8 @@ class ElasticEmailTransport extends AbstractTransport
             ?->getBodyAsString();
         $focalPointApplicationId = $email->getHeaders()->get('X-Focal-Point-Application-Id')
             ?->getBodyAsString();
+        $torInvitationId = $email->getHeaders()->get('X-TOR-Invitation-ID')
+            ?->getBodyAsString();
 
         // Build recipients
         $recipients = [];
@@ -90,13 +93,18 @@ class ElasticEmailTransport extends AbstractTransport
             $recipients[] = $recipient;
         }
 
+        $clickContext = array_filter([
+            'campaign_send_id' => $campaignSendId,
+            'tor_invitation_id' => $torInvitationId,
+        ], fn ($value) => filled($value));
+
         // Build body parts
         $bodyParts = [];
 
         if ($email->getHtmlBody()) {
             $htmlPart = new BodyPart();
             $htmlPart->setContentType('HTML');
-            $htmlPart->setContent($email->getHtmlBody());
+            $htmlPart->setContent(app(FirstPartyClickTrackingService::class)->rewriteHtml($email->getHtmlBody(), $clickContext));
             $htmlPart->setCharset('UTF-8');
             $bodyParts[] = $htmlPart;
         }
@@ -143,10 +151,12 @@ class ElasticEmailTransport extends AbstractTransport
             $content->setHeaders($headers);
         }
 
-        // Explicitly enable open + click tracking regardless of account defaults
+        // Application links must remain direct HTTPS links. Elastic Email rewrites
+        // tracked clicks through the account tracking domain, which may not have a
+        // valid certificate yet. Individual mailables can opt in once that host is fixed.
         $options = new Options();
-        $options->setTrackOpens(true);
-        $options->setTrackClicks(true);
+        $options->setTrackOpens($this->trackingOption($email, 'X-ElasticEmail-Track-Opens', true));
+        $options->setTrackClicks($this->trackingOption($email, 'X-ElasticEmail-Track-Clicks', false));
 
         // Build and send
         $messageData = new EmailMessageData();
@@ -167,5 +177,16 @@ class ElasticEmailTransport extends AbstractTransport
     public function __toString(): string
     {
         return 'elasticemail';
+    }
+
+    private function trackingOption(\Symfony\Component\Mime\Email $email, string $headerName, bool $default): bool
+    {
+        $header = $email->getHeaders()->get($headerName);
+
+        if (! $header) {
+            return $default;
+        }
+
+        return filter_var($header->getBodyAsString(), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $default;
     }
 }

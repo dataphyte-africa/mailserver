@@ -123,6 +123,7 @@ class TorSigningTest extends TestCase
         Mail::assertSent(TorCompletedMail::class, fn (TorCompletedMail $mail): bool => $mail->copyType === 'signer');
         Mail::assertSent(TorCompletedMail::class, fn (TorCompletedMail $mail): bool => $mail->copyType === 'organisation');
         $this->assertStringContainsString('Dear Ada Example', (new TorInvitationMail($fresh->load('flow.organisation')))->render());
+        $this->assertSame('false', (new TorInvitationMail($fresh->load('flow.organisation')))->headers()->text['X-ElasticEmail-Track-Clicks']);
         $this->assertStringContainsString('Download your original signed copy', (new TorCompletedMail($fresh->load('flow.organisation'), 'signer'))->render());
         $this->assertStringContainsString('Download the organisation copy', (new TorCompletedMail($fresh->load('flow.organisation'), 'organisation'))->render());
         $csv = app(TorSignerRegisterService::class)->csv($flow->fresh());
@@ -198,7 +199,7 @@ class TorSigningTest extends TestCase
     {
         Storage::fake('local');
         Mail::fake();
-        config(['services.paystack.secret_key' => 'test_secret']);
+        config(['services.paystack.secret_key' => 'sk_test_secret']);
         Http::fake([
             'https://api.paystack.co/bank?*' => Http::response([
                 'status' => true,
@@ -251,7 +252,8 @@ class TorSigningTest extends TestCase
             ->assertSee('Will appear after verification');
         $this->getJson(route('tor.public.banks', $invitation->token))
             ->assertOk()
-            ->assertJsonPath('data.0.code', '058');
+            ->assertJsonPath('data.0.code', '058')
+            ->assertJsonPath('meta.test_mode', true);
         $this->postJson(route('tor.public.resolve-bank-account', $invitation->token), [
             'bank_code' => '058',
             'account_number' => '0001234567',

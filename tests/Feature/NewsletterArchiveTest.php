@@ -49,6 +49,7 @@ class NewsletterArchiveTest extends TestCase
         $mail = new NewsletterMailable($sent, Subscriber::factory()->create(), 'send-1');
         $this->assertStringContainsString('View in browser', $mail->render());
         $this->assertStringContainsString('Past newsletters', $mail->render());
+        $this->assertSame('false', $mail->headers()->text['X-ElasticEmail-Track-Clicks']);
     }
 
     public function test_email_archive_links_follow_verified_organisation_and_product_domains(): void

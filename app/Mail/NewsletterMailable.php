@@ -326,6 +326,10 @@ class NewsletterMailable extends Mailable
                 ]),
                 'X-Campaign-Id'         => (string) $this->campaign->id,
                 'X-Campaign-Send-Id'    => $this->campaignSendId,
+                'X-ElasticEmail-Track-Opens' => 'true',
+                // Keep all application links direct HTTPS until the branded
+                // Elastic Email tracking hostname has its own valid certificate.
+                'X-ElasticEmail-Track-Clicks' => 'false',
             ],
         );
     }

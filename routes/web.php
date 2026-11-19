@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Public\ElectionLocationController;
 use App\Http\Controllers\Public\FocalPointApplicationController;
+use App\Http\Controllers\Public\MailClickTrackingController;
 use App\Http\Controllers\Public\NewsletterArchiveController;
 use App\Http\Controllers\Public\ObserverApplicationPageController;
 use App\Http\Controllers\Public\ObserverViolationReportController;
@@ -24,6 +25,11 @@ use Statamic\Facades\GlobalSet;
 */
 Route::redirect('/login', '/');
 Route::redirect('/cp/auth/login', '/');
+
+Route::get('/tracking/click/{payload}', MailClickTrackingController::class)
+    ->where('payload', '[A-Za-z0-9_-]+')
+    ->middleware('throttle:120,1')
+    ->name('mail-tracking.click');
 
 Route::prefix('tor')->name('tor.public.')->group(function () {
     Route::get('/{torFlow}/access', [TorSigningController::class, 'access'])->whereNumber('torFlow')->name('access');
