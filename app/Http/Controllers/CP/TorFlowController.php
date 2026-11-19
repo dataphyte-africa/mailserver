@@ -4,6 +4,7 @@ namespace App\Http\Controllers\CP;
 
 use App\Mail\TorInvitationMail;
 use App\Mail\TorSignerRegisterMail;
+use App\Jobs\Tor\ProcessTorSignerCsvImport;
 use App\Models\TorFlow;
 use App\Models\TorInvitation;
 use App\Services\Platform\CpOperatorScope;
@@ -13,6 +14,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -143,6 +146,7 @@ class TorFlowController
                 'signed' => $invitations->where('status', 'signed')->count(),
             ],
             'pendingCount' => $invitations->where('status', 'pending')->count(),
+            'importStatus' => $this->importStatus($torFlow),
         ]);
     }
 
@@ -151,51 +155,68 @@ class TorFlowController
         $this->allow($request, $torFlow);
         abort_unless($torFlow->canInviteSigners(), 422, 'Extend the signing close date before importing signers.');
         $data = $request->validate(['signers_csv' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
-        $rows = $this->readSignerCsv($data['signers_csv']->getRealPath());
+        $headers = $this->signerCsvHeaders($data['signers_csv']->getRealPath());
+        $importId = (string) Str::uuid();
+        $path = $data['signers_csv']->storeAs('tor-signer-imports', $importId.'.csv', 'local');
 
-        $sent = 0;
-        $skipped = 0;
-        $failed = [];
-
-        foreach ($rows as $row) {
-            $invitation = TorInvitation::query()->firstOrNew(['tor_flow_id' => $torFlow->id, 'email' => $row['email']]);
-            if (! $invitation->exists) {
-                $invitation->token = Str::random(80);
-            }
-            if (! $invitation->isComplete()) {
-                $invitation->fill([
-                    'expected_name' => $row['full_name'],
-                    'state' => $row['state'],
-                    'position' => $row['position'],
-                    'phone_number' => $row['phone_number'],
-                ]);
-            }
-            $invitation->save();
-
-            if ($invitation->isComplete() || $invitation->status === 'revoked') {
-                $skipped++;
-
-                continue;
-            }
-
-            try {
-                Mail::to($invitation->email)->send(new TorInvitationMail($invitation->load('flow.organisation')));
-                $invitation->update(['status' => 'sent', 'sent_at' => now()]);
-                $sent++;
-            } catch (\Throwable) {
-                $invitation->update(['status' => 'failed']);
-                $failed[] = $invitation->email;
-            }
+        if (! $path) {
+            throw ValidationException::withMessages(['signers_csv' => 'The CSV could not be stored for processing. Please try again.']);
         }
 
-        $message = count($rows).' signer record(s) imported or updated. '.$sent.' unique signing invitation(s) sent automatically.';
-        if ($skipped > 0) {
-            $message .= ' '.$skipped.' completed or revoked signer(s) were not re-sent.';
+        Cache::put(ProcessTorSignerCsvImport::cacheKey($importId), [
+            'status' => 'queued',
+            'processed' => 0,
+            'imported' => 0,
+            'invitations_queued' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'errors' => [],
+            'file_name' => $data['signers_csv']->getClientOriginalName(),
+        ], now()->addDays(7));
+        Cache::put($this->lastImportCacheKey($torFlow), $importId, now()->addDays(7));
+
+        ProcessTorSignerCsvImport::dispatch($torFlow->id, $importId, $path, $headers, $this->csvDataOffset($path));
+
+        return back()->with('success', 'Signer CSV queued for background processing. Invitations will be queued automatically without holding this page open.');
+    }
+
+    public function addSigner(Request $request, TorFlow $torFlow): RedirectResponse
+    {
+        $this->allow($request, $torFlow);
+        abort_unless($torFlow->canInviteSigners(), 422, 'Extend the signing close date before adding signers.');
+        $data = $request->validate([
+            'signer.full_name' => ['required', 'string', 'max:255'],
+            'signer.email' => ['required', 'email', 'max:255'],
+            'signer.state' => ['nullable', 'string', 'max:255'],
+            'signer.position' => ['nullable', 'string', 'max:255'],
+            'signer.phone_number' => ['nullable', 'string', 'max:50'],
+        ]);
+        $signer = $data['signer'];
+        $email = strtolower(trim($signer['email']));
+        $invitation = TorInvitation::query()->firstOrNew(['tor_flow_id' => $torFlow->id, 'email' => $email]);
+
+        if (! $invitation->exists) {
+            $invitation->token = Str::random(80);
         }
 
-        return back()
-            ->with('success', $message)
-            ->with('import_warning', $failed === [] ? null : 'Could not send invitations to: '.implode(', ', $failed).'. They are marked as failed and can be resent individually.');
+        if (! $invitation->isComplete()) {
+            $invitation->fill([
+                'expected_name' => trim($signer['full_name']),
+                'state' => $this->nullableCsvValue($signer['state'] ?? null),
+                'position' => $this->nullableCsvValue($signer['position'] ?? null),
+                'phone_number' => $this->nullableCsvValue($signer['phone_number'] ?? null),
+            ]);
+        }
+        $invitation->save();
+
+        if ($invitation->isComplete() || $invitation->status === 'revoked') {
+            return back()->with('success', 'The signer was saved, but their existing completed or revoked invitation was not re-sent.');
+        }
+
+        Mail::to($invitation->email)->queue((new TorInvitationMail($invitation->load('flow.organisation')))->onQueue('emails'));
+        $invitation->update(['status' => 'sent', 'sent_at' => now()]);
+
+        return back()->with('success', 'Signer added. Their unique invitation email has been queued.');
     }
 
     public function send(Request $request, TorFlow $torFlow): RedirectResponse
@@ -329,6 +350,43 @@ class TorFlowController
         }
 
         return array_values($records);
+    }
+
+    /** @return array<int, string> */
+    private function signerCsvHeaders(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        $headers = fgetcsv($handle, 0, ',', '"', '\\');
+        fclose($handle);
+        $headers = array_map(fn ($header) => str($header)->replace("\xEF\xBB\xBF", '')->lower()->replace([' ', '-'], '_')->trim()->toString(), $headers ?: []);
+
+        if (array_diff(['full_name', 'email'], $headers) !== []) {
+            throw ValidationException::withMessages(['signers_csv' => 'CSV headers must include full_name and email. Optional headers: state, position, phone_number.']);
+        }
+
+        return $headers;
+    }
+
+    private function csvDataOffset(string $path): int
+    {
+        $handle = fopen(Storage::disk('local')->path($path), 'rb');
+        fgetcsv($handle, 0, ',', '"', '\\');
+        $offset = ftell($handle);
+        fclose($handle);
+
+        return $offset;
+    }
+
+    private function importStatus(TorFlow $flow): ?array
+    {
+        $importId = Cache::get($this->lastImportCacheKey($flow));
+
+        return $importId ? Cache::get(ProcessTorSignerCsvImport::cacheKey($importId)) : null;
+    }
+
+    private function lastImportCacheKey(TorFlow $flow): string
+    {
+        return 'tor-last-signer-import:'.$flow->id;
     }
 
     private function nullableCsvValue(mixed $value): ?string

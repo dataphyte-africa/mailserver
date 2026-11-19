@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\TorCompletedMail;
 use App\Mail\TorInvitationMail;
 use App\Mail\TorSignerRegisterMail;
+use App\Jobs\Tor\ProcessTorSignerCsvImport;
 use App\Models\Organisation;
 use App\Models\TorFlow;
 use App\Models\TorInvitation;
@@ -14,11 +15,60 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class TorSigningTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_signer_csv_import_is_processed_by_a_worker_batch(): void
+    {
+        Storage::fake('local');
+        Mail::fake();
+        $organisation = Organisation::query()->create([
+            'name' => 'Dataphyte Foundation',
+            'slug' => 'dataphyte-foundation',
+            'status' => 'active',
+        ]);
+        $flow = TorFlow::query()->create([
+            'organisation_id' => $organisation->id,
+            'title' => 'Queued import TOR',
+            'content_html' => '<p>Terms.</p>',
+            'status' => 'active',
+        ]);
+        $path = 'tor-signer-imports/queued.csv';
+        $csv = "full_name,email,state,position,phone_number\nQueued Signer,queued@example.test,Lagos,Coordinator,08000000000\n";
+        Storage::disk('local')->put($path, $csv);
+        $importId = 'queued-import';
+        Cache::put(ProcessTorSignerCsvImport::cacheKey($importId), [
+            'status' => 'queued',
+            'processed' => 0,
+            'imported' => 0,
+            'invitations_queued' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'errors' => [],
+        ], now()->addDay());
+
+        (new ProcessTorSignerCsvImport(
+            $flow->id,
+            $importId,
+            $path,
+            ['full_name', 'email', 'state', 'position', 'phone_number'],
+            strlen("full_name,email,state,position,phone_number\n"),
+        ))->handle();
+
+        $this->assertDatabaseHas('tor_invitations', [
+            'tor_flow_id' => $flow->id,
+            'email' => 'queued@example.test',
+            'expected_name' => 'Queued Signer',
+            'status' => 'sent',
+        ]);
+        Mail::assertQueued(TorInvitationMail::class, 1);
+        Storage::disk('local')->assertMissing($path);
+        $this->assertSame('complete', Cache::get(ProcessTorSignerCsvImport::cacheKey($importId))['status']);
+    }
 
     public function test_personal_link_clicks_and_signs_without_expiring(): void
     {

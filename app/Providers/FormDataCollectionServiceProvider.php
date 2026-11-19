@@ -91,6 +91,7 @@ class FormDataCollectionServiceProvider extends ServiceProvider
                 \Route::patch('/{torFlow}', [TorFlowController::class, 'update'])->name('update');
                 \Route::get('/{torFlow}', [TorFlowController::class, 'show'])->name('show');
                 \Route::post('/{torFlow}/import', [TorFlowController::class, 'import'])->name('import');
+                \Route::post('/{torFlow}/signers', [TorFlowController::class, 'addSigner'])->name('signers.store');
                 \Route::post('/{torFlow}/send', [TorFlowController::class, 'send'])->name('send');
                 \Route::post('/{torFlow}/signer-register', [TorFlowController::class, 'sendRegister'])->name('signer-register');
                 \Route::get('/{torFlow}/signer-register/download', [TorFlowController::class, 'downloadRegister'])->name('signer-register.download');

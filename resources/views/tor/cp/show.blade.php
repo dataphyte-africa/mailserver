@@ -28,7 +28,9 @@
 
     @if(session('success'))<div class="tor-notice" role="status">{{ session('success') }}</div>@endif
     @if($errors->has('signers_csv'))<div class="tor-notice tor-notice-error" role="alert"><strong>Signer import could not be completed.</strong><span>{{ $errors->first('signers_csv') }}</span></div>@endif
+    @if($errors->has('signer.full_name') || $errors->has('signer.email'))<div class="tor-notice tor-notice-error" role="alert"><strong>Signer could not be added.</strong><span>{{ $errors->first('signer.full_name') ?: $errors->first('signer.email') }}</span></div>@endif
     @if(session('import_warning'))<div class="tor-notice tor-notice-error" role="alert"><strong>Some invitations were not sent.</strong><span>{{ session('import_warning') }}</span></div>@endif
+    @if($importStatus)<div class="tor-notice {{ $importStatus['status'] === 'failed' ? 'tor-notice-error' : '' }}" role="status"><strong>{{ ucfirst($importStatus['status']) }} signer import{{ isset($importStatus['file_name']) ? ': '.$importStatus['file_name'] : '' }}.</strong><span>{{ $importStatus['processed'] ?? 0 }} row(s) processed, {{ $importStatus['invitations_queued'] ?? 0 }} invitation(s) queued{{ ($importStatus['skipped'] ?? 0) ? ', '.($importStatus['skipped']).' skipped' : '' }}{{ ($importStatus['failed'] ?? 0) ? ', '.($importStatus['failed']).' needing attention' : '' }}.</span>@if(! empty($importStatus['errors']))<span>{{ implode(' ', $importStatus['errors']) }}</span>@endif</div>@endif
 
     <section class="tor-manage-stats" aria-label="Invitation progress">
         <div class="tor-stat"><span class="tor-stat-value">{{ $stats['authorised'] }}</span><span class="tor-stat-label">Authorised signers</span></div>
@@ -38,13 +40,28 @@
     </section>
 
     <section class="tor-manage-grid">
-        <form class="tor-import-card" method="POST" enctype="multipart/form-data" action="{{ cp_route('tor-flows.import', $flow) }}">@csrf
-            <p class="tor-eyebrow">Step 1</p>
-            <h2>Import authorised signers</h2>
-            <p>Upload a CSV of people who can sign this TOR. Each signer receives their own permanent link by email immediately after import.</p>
-            <label class="tor-csv-upload"><span>Signer CSV</span><span class="tor-file-picker"><span class="tor-file-button">Choose CSV file</span><span class="tor-file-name" data-csv-file-name aria-live="polite">No file selected</span><input class="tor-file-input" name="signers_csv" type="file" accept=".csv,text/csv" required onchange="this.closest('.tor-csv-upload').querySelector('[data-csv-file-name]').textContent = this.files[0] ? this.files[0].name : 'No file selected'" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></span><small>Choose a UTF-8 <code>.csv</code> file. Required columns: <code>full_name</code>, <code>email</code>. Optional: <code>state</code>, <code>position</code>, <code>phone_number</code>.</small></label>
-            <div class="tor-import-footer"><span>{{ $flow->deadlineHasPassed() ? 'Extend the signing close date before importing signers.' : 'Use UTF-8 CSV. Duplicate emails update the existing unsigned signer record.' }}</span><button class="tor-secondary-button" type="submit" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}>Import signers</button></div>
-        </form>
+        <div class="tor-import-stack">
+            <form class="tor-import-card" method="POST" enctype="multipart/form-data" action="{{ cp_route('tor-flows.import', $flow) }}">@csrf
+                <p class="tor-eyebrow">Step 1</p>
+                <h2>Import authorised signers</h2>
+                <p>Upload a CSV of people who can sign this TOR. The CSV and invitation emails are processed in the background, so this page stays responsive.</p>
+                <label class="tor-csv-upload"><span>Signer CSV</span><span class="tor-file-picker"><span class="tor-file-button">Choose CSV file</span><span class="tor-file-name" data-csv-file-name aria-live="polite">No file selected</span><input class="tor-file-input" name="signers_csv" type="file" accept=".csv,text/csv" required onchange="this.closest('.tor-csv-upload').querySelector('[data-csv-file-name]').textContent = this.files[0] ? this.files[0].name : 'No file selected'" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></span><small>Choose a UTF-8 <code>.csv</code> file. Required columns: <code>full_name</code>, <code>email</code>. Optional: <code>state</code>, <code>position</code>, <code>phone_number</code>.</small></label>
+                <div class="tor-import-footer"><span>{{ $flow->deadlineHasPassed() ? 'Extend the signing close date before importing signers.' : 'Use UTF-8 CSV. Duplicate emails update the existing unsigned signer record.' }}</span><button class="tor-secondary-button" type="submit" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}>Queue CSV import</button></div>
+            </form>
+            <form class="tor-manual-signer-card" method="POST" action="{{ cp_route('tor-flows.signers.store', $flow) }}">@csrf
+                <p class="tor-eyebrow">Or add individually</p>
+                <h2>Add one authorised signer</h2>
+                <p>Add a person without preparing a CSV. Their unique signing link is queued by email immediately.</p>
+                <div class="tor-manual-signer-grid">
+                    <label><span>Full name <em>*</em></span><input class="tor-control" name="signer[full_name]" value="{{ old('signer.full_name') }}" required {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></label>
+                    <label><span>Email address <em>*</em></span><input class="tor-control" type="email" name="signer[email]" value="{{ old('signer.email') }}" required {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></label>
+                    <label><span>State</span><input class="tor-control" name="signer[state]" value="{{ old('signer.state') }}" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></label>
+                    <label><span>Position</span><input class="tor-control" name="signer[position]" value="{{ old('signer.position') }}" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></label>
+                    <label><span>Phone number</span><input class="tor-control" type="tel" name="signer[phone_number]" value="{{ old('signer.phone_number') }}" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></label>
+                </div>
+                <div class="tor-manual-signer-actions"><span>{{ $flow->deadlineHasPassed() ? 'Extend the signing close date before adding signers.' : 'Required fields are marked with an asterisk.' }}</span><button class="tor-secondary-button" type="submit" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}>Add signer</button></div>
+            </form>
+        </div>
         <aside class="tor-send-card">
             <p class="tor-eyebrow">Step 2</p>
             <h2>Invitation delivery</h2>
