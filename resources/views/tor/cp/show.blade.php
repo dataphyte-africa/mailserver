@@ -42,7 +42,7 @@
             <p class="tor-eyebrow">Step 1</p>
             <h2>Import authorised signers</h2>
             <p>Upload a CSV of people who can sign this TOR. Each signer receives their own permanent link by email immediately after import.</p>
-            <label class="tor-csv-upload"><span>Signer CSV</span><span class="tor-file-picker"><span class="tor-file-button">Choose CSV file</span><span class="tor-file-name" data-csv-file-name>No file selected</span><input class="tor-file-input" name="signers_csv" type="file" accept=".csv,text/csv" required {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></span><small>Choose a UTF-8 <code>.csv</code> file. Required columns: <code>full_name</code>, <code>email</code>. Optional: <code>state</code>, <code>position</code>, <code>phone_number</code>.</small></label>
+            <label class="tor-csv-upload"><span>Signer CSV</span><span class="tor-file-picker"><span class="tor-file-button">Choose CSV file</span><span class="tor-file-name" data-csv-file-name aria-live="polite">No file selected</span><input class="tor-file-input" name="signers_csv" type="file" accept=".csv,text/csv" required onchange="this.closest('.tor-csv-upload').querySelector('[data-csv-file-name]').textContent = this.files[0] ? this.files[0].name : 'No file selected'" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></span><small>Choose a UTF-8 <code>.csv</code> file. Required columns: <code>full_name</code>, <code>email</code>. Optional: <code>state</code>, <code>position</code>, <code>phone_number</code>.</small></label>
             <div class="tor-import-footer"><span>{{ $flow->deadlineHasPassed() ? 'Extend the signing close date before importing signers.' : 'Use UTF-8 CSV. Duplicate emails update the existing unsigned signer record.' }}</span><button class="tor-secondary-button" type="submit" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}>Import signers</button></div>
         </form>
         <aside class="tor-send-card">
@@ -64,10 +64,4 @@
         </tbody></table></div>
     </section>
 </div>
-<script>
-document.querySelectorAll('.tor-file-input').forEach(input => input.addEventListener('change', () => {
-    const name = input.closest('.tor-csv-upload')?.querySelector('[data-csv-file-name]');
-    if (name) name.textContent = input.files?.[0]?.name || 'No file selected';
-}));
-</script>
 @endsection

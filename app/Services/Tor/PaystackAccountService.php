@@ -41,8 +41,11 @@ class PaystackAccountService
         }
 
         $accountName = $response->json('data.account_name');
-        if (! $response->successful() || ! $response->json('status') || ! is_string($accountName) || $accountName === '') {
-            throw ValidationException::withMessages(['bank_account' => 'We could not verify that bank account. Check the bank and account number, then try again.']);
+        $accountName = is_string($accountName) ? trim(preg_replace('/\s+/', ' ', $accountName) ?? '') : '';
+        $nameCharacters = preg_replace('/[^\p{L}\p{N}]/u', '', $accountName) ?? '';
+
+        if (! $response->successful() || ! $response->json('status') || mb_strlen($nameCharacters) < 3) {
+            throw ValidationException::withMessages(['bank_account' => 'We could not retrieve a complete account name. Check the selected bank and 10-digit account number, then try again.']);
         }
 
         return ['account_name' => $accountName];

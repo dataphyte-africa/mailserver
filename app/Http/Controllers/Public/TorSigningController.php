@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class TorSigningController extends Controller
@@ -140,11 +141,19 @@ class TorSigningController extends Controller
                 throw ValidationException::withMessages(['signer_fields.'.$field['handle'].'.bank_code' => 'Select a valid bank.']);
             }
 
+            try {
+                $resolvedAccount = $paystack->resolve($bank['code'], $value['account_number']);
+            } catch (ValidationException $exception) {
+                throw ValidationException::withMessages([
+                    'signer_fields.'.$field['handle'].'.account_number' => $exception->errors()['bank_account'][0] ?? 'We could not verify that bank account. Check the bank and account number, then try again.',
+                ]);
+            }
+
             $values[$field['handle']] = [
                 'bank_name' => $bank['name'],
                 'bank_code' => $bank['code'],
                 'account_number' => $value['account_number'],
-                'account_name' => $paystack->resolve($bank['code'], $value['account_number'])['account_name'],
+                'account_name' => $resolvedAccount['account_name'],
                 'account_name_confirmed' => true,
             ];
         }

@@ -197,8 +197,8 @@ class TorSigningTest extends TestCase
 
         $this->get(route('tor.public.show', $invitation->token))
             ->assertOk()
-            ->assertSee('Search and select a bank')
-            ->assertSee('Account name will appear after verification');
+            ->assertSee('Search for your bank')
+            ->assertSee('Will appear after verification');
         $this->getJson(route('tor.public.banks', $invitation->token))
             ->assertOk()
             ->assertJsonPath('data.0.code', '058');
@@ -237,5 +237,6 @@ class TorSigningTest extends TestCase
         $this->assertStringContainsString('Thank you Ada Example for completing Bank details TOR.', (new TorCompletedMail($freshInvitation, 'signer'))->render());
         $this->assertStringContainsString('Ada Example has completed Bank details TOR for Dataphyte Insight.', (new TorCompletedMail($freshInvitation, 'organisation'))->render());
         Http::assertSent(fn ($request) => $request->url() === 'https://api.paystack.co/bank/resolve?bank_code=058&account_number=0001234567');
+
     }
 }
