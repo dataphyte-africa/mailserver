@@ -19,14 +19,14 @@ class TorSigningController extends Controller
 {
     public function access(TorFlow $torFlow): View
     {
-        abort_unless($torFlow->status === 'active', 404);
+        abort_unless($torFlow->acceptsSignatures(), 404);
 
         return view('tor.public.access', compact('torFlow'));
     }
 
     public function requestAccess(TorFlow $torFlow, Request $request): RedirectResponse
     {
-        abort_unless($torFlow->status === 'active', 404);
+        abort_unless($torFlow->acceptsSignatures(), 404);
         $data = $request->validate(['email' => ['required', 'email']]);
         $invitation = $torFlow->invitations()->where('email', strtolower($data['email']))->first();
 
@@ -42,7 +42,7 @@ class TorSigningController extends Controller
     {
         $invitation = TorInvitation::query()->where('token', $token)->with('flow.organisation')->firstOrFail();
         abort_if($invitation->status === 'revoked', 403, 'This signing link has been revoked.');
-        abort_if(! $invitation->isComplete() && $invitation->flow->status !== 'active', 403, 'This TOR is no longer accepting signatures.');
+        abort_if(! $invitation->isComplete() && ! $invitation->flow->acceptsSignatures(), 403, 'This TOR is no longer accepting signatures.');
         if (! $invitation->isComplete() && $invitation->status !== 'clicked') {
             $invitation->update(['status' => 'clicked', 'clicked_at' => now(), 'delivered_at' => $invitation->delivered_at ?? now()]);
         }

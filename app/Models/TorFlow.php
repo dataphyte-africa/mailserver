@@ -8,9 +8,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TorFlow extends Model
 {
-    protected $fillable = ['organisation_id', 'title', 'content_html', 'content_bard', 'internal_recipients', 'email_copy', 'signer_fields', 'status', 'activated_at'];
+    protected $fillable = ['organisation_id', 'title', 'content_html', 'content_bard', 'internal_recipients', 'email_copy', 'signer_fields', 'status', 'activated_at', 'signing_deadline'];
 
-    protected $casts = ['content_bard' => 'array', 'internal_recipients' => 'array', 'email_copy' => 'array', 'signer_fields' => 'array', 'activated_at' => 'datetime'];
+    protected $casts = ['content_bard' => 'array', 'internal_recipients' => 'array', 'email_copy' => 'array', 'signer_fields' => 'array', 'activated_at' => 'datetime', 'signing_deadline' => 'datetime'];
+
+    public function acceptsSignatures(): bool
+    {
+        return $this->status === 'active' && (! $this->signing_deadline || $this->signing_deadline->isFuture());
+    }
+
+    public function deadlineHasPassed(): bool
+    {
+        return $this->signing_deadline?->isPast() ?? false;
+    }
 
     public function organisation(): BelongsTo
     {

@@ -119,6 +119,17 @@ class TorSigningTest extends TestCase
 
         $this->assertDatabaseHas('tor_invitations', ['id' => $mailFailureInvitation->id, 'status' => 'signed']);
         Storage::disk('local')->assertExists($mailFailureInvitation->fresh()->signed_pdf_path);
+
+        $deadlineInvitation = TorInvitation::query()->create([
+            'tor_flow_id' => $flow->id,
+            'expected_name' => 'Deadline Example',
+            'email' => 'deadline@example.test',
+            'token' => str_repeat('e', 80),
+        ]);
+        $flow->update(['signing_deadline' => now()->subMinute()]);
+        $this->get(route('tor.public.show', $deadlineInvitation->token))->assertForbidden();
+        $flow->update(['signing_deadline' => now()->addDay()]);
+        $this->get(route('tor.public.show', $deadlineInvitation->token))->assertOk();
     }
 
     public function test_verified_bank_account_fields_are_saved_and_exported(): void

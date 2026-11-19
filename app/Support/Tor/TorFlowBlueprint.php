@@ -12,7 +12,7 @@ use Statamic\Fields\Blueprint as StatamicBlueprint;
  */
 class TorFlowBlueprint
 {
-    public static function make(Collection $organisations, bool $editing = false): StatamicBlueprint
+    public static function make(Collection $organisations, bool $editing = false, bool $allowActivation = false): StatamicBlueprint
     {
         $companyOptions = $organisations
             ->mapWithKeys(fn ($organisation) => [(string) $organisation->id => $organisation->name])
@@ -46,11 +46,12 @@ class TorFlowBlueprint
                         'display' => 'Delivery',
                         'sections' => [[
                             'fields' => [
+                                self::field('signing_deadline', ['type' => 'date', 'display' => 'Signing deadline', 'instructions' => 'Optional. Unfinished links stop accepting signatures after this date and time. Edit it later to extend or reopen the TOR.', 'mode' => 'single', 'time_enabled' => true, 'time_seconds_enabled' => false, 'validate' => ['nullable', 'date']]),
                                 self::field('internal_recipients', ['type' => 'text', 'display' => 'Internal notification recipients', 'instructions' => 'Comma-separated addresses that receive each completed signed PDF.']),
                                 self::field('invitation_email_copy', self::emailCopyField('Invitation email copy', 'Optional message shown after the greeting. Use :full_name, :organisation_name, and :tor_title. The secure signing button remains automatic.', ':organisation_name has invited you to read and sign :tor_title.')),
                                 self::field('signer_completion_email_copy', self::emailCopyField('Signer completion email copy', 'Optional message shown after the greeting when the signer completes. Use :full_name, :organisation_name, and :tor_title. The original-copy button remains automatic.', 'You have just completed the signing of :tor_title.')),
                                 self::field('organisation_completion_email_copy', self::emailCopyField('Organisation completion email copy', 'Optional alert message when a signer completes. Use :full_name, :organisation_name, and :tor_title. The organisation-copy button remains automatic.', ':full_name has just completed the signing of :tor_title.')),
-                                ...($editing ? [] : [self::field('activate', ['type' => 'toggle', 'display' => 'Activate now and prepare invitations', 'instructions' => 'You can import signers after saving.', 'default' => false])]),
+                                ...(! $editing || $allowActivation ? [self::field('activate', ['type' => 'toggle', 'display' => $editing ? 'Activate TOR' : 'Activate now and prepare invitations', 'instructions' => $editing ? 'Make this draft available for signer imports and invitations.' : 'You can import signers after saving.', 'default' => false])] : []),
                             ],
                         ]],
                     ],

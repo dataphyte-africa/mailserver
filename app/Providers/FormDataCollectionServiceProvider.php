@@ -92,7 +92,6 @@ class FormDataCollectionServiceProvider extends ServiceProvider
                 \Route::get('/{torFlow}', [TorFlowController::class, 'show'])->name('show');
                 \Route::post('/{torFlow}/import', [TorFlowController::class, 'import'])->name('import');
                 \Route::post('/{torFlow}/send', [TorFlowController::class, 'send'])->name('send');
-                \Route::post('/{torFlow}/close', [TorFlowController::class, 'close'])->name('close');
                 \Route::post('/{torFlow}/signer-register', [TorFlowController::class, 'sendRegister'])->name('signer-register');
                 \Route::get('/{torFlow}/signer-register/download', [TorFlowController::class, 'downloadRegister'])->name('signer-register.download');
             });

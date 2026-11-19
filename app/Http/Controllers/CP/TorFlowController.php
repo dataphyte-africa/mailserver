@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Statamic\CP\PublishForm;
@@ -59,7 +60,7 @@ class TorFlowController
         abort_unless(in_array((int) $data['organisation_id'], app(CpOperatorScope::class)->organisationIds($request->user()), true), 403);
         $recipients = collect(preg_split('/[\s,;]+/', $data['internal_recipients'] ?? ''))->filter()->map(fn ($email) => strtolower($email))->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))->values()->all();
         $sections = $this->normaliseSignerSections($data['signer_fields'] ?? []);
-        $flow = TorFlow::create(['organisation_id' => $data['organisation_id'], 'title' => $data['title'], 'content_html' => $data['content_html'], 'content_bard' => null, 'internal_recipients' => $recipients, 'email_copy' => $this->emailCopy($data), 'signer_fields' => $sections, 'status' => ! empty($data['activate']) ? 'active' : 'draft', 'activated_at' => ! empty($data['activate']) ? now() : null]);
+        $flow = TorFlow::create(['organisation_id' => $data['organisation_id'], 'title' => $data['title'], 'content_html' => $data['content_html'], 'content_bard' => null, 'internal_recipients' => $recipients, 'email_copy' => $this->emailCopy($data), 'signer_fields' => $sections, 'status' => ! empty($data['activate']) ? 'active' : 'draft', 'activated_at' => ! empty($data['activate']) ? now() : null, 'signing_deadline' => $this->signingDeadline($data)]);
 
         if ($request->wantsJson()) {
             return response()->json(['redirect' => cp_route('tor-flows.show', $flow)]);
@@ -73,7 +74,7 @@ class TorFlowController
         $this->allow($request, $torFlow);
         $organisations = app(CpOperatorScope::class)->availableOrganisations($request->user());
 
-        return PublishForm::make(TorFlowBlueprint::make($organisations, editing: true))
+        return PublishForm::make(TorFlowBlueprint::make($organisations, editing: true, allowActivation: $torFlow->status === 'draft'))
             ->title('Edit TOR flow')
             ->icon('document-certificate')
             ->values([
@@ -85,6 +86,8 @@ class TorFlowController
                 'invitation_email_copy' => $torFlow->email_copy['invitation'] ?? '',
                 'signer_completion_email_copy' => $torFlow->email_copy['signer_completion'] ?? '',
                 'organisation_completion_email_copy' => $torFlow->email_copy['organisation_completion'] ?? '',
+                'activate' => $torFlow->status === 'active',
+                'signing_deadline' => $torFlow->signing_deadline?->toIso8601String(),
             ])
             ->submittingTo(cp_route('tor-flows.update', $torFlow), 'PATCH')
             ->toResponse($request);
@@ -94,11 +97,14 @@ class TorFlowController
     {
         $this->allow($request, $torFlow);
         $organisations = app(CpOperatorScope::class)->availableOrganisations($request->user());
-        $data = PublishForm::make(TorFlowBlueprint::make($organisations, editing: true))->submit($request->all());
+        $data = PublishForm::make(TorFlowBlueprint::make($organisations, editing: true, allowActivation: $torFlow->status === 'draft'))->submit($request->all());
         abort_unless(in_array((int) $data['organisation_id'], app(CpOperatorScope::class)->organisationIds($request->user()), true), 403);
         abort_if($torFlow->invitations()->exists() && (int) $data['organisation_id'] !== (int) $torFlow->organisation_id, 422, 'The company cannot change after signers have been imported.');
 
         $recipients = collect(preg_split('/[\s,;]+/', $data['internal_recipients'] ?? ''))->filter()->map(fn ($email) => strtolower($email))->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))->values()->all();
+        $activate = $torFlow->status === 'draft' && ! empty($data['activate']);
+        $deadline = $this->signingDeadline($data);
+        $reopen = $torFlow->status === 'closed' && ($deadline?->isFuture() ?? false);
         $torFlow->update([
             'organisation_id' => $data['organisation_id'],
             'title' => $data['title'],
@@ -106,6 +112,9 @@ class TorFlowController
             'internal_recipients' => $recipients,
             'email_copy' => $this->emailCopy($data),
             'signer_fields' => $this->normaliseSignerSections($data['signer_fields'] ?? []),
+            'status' => $activate || $reopen ? 'active' : $torFlow->status,
+            'activated_at' => $activate || $reopen ? ($torFlow->activated_at ?? now()) : $torFlow->activated_at,
+            'signing_deadline' => $deadline,
         ]);
 
         if ($request->wantsJson()) {
@@ -137,7 +146,7 @@ class TorFlowController
     public function import(Request $request, TorFlow $torFlow): RedirectResponse
     {
         $this->allow($request, $torFlow);
-        abort_unless($torFlow->status === 'active', 422, 'Only active TOR flows can receive signer imports.');
+        abort_unless($torFlow->acceptsSignatures(), 422, 'Set a future signing deadline before importing signers.');
         $data = $request->validate(['signers_csv' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
         $rows = $this->readSignerCsv($data['signers_csv']->getRealPath());
 
@@ -189,7 +198,7 @@ class TorFlowController
     public function send(Request $request, TorFlow $torFlow): RedirectResponse
     {
         $this->allow($request, $torFlow);
-        abort_unless($torFlow->status === 'active', 422, 'Activate the TOR flow before sending invitations.');
+        abort_unless($torFlow->acceptsSignatures(), 422, 'Set a future signing deadline before sending invitations.');
         $query = $torFlow->invitations();
         if ($request->filled('invitation')) {
             $query->whereKey($request->integer('invitation'));
@@ -206,20 +215,10 @@ class TorFlowController
         return back()->with('success', $count.' invitation(s) sent.');
     }
 
-    public function close(Request $request, TorFlow $torFlow): RedirectResponse
-    {
-        $this->allow($request, $torFlow);
-        abort_unless($torFlow->status === 'active', 422, 'Only active TOR flows can be closed.');
-        $torFlow->update(['status' => 'closed']);
-
-        return back()->with('success', 'TOR flow closed. Signers can no longer complete the agreement; you can now send the final register.');
-    }
-
     public function sendRegister(Request $request, TorFlow $torFlow, TorSignerRegisterService $register): RedirectResponse
     {
         $this->allow($request, $torFlow);
-        $final = $request->string('version')->value() === 'final';
-        abort_if($final && $torFlow->status !== 'closed', 422, 'Close the TOR flow before sending the final register.');
+        $final = $torFlow->deadlineHasPassed();
         abort_if(($torFlow->internal_recipients ?? []) === [], 422, 'Add at least one internal notification recipient to send the signer register.');
 
         $signerCount = $torFlow->invitations()->count();
@@ -233,7 +232,7 @@ class TorFlowController
     public function downloadRegister(Request $request, TorFlow $torFlow, TorSignerRegisterService $register)
     {
         $this->allow($request, $torFlow);
-        $final = $torFlow->status === 'closed';
+        $final = $torFlow->deadlineHasPassed();
 
         return response($register->csv($torFlow), 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -253,6 +252,13 @@ class TorFlowController
             'signer_completion' => $data['signer_completion_email_copy'] ?? null,
             'organisation_completion' => $data['organisation_completion_email_copy'] ?? null,
         ])->map(fn ($copy) => trim((string) $copy))->filter()->all();
+    }
+
+    private function signingDeadline(array $data): ?Carbon
+    {
+        return filled($data['signing_deadline'] ?? null)
+            ? Carbon::parse($data['signing_deadline'])
+            : null;
     }
 
     private function normaliseSignerSections(array $sections): array

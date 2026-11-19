@@ -20,7 +20,7 @@ class TorSigningService
             $invitation = TorInvitation::query()->lockForUpdate()->findOrFail($invitation->id);
             abort_if($invitation->status === 'signed', 422, 'This TOR has already been signed.');
             abort_if($invitation->status === 'revoked', 403, 'This signing link has been revoked.');
-            abort_if($invitation->flow->status !== 'active', 403, 'This TOR is not currently available for signing.');
+            abort_if(! $invitation->flow->acceptsSignatures(), 403, 'This TOR is not currently available for signing.');
 
             $signatureData = $this->signatureData($data, $signatureUpload);
             $code = hash('sha256', Str::uuid()->toString().config('app.key'));
