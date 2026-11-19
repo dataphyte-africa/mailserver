@@ -11,11 +11,11 @@
         <div>
             <p class="tor-eyebrow">TOR signing flow</p>
             <h1 class="tor-page-title">{{ $flow->title }}</h1>
-            <div class="tor-manage-meta"><span>{{ $flow->organisation->name }}</span><span aria-hidden="true">•</span><span class="tor-badge {{ $flow->acceptsSignatures() ? 'tor-badge-active' : 'tor-badge-draft' }}">{{ $flow->deadlineHasPassed() ? 'Deadline passed' : ucfirst($flow->status) }}</span><span aria-hidden="true">•</span><span>{{ $flow->signing_deadline ? 'Deadline '.$flow->signing_deadline->format('d M Y, H:i') : 'No signing deadline' }}</span><span aria-hidden="true">•</span><span>Last updated {{ $flow->updated_at?->format('d M Y, H:i') }}</span></div>
+            <div class="tor-manage-meta"><span>{{ $flow->organisation->name }}</span><span aria-hidden="true">•</span><span class="tor-badge {{ $flow->acceptsSignatures() ? 'tor-badge-active' : 'tor-badge-draft' }}">{{ $flow->deadlineHasPassed() ? 'Signing closed' : ($flow->signingHasNotOpened() ? 'Not open yet' : ucfirst($flow->status)) }}</span><span aria-hidden="true">•</span><span>{{ $flow->signing_opens_at ? 'Opens '.$flow->signing_opens_at->format('d M Y, H:i') : 'Open immediately' }}</span><span aria-hidden="true">•</span><span>{{ $flow->signing_deadline ? 'Closes '.$flow->signing_deadline->format('d M Y, H:i') : 'No closing date' }}</span><span aria-hidden="true">•</span><span>Last updated {{ $flow->updated_at?->format('d M Y, H:i') }}</span></div>
         </div>
         <div class="tor-header-actions">
             <a class="tor-secondary-button tor-edit-button" href="{{ cp_route('tor-flows.edit', $flow) }}">Edit TOR</a>
-            @if($flow->acceptsSignatures())
+            @if($flow->canInviteSigners())
                 <form method="POST" action="{{ cp_route('tor-flows.send', $flow) }}">@csrf<button class="tor-primary-button" {{ $pendingCount === 0 ? 'disabled' : '' }}>Send {{ $pendingCount ? $pendingCount.' unsent' : 'unsent' }} invitation{{ $pendingCount === 1 ? '' : 's' }}</button></form>
                 <form method="POST" action="{{ cp_route('tor-flows.signer-register', $flow) }}">@csrf<input type="hidden" name="version" value="initial"><button class="tor-secondary-button" {{ $stats['authorised'] === 0 ? 'disabled title="Import signers before sending the register"' : '' }}>Send initial CSV</button></form>
                 @if($stats['authorised'] === 0)<p class="tor-action-help">Import signers to enable delivery controls.</p>@endif
@@ -42,14 +42,14 @@
             <p class="tor-eyebrow">Step 1</p>
             <h2>Import authorised signers</h2>
             <p>Upload a CSV of people who can sign this TOR. Each signer receives their own permanent link by email immediately after import.</p>
-            <label class="tor-csv-upload"><span>Signer CSV</span><span class="tor-file-picker"><span class="tor-file-button">Choose CSV file</span><span class="tor-file-name" data-csv-file-name>No file selected</span><input class="tor-file-input" name="signers_csv" type="file" accept=".csv,text/csv" required {{ ! $flow->acceptsSignatures() ? 'disabled' : '' }}></span><small>Choose a UTF-8 <code>.csv</code> file. Required columns: <code>full_name</code>, <code>email</code>. Optional: <code>state</code>, <code>position</code>, <code>phone_number</code>.</small></label>
-            <div class="tor-import-footer"><span>{{ $flow->deadlineHasPassed() ? 'Extend the signing deadline before importing signers.' : 'Use UTF-8 CSV. Duplicate emails update the existing unsigned signer record.' }}</span><button class="tor-secondary-button" type="submit" {{ ! $flow->acceptsSignatures() ? 'disabled' : '' }}>Import signers</button></div>
+            <label class="tor-csv-upload"><span>Signer CSV</span><span class="tor-file-picker"><span class="tor-file-button">Choose CSV file</span><span class="tor-file-name" data-csv-file-name>No file selected</span><input class="tor-file-input" name="signers_csv" type="file" accept=".csv,text/csv" required {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}></span><small>Choose a UTF-8 <code>.csv</code> file. Required columns: <code>full_name</code>, <code>email</code>. Optional: <code>state</code>, <code>position</code>, <code>phone_number</code>.</small></label>
+            <div class="tor-import-footer"><span>{{ $flow->deadlineHasPassed() ? 'Extend the signing close date before importing signers.' : 'Use UTF-8 CSV. Duplicate emails update the existing unsigned signer record.' }}</span><button class="tor-secondary-button" type="submit" {{ ! $flow->canInviteSigners() ? 'disabled' : '' }}>Import signers</button></div>
         </form>
         <aside class="tor-send-card">
             <p class="tor-eyebrow">Step 2</p>
             <h2>Invitation delivery</h2>
             <p>Each valid import sends every unsigned signer their unique secure TOR link automatically. Delivery, link clicks, and completed signatures are tracked below.</p>
-            <dl class="tor-send-list"><div><dt>Signing deadline</dt><dd>{{ $flow->signing_deadline ? $flow->signing_deadline->format('d M Y, H:i') : 'No deadline' }}</dd></div><div><dt>Signing record</dt><dd>PDF + verification code</dd></div><div><dt>Completed copy</dt><dd>Signer and internal recipients</dd></div></dl>
+            <dl class="tor-send-list"><div><dt>Signing opens</dt><dd>{{ $flow->signing_opens_at ? $flow->signing_opens_at->format('d M Y, H:i') : 'Immediately' }}</dd></div><div><dt>Signing closes</dt><dd>{{ $flow->signing_deadline ? $flow->signing_deadline->format('d M Y, H:i') : 'No deadline' }}</dd></div><div><dt>Signing record</dt><dd>PDF + verification code</dd></div><div><dt>Completed copy</dt><dd>Signer and internal recipients</dd></div></dl>
         </aside>
     </section>
 

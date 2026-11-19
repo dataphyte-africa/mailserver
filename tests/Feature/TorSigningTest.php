@@ -127,9 +127,21 @@ class TorSigningTest extends TestCase
             'token' => str_repeat('e', 80),
         ]);
         $flow->update(['signing_deadline' => now()->subMinute()]);
-        $this->get(route('tor.public.show', $deadlineInvitation->token))->assertForbidden();
+        $this->get(route('tor.public.show', $deadlineInvitation->token))
+            ->assertOk()
+            ->assertSee('The signing window closed')
+            ->assertDontSee('Complete signing');
         $flow->update(['signing_deadline' => now()->addDay()]);
         $this->get(route('tor.public.show', $deadlineInvitation->token))->assertOk();
+        $flow->update(['signing_opens_at' => now()->addDay(), 'signing_deadline' => now()->addDays(2)]);
+        $this->get(route('tor.public.show', $deadlineInvitation->token))
+            ->assertOk()
+            ->assertSee('Signing opens on')
+            ->assertDontSee('Complete signing');
+        $flow->update(['signing_opens_at' => now()->subMinute()]);
+        $this->get(route('tor.public.show', $deadlineInvitation->token))
+            ->assertOk()
+            ->assertSee('Complete signing');
     }
 
     public function test_verified_bank_account_fields_are_saved_and_exported(): void

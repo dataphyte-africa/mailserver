@@ -19,14 +19,14 @@ class TorSigningController extends Controller
 {
     public function access(TorFlow $torFlow): View
     {
-        abort_unless($torFlow->acceptsSignatures(), 404);
+        abort_unless($torFlow->canInviteSigners(), 404);
 
-        return view('tor.public.access', compact('torFlow'));
+        return view('tor.public.access', ['torFlow' => $torFlow, 'signingUnavailableMessage' => $this->signingUnavailableMessage($torFlow)]);
     }
 
     public function requestAccess(TorFlow $torFlow, Request $request): RedirectResponse
     {
-        abort_unless($torFlow->acceptsSignatures(), 404);
+        abort_unless($torFlow->canInviteSigners(), 404);
         $data = $request->validate(['email' => ['required', 'email']]);
         $invitation = $torFlow->invitations()->where('email', strtolower($data['email']))->first();
 
@@ -42,12 +42,12 @@ class TorSigningController extends Controller
     {
         $invitation = TorInvitation::query()->where('token', $token)->with('flow.organisation')->firstOrFail();
         abort_if($invitation->status === 'revoked', 403, 'This signing link has been revoked.');
-        abort_if(! $invitation->isComplete() && ! $invitation->flow->acceptsSignatures(), 403, 'This TOR is no longer accepting signatures.');
+        $signingUnavailableMessage = ! $invitation->isComplete() ? $this->signingUnavailableMessage($invitation->flow) : null;
         if (! $invitation->isComplete() && $invitation->status !== 'clicked') {
             $invitation->update(['status' => 'clicked', 'clicked_at' => now(), 'delivered_at' => $invitation->delivered_at ?? now()]);
         }
 
-        return view('tor.public.sign', compact('invitation'));
+        return view('tor.public.sign', compact('invitation', 'signingUnavailableMessage'));
     }
 
     public function sign(string $token, Request $request, TorSigningService $signing): RedirectResponse
@@ -69,7 +69,7 @@ class TorSigningController extends Controller
     public function banks(string $token, PaystackAccountService $paystack): array
     {
         $invitation = TorInvitation::query()->where('token', $token)->firstOrFail();
-        abort_if($invitation->isComplete() || $invitation->status === 'revoked', 403);
+        abort_if($invitation->isComplete() || $invitation->status === 'revoked' || ! $invitation->flow->acceptsSignatures(), 403);
 
         return ['data' => $paystack->banks()];
     }
@@ -77,7 +77,7 @@ class TorSigningController extends Controller
     public function resolveBankAccount(string $token, Request $request, PaystackAccountService $paystack): array
     {
         $invitation = TorInvitation::query()->where('token', $token)->firstOrFail();
-        abort_if($invitation->isComplete() || $invitation->status === 'revoked', 403);
+        abort_if($invitation->isComplete() || $invitation->status === 'revoked' || ! $invitation->flow->acceptsSignatures(), 403);
         $data = $request->validate([
             'bank_code' => ['required', 'string', 'max:20'],
             'account_number' => ['required', 'regex:/^\\d{10}$/'],
@@ -150,5 +150,18 @@ class TorSigningController extends Controller
         }
 
         return $values;
+    }
+
+    private function signingUnavailableMessage(TorFlow $flow): ?string
+    {
+        if ($flow->signingHasNotOpened()) {
+            return 'Signing opens on '.$flow->signing_opens_at->format('d M Y, H:i').'.';
+        }
+
+        if ($flow->deadlineHasPassed()) {
+            return 'The signing window closed on '.$flow->signing_deadline->format('d M Y, H:i').'.';
+        }
+
+        return $flow->acceptsSignatures() ? null : 'This TOR is not currently accepting signatures.';
     }
 }

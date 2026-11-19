@@ -60,7 +60,7 @@ class TorFlowController
         abort_unless(in_array((int) $data['organisation_id'], app(CpOperatorScope::class)->organisationIds($request->user()), true), 403);
         $recipients = collect(preg_split('/[\s,;]+/', $data['internal_recipients'] ?? ''))->filter()->map(fn ($email) => strtolower($email))->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))->values()->all();
         $sections = $this->normaliseSignerSections($data['signer_fields'] ?? []);
-        $flow = TorFlow::create(['organisation_id' => $data['organisation_id'], 'title' => $data['title'], 'content_html' => $data['content_html'], 'content_bard' => null, 'internal_recipients' => $recipients, 'email_copy' => $this->emailCopy($data), 'signer_fields' => $sections, 'status' => ! empty($data['activate']) ? 'active' : 'draft', 'activated_at' => ! empty($data['activate']) ? now() : null, 'signing_deadline' => $this->signingDeadline($data)]);
+        $flow = TorFlow::create(['organisation_id' => $data['organisation_id'], 'title' => $data['title'], 'content_html' => $data['content_html'], 'content_bard' => null, 'internal_recipients' => $recipients, 'email_copy' => $this->emailCopy($data), 'signer_fields' => $sections, 'status' => ! empty($data['activate']) ? 'active' : 'draft', 'activated_at' => ! empty($data['activate']) ? now() : null, 'signing_opens_at' => $this->signingDate($data, 'signing_opens_at'), 'signing_deadline' => $this->signingDate($data, 'signing_deadline')]);
 
         if ($request->wantsJson()) {
             return response()->json(['redirect' => cp_route('tor-flows.show', $flow)]);
@@ -87,6 +87,7 @@ class TorFlowController
                 'signer_completion_email_copy' => $torFlow->email_copy['signer_completion'] ?? '',
                 'organisation_completion_email_copy' => $torFlow->email_copy['organisation_completion'] ?? '',
                 'activate' => $torFlow->status === 'active',
+                'signing_opens_at' => $torFlow->signing_opens_at?->toIso8601String(),
                 'signing_deadline' => $torFlow->signing_deadline?->toIso8601String(),
             ])
             ->submittingTo(cp_route('tor-flows.update', $torFlow), 'PATCH')
@@ -103,7 +104,8 @@ class TorFlowController
 
         $recipients = collect(preg_split('/[\s,;]+/', $data['internal_recipients'] ?? ''))->filter()->map(fn ($email) => strtolower($email))->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))->values()->all();
         $activate = $torFlow->status === 'draft' && ! empty($data['activate']);
-        $deadline = $this->signingDeadline($data);
+        $opensAt = $this->signingDate($data, 'signing_opens_at');
+        $deadline = $this->signingDate($data, 'signing_deadline');
         $reopen = $torFlow->status === 'closed' && ($deadline?->isFuture() ?? false);
         $torFlow->update([
             'organisation_id' => $data['organisation_id'],
@@ -114,6 +116,7 @@ class TorFlowController
             'signer_fields' => $this->normaliseSignerSections($data['signer_fields'] ?? []),
             'status' => $activate || $reopen ? 'active' : $torFlow->status,
             'activated_at' => $activate || $reopen ? ($torFlow->activated_at ?? now()) : $torFlow->activated_at,
+            'signing_opens_at' => $opensAt,
             'signing_deadline' => $deadline,
         ]);
 
@@ -146,7 +149,7 @@ class TorFlowController
     public function import(Request $request, TorFlow $torFlow): RedirectResponse
     {
         $this->allow($request, $torFlow);
-        abort_unless($torFlow->acceptsSignatures(), 422, 'Set a future signing deadline before importing signers.');
+        abort_unless($torFlow->canInviteSigners(), 422, 'Extend the signing close date before importing signers.');
         $data = $request->validate(['signers_csv' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
         $rows = $this->readSignerCsv($data['signers_csv']->getRealPath());
 
@@ -198,7 +201,7 @@ class TorFlowController
     public function send(Request $request, TorFlow $torFlow): RedirectResponse
     {
         $this->allow($request, $torFlow);
-        abort_unless($torFlow->acceptsSignatures(), 422, 'Set a future signing deadline before sending invitations.');
+        abort_unless($torFlow->canInviteSigners(), 422, 'Extend the signing close date before sending invitations.');
         $query = $torFlow->invitations();
         if ($request->filled('invitation')) {
             $query->whereKey($request->integer('invitation'));
@@ -254,10 +257,10 @@ class TorFlowController
         ])->map(fn ($copy) => trim((string) $copy))->filter()->all();
     }
 
-    private function signingDeadline(array $data): ?Carbon
+    private function signingDate(array $data, string $key): ?Carbon
     {
-        return filled($data['signing_deadline'] ?? null)
-            ? Carbon::parse($data['signing_deadline'])
+        return filled($data[$key] ?? null)
+            ? Carbon::parse($data[$key])
             : null;
     }
 
