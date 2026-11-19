@@ -41,7 +41,10 @@ class TorCompletedMail extends Mailable
 
     public function attachments(): array
     {
-        $filename = $this->copyType === 'organisation' ? 'organisation-tor-copy.pdf' : 'signer-original-tor.pdf';
+        $filename = app(TorPublicUrlService::class)->signedCopyFilename(
+            $this->invitation,
+            $this->copyType === 'organisation',
+        );
 
         return [Attachment::fromStorageDisk('local', $this->invitation->signed_pdf_path)->as($filename)->withMime('application/pdf')];
     }

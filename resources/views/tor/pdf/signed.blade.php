@@ -14,7 +14,8 @@ article p{margin:0 0 7px}article h2{font-size:14.5pt;line-height:1.16;margin:14p
 @foreach($invitation->flow->signerSections() as $section)
 <h3>{{ $section['heading'] }}</h3>
 @foreach($section['fields'] as $field)
-<p><strong>{{ $field['label'] }}:</strong> {{ ($invitation->signer_field_values ?? [])[$field['handle']] ?? '—' }}</p>
+@php($value = ($invitation->signer_field_values ?? [])[$field['handle']] ?? null)
+<p><strong>{{ $field['label'] }}:</strong> @if(is_array($value)){{ collect(['Bank' => $value['bank_name'] ?? null, 'Account number' => $value['account_number'] ?? null, 'Account name' => $value['account_name'] ?? null])->filter()->map(fn ($item, $label) => $label.': '.$item)->implode(' · ') ?: '—' }}@elseif($field['type'] === 'checkbox'){{ $value ? 'Yes' : 'No' }}@else{{ $value ?? '—' }}@endif</p>
 @endforeach
 @endforeach
 <p><strong>Signature</strong></p>@if($invitation->signature_method === 'snap')<img class="signature" src="{{ storage_path('app/private/'.$invitation->signature_data) }}">@elseif($invitation->signature_method === 'draw')<img class="signature" src="{{ $invitation->signature_data }}">@else<p style="font-family:cursive;font-size:24pt">{{ $invitation->signer_name }}</p>@endif</section>

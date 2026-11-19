@@ -47,6 +47,9 @@ class TorFlowBlueprint
                         'sections' => [[
                             'fields' => [
                                 self::field('internal_recipients', ['type' => 'text', 'display' => 'Internal notification recipients', 'instructions' => 'Comma-separated addresses that receive each completed signed PDF.']),
+                                self::field('invitation_email_copy', self::emailCopyField('Invitation email copy', 'Optional message shown after the greeting. Use :full_name, :organisation_name, and :tor_title. The secure signing button remains automatic.', ':organisation_name has invited you to read and sign :tor_title.')),
+                                self::field('signer_completion_email_copy', self::emailCopyField('Signer completion email copy', 'Optional message shown after the greeting when the signer completes. Use :full_name, :organisation_name, and :tor_title. The original-copy button remains automatic.', 'You have just completed the signing of :tor_title.')),
+                                self::field('organisation_completion_email_copy', self::emailCopyField('Organisation completion email copy', 'Optional alert message when a signer completes. Use :full_name, :organisation_name, and :tor_title. The organisation-copy button remains automatic.', ':full_name has just completed the signing of :tor_title.')),
                                 ...($editing ? [] : [self::field('activate', ['type' => 'toggle', 'display' => 'Activate now and prepare invitations', 'instructions' => 'You can import signers after saving.', 'default' => false])]),
                             ],
                         ]],
@@ -81,6 +84,7 @@ class TorFlowBlueprint
                                 'textarea' => self::inputSet('Long text', 'A multi-line response.'),
                                 'date' => self::inputSet('Date', 'A date selected by the signer.'),
                                 'checkbox' => self::inputSet('Acknowledgement checkbox', 'An acknowledgement the signer can confirm.'),
+                                'bank_account' => self::inputSet('Verified bank account', 'A bank, account number and account name verified through Paystack.'),
                             ],
                         ]),
                     ],
@@ -101,6 +105,11 @@ class TorFlowBlueprint
                 self::field('required', ['type' => 'toggle', 'display' => 'Required', 'default' => false]),
             ],
         ];
+    }
+
+    private static function emailCopyField(string $display, string $instructions, string $default): array
+    {
+        return ['type' => 'textarea', 'display' => $display, 'instructions' => $instructions, 'default' => $default, 'placeholder' => $default, 'validate' => ['nullable', 'max:5000']];
     }
 
     private static function field(string $handle, array $field): array

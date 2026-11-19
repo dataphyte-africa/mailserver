@@ -29,6 +29,8 @@ Route::prefix('tor')->name('tor.public.')->group(function () {
     Route::get('/{torFlow}/access', [TorSigningController::class, 'access'])->whereNumber('torFlow')->name('access');
     Route::post('/{torFlow}/access', [TorSigningController::class, 'requestAccess'])->whereNumber('torFlow')->middleware('throttle:5,10')->name('access.request');
     Route::get('/sign/{token}', [TorSigningController::class, 'show'])->middleware('throttle:60,1')->name('show');
+    Route::get('/sign/{token}/banks', [TorSigningController::class, 'banks'])->middleware('throttle:30,1')->name('banks');
+    Route::post('/sign/{token}/resolve-bank-account', [TorSigningController::class, 'resolveBankAccount'])->middleware('throttle:10,1')->name('resolve-bank-account');
     Route::post('/sign/{token}', [TorSigningController::class, 'sign'])->middleware('throttle:10,1')->name('sign');
     Route::get('/sign/{token}/download', [TorSigningController::class, 'download'])->middleware('throttle:30,1')->name('download');
 });

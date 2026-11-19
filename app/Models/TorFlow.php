@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TorFlow extends Model
 {
-    protected $fillable = ['organisation_id', 'title', 'content_html', 'content_bard', 'internal_recipients', 'signer_fields', 'status', 'activated_at'];
+    protected $fillable = ['organisation_id', 'title', 'content_html', 'content_bard', 'internal_recipients', 'email_copy', 'signer_fields', 'status', 'activated_at'];
 
-    protected $casts = ['content_bard' => 'array', 'internal_recipients' => 'array', 'signer_fields' => 'array', 'activated_at' => 'datetime'];
+    protected $casts = ['content_bard' => 'array', 'internal_recipients' => 'array', 'email_copy' => 'array', 'signer_fields' => 'array', 'activated_at' => 'datetime'];
 
     public function organisation(): BelongsTo
     {

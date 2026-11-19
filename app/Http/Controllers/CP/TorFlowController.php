@@ -59,7 +59,7 @@ class TorFlowController
         abort_unless(in_array((int) $data['organisation_id'], app(CpOperatorScope::class)->organisationIds($request->user()), true), 403);
         $recipients = collect(preg_split('/[\s,;]+/', $data['internal_recipients'] ?? ''))->filter()->map(fn ($email) => strtolower($email))->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))->values()->all();
         $sections = $this->normaliseSignerSections($data['signer_fields'] ?? []);
-        $flow = TorFlow::create(['organisation_id' => $data['organisation_id'], 'title' => $data['title'], 'content_html' => $data['content_html'], 'content_bard' => null, 'internal_recipients' => $recipients, 'signer_fields' => $sections, 'status' => ! empty($data['activate']) ? 'active' : 'draft', 'activated_at' => ! empty($data['activate']) ? now() : null]);
+        $flow = TorFlow::create(['organisation_id' => $data['organisation_id'], 'title' => $data['title'], 'content_html' => $data['content_html'], 'content_bard' => null, 'internal_recipients' => $recipients, 'email_copy' => $this->emailCopy($data), 'signer_fields' => $sections, 'status' => ! empty($data['activate']) ? 'active' : 'draft', 'activated_at' => ! empty($data['activate']) ? now() : null]);
 
         if ($request->wantsJson()) {
             return response()->json(['redirect' => cp_route('tor-flows.show', $flow)]);
@@ -82,6 +82,9 @@ class TorFlowController
                 'content_html' => $torFlow->content_html,
                 'signer_fields' => $torFlow->signerSections(),
                 'internal_recipients' => implode(', ', $torFlow->internal_recipients ?? []),
+                'invitation_email_copy' => $torFlow->email_copy['invitation'] ?? '',
+                'signer_completion_email_copy' => $torFlow->email_copy['signer_completion'] ?? '',
+                'organisation_completion_email_copy' => $torFlow->email_copy['organisation_completion'] ?? '',
             ])
             ->submittingTo(cp_route('tor-flows.update', $torFlow), 'PATCH')
             ->toResponse($request);
@@ -101,6 +104,7 @@ class TorFlowController
             'title' => $data['title'],
             'content_html' => $data['content_html'],
             'internal_recipients' => $recipients,
+            'email_copy' => $this->emailCopy($data),
             'signer_fields' => $this->normaliseSignerSections($data['signer_fields'] ?? []),
         ]);
 
@@ -242,13 +246,22 @@ class TorFlowController
         abort_unless(in_array((int) $flow->organisation_id, app(CpOperatorScope::class)->organisationIds($request->user()), true), 403);
     }
 
+    private function emailCopy(array $data): array
+    {
+        return collect([
+            'invitation' => $data['invitation_email_copy'] ?? null,
+            'signer_completion' => $data['signer_completion_email_copy'] ?? null,
+            'organisation_completion' => $data['organisation_completion_email_copy'] ?? null,
+        ])->map(fn ($copy) => trim((string) $copy))->filter()->all();
+    }
+
     private function normaliseSignerSections(array $sections): array
     {
         return collect($sections)
             ->filter(fn (array $section) => ($section['type'] ?? null) === 'section' && filled($section['heading'] ?? null))
             ->map(function (array $section): array {
                 $fields = collect($section['fields'] ?? [])
-                    ->filter(fn (array $field) => in_array($field['type'] ?? null, ['text', 'textarea', 'date', 'checkbox'], true) && filled($field['label'] ?? null))
+                    ->filter(fn (array $field) => in_array($field['type'] ?? null, ['text', 'textarea', 'date', 'checkbox', 'bank_account'], true) && filled($field['label'] ?? null))
                     ->map(fn (array $field): array => [
                         'handle' => filled($field['handle'] ?? null) && preg_match('/^[a-z0-9_]+$/', $field['handle'])
                             ? $field['handle']
