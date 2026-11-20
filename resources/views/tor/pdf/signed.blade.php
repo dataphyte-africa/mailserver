@@ -10,7 +10,7 @@ article p{margin:0 0 7px}article h2{font-size:14.5pt;line-height:1.16;margin:14p
 <div class="footer">{{ $invitation->flow->title }} <span style="float:right">Page <span class="page"></span></span></div>
 <article>{!! $invitation->flow->content_html !!}</article>
 <div class="certificate-page-break"></div>
-<section class="certificate"><h1>Term Of Reference Signing Record</h1><p><strong>{{ $organisation->name }}</strong></p><p>I, <strong>{{ $invitation->signer_name }}</strong>, confirm that I have read and agreed to all terms listed in <strong>{{ $invitation->flow->title }}</strong>.</p><p><strong>Signer name:</strong> {{ $invitation->signer_name }}<br><strong>Email:</strong> {{ $invitation->email }}<br><strong>Signed:</strong> {{ $invitation->signed_at?->format('d M Y, H:i T') }}<br><strong>Verification code:</strong> {{ $invitation->verification_code }}</p>
+<section class="certificate"><h1>Term Of Reference Signing Record</h1><p>I, <strong>{{ $invitation->signer_name }}</strong>, confirm that I have read and agreed to all terms listed in <strong>{{ $invitation->flow->title }}</strong>.</p><p><strong>Signer name:</strong> {{ $invitation->signer_name }}<br><strong>Email:</strong> {{ $invitation->email }}<br><strong>Signed:</strong> {{ $invitation->signed_at?->format('d M Y, H:i T') }}<br><strong>Verification code:</strong> {{ $invitation->verification_code }}</p>
 @foreach($invitation->flow->signerSections() as $section)
 <h3>{{ $section['heading'] }}</h3>
 @foreach($section['fields'] as $field)

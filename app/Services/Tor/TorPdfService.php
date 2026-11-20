@@ -18,9 +18,12 @@ class TorPdfService
         $organisation = $invitation->flow->organisation;
         $firstOffice = $organisation->publicAddresses()[0] ?? [];
         $address = trim((string) ($firstOffice['address'] ?? ''));
-        $logoPath = $organisation->logo_path
-            ? public_path('storage/'.ltrim($organisation->logo_path, '/'))
-            : null;
+        $logoPath = null;
+        if (filled($organisation->logo_path) && Storage::disk('public')->exists($organisation->logo_path)) {
+            // Dompdf needs a readable filesystem path. Do not depend on the
+            // public storage symlink being present on the production server.
+            $logoPath = Storage::disk('public')->path($organisation->logo_path);
+        }
 
         $dompdf->getCanvas()->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($organisation, $address, $logoPath): void {
             $font = $fontMetrics->getFont('DejaVu Sans', 'normal');
